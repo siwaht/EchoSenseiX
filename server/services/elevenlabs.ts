@@ -202,7 +202,7 @@ class ElevenLabsService {
     return result.data.recording_enabled === true || result.data.has_recording === true;
   }
 
-  async getConversationAudio(conversationId: string): Promise<Buffer | null> {
+  async getConversationAudio(conversationId: string): Promise<{ buffer: Buffer | null; error?: string; notFound?: boolean }> {
     try {
       const url = `${this.config.baseUrl}/v1/convai/conversations/${conversationId}/audio`;
       const response = await fetch(url, {
@@ -214,17 +214,18 @@ class ElevenLabsService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          console.log(`No audio available for conversation ${conversationId}`);
-          return null;
+          console.log(`No audio available for conversation ${conversationId} (404)`);
+          return { buffer: null, notFound: true };
         }
         throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      return { buffer: Buffer.from(arrayBuffer) };
     } catch (error: any) {
       console.error(`Error fetching conversation audio for ${conversationId}:`, error.message);
-      return null;
+      // Propagate non-404 errors so they can be handled as failures (not unavailable)
+      return { buffer: null, error: error.message };
     }
   }
 
@@ -240,22 +241,32 @@ class ElevenLabsService {
 
       // Directly attempt to fetch the audio - the API will tell us if it doesn't exist
       console.log(`[FETCH-STORE-AUDIO] Step 1: Downloading audio from ElevenLabs...`);
-      const audioBuffer = await this.getConversationAudio(conversationId);
+      const audioResult = await this.getConversationAudio(conversationId);
       
-      if (!audioBuffer) {
-        console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not available (404 or error), updating status to 'unavailable'`);
-        await storage.updateCallAudioStatus(callId, organizationId, {
-          audioFetchStatus: 'unavailable',
-          audioFetchedAt: new Date(),
-        });
-        return { success: false, error: 'Audio not available for this conversation' };
+      if (!audioResult.buffer) {
+        // Distinguish between 404 (unavailable) and other errors (failed)
+        if (audioResult.notFound) {
+          console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not found (404), updating status to 'unavailable'`);
+          await storage.updateCallAudioStatus(callId, organizationId, {
+            audioFetchStatus: 'unavailable',
+            audioFetchedAt: new Date(),
+          });
+          return { success: false, error: 'Audio not available for this conversation' };
+        } else {
+          console.log(`[FETCH-STORE-AUDIO] Step 1: API error - ${audioResult.error}, updating status to 'failed'`);
+          await storage.updateCallAudioStatus(callId, organizationId, {
+            audioFetchStatus: 'failed',
+            audioFetchedAt: new Date(),
+          });
+          return { success: false, error: `Failed to fetch audio: ${audioResult.error}` };
+        }
       }
 
-      console.log(`[FETCH-STORE-AUDIO] Step 1: Successfully downloaded ${audioBuffer.length} bytes`);
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Successfully downloaded ${audioResult.buffer.length} bytes`);
 
       // Store the audio
       console.log(`[FETCH-STORE-AUDIO] Step 2: Uploading audio to local storage...`);
-      const { storageKey } = await audioStorageService.uploadAudio(conversationId, audioBuffer, {
+      const { storageKey } = await audioStorageService.uploadAudio(conversationId, audioResult.buffer, {
         callId,
         organizationId,
       });
