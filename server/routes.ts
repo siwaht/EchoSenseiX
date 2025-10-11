@@ -3390,12 +3390,21 @@ Generate the complete prompt now:`;
       }
 
 
-          // Get agents filtered by user permissions using the new access control
+          // Check if ElevenLabs integration exists
+      const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
+      
+      // If admin with integration, always return fresh data from database (no cache issues)
+      if (user.isAdmin && integration && integration.apiKey) {
+        // Admin users always see fresh agent data from database
+        const agents = await storage.getAgentsForUser(userId, user.organizationId);
+        return res.json(agents);
+      }
+      
+      // For non-admin users, use standard flow
       const userAgents = await storage.getAgentsForUser(userId, user.organizationId);
       
-      // Only sync with ElevenLabs if user has access to agents AND is an admin
-      const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-      if (integration && integration.apiKey && userAgents.length > 0 && user.isAdmin) {
+      // Legacy sync logic (kept for compatibility but not used for admins anymore)
+      if (integration && integration.apiKey && false && user.isAdmin) {
         const decryptedKey = decryptApiKey(integration.apiKey);
         
         try {
