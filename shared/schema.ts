@@ -467,6 +467,16 @@ export const callLogs = pgTable("call_logs", {
   audioUrl: varchar("audio_url"),
   cost: decimal("cost", { precision: 10, scale: 4 }),
   status: varchar("status"), // completed, failed, in_progress
+  summary: text("summary"), // AI-generated call summary
+  summaryGeneratedAt: timestamp("summary_generated_at"), // When summary was created
+  summaryStatus: varchar("summary_status"), // pending | success | failed | null
+  summaryMetadata: json("summary_metadata").$type<{
+    provider?: string;
+    model?: string;
+    tokens?: number;
+    cost?: number;
+    promptVersion?: string;
+  }>(), // Summary generation metadata
   createdAt: timestamp("created_at").defaultNow(),
 });
 
