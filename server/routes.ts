@@ -6048,7 +6048,7 @@ Generate the complete prompt now:`;
   });
 
   // Batch generate summaries for all calls with transcripts
-  app.post("/api/jobs/generate-all-summaries", isAuthenticated, checkPermission('manage_organization'), async (req: any, res) => {
+  app.post("/api/jobs/generate-all-summaries", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
@@ -6286,8 +6286,8 @@ Generate the complete prompt now:`;
     }
   });
 
-  // POST /api/jobs/fetch-missing-audio - Admin batch fetch for all pending recordings
-  app.post("/api/jobs/fetch-missing-audio", isAuthenticated, async (req: any, res) => {
+  // POST /api/jobs/fetch-missing-audio - Batch fetch for all pending recordings
+  app.post("/api/jobs/fetch-missing-audio", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
