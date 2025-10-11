@@ -79,6 +79,9 @@ Preferred communication style: Simple, everyday language.
   - Summaries auto-generate during sync for new calls
   - UI displays summary previews in History table with status badges
 - **Call Recordings (Oct 11, 2025):**
+  - **CRITICAL FIX:** Removed unreliable `hasConversationAudio()` pre-check that was causing all recordings to be marked as unavailable
+  - **Root Cause:** ElevenLabs API doesn't return `recording_enabled` or `has_recording` fields, causing false negatives
+  - **Solution:** Direct audio fetch from `/v1/convai/conversations/{id}/audio` endpoint with proper error handling
   - **Automatic Recording Sync:** Recordings now fetch automatically during sync for all new and updated calls
   - Sync process checks for missing audioStorageKey and fetches from ElevenLabs API
   - Non-blocking async fetch with comprehensive error logging (doesn't fail sync if recording unavailable)
