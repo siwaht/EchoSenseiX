@@ -19,6 +19,7 @@ import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
 import KnowledgeBaseService from "./services/knowledge-base-service";
 import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
+import SummaryService from "./services/summary-service";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -5987,6 +5988,62 @@ Generate the complete prompt now:`;
     } catch (error) {
       console.error("Error fetching call log:", error);
       res.status(500).json({ message: "Failed to fetch call log" });
+    }
+  });
+
+  // Generate call summary using Mistral AI
+  app.post("/api/call-logs/:id/summary", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Load call log and validate organization
+      const callLog = await storage.getCallLog(req.params.id, user.organizationId);
+      if (!callLog) {
+        return res.status(404).json({ message: "Call log not found" });
+      }
+
+      // Check if summary already exists and is successful (idempotent)
+      if (callLog.summary && callLog.summaryStatus === 'success') {
+        return res.json({
+          summary: callLog.summary,
+          status: callLog.summaryStatus,
+          generatedAt: callLog.summaryGeneratedAt,
+          metadata: callLog.summaryMetadata,
+          cached: true
+        });
+      }
+
+      // Generate summary using Mistral AI
+      const result = await SummaryService.generateCallSummary(callLog);
+
+      // Update call log with summary results
+      const updatedCallLog = await storage.updateCallLogSummary(
+        callLog.id,
+        user.organizationId,
+        result.summary,
+        result.status,
+        result.metadata
+      );
+
+      // Return summary response
+      res.json({
+        summary: updatedCallLog.summary,
+        status: updatedCallLog.summaryStatus,
+        generatedAt: updatedCallLog.summaryGeneratedAt,
+        metadata: updatedCallLog.summaryMetadata,
+        error: result.error,
+        cached: false
+      });
+    } catch (error: any) {
+      console.error("Error generating call summary:", error);
+      res.status(500).json({ 
+        message: "Failed to generate call summary",
+        error: error.message 
+      });
     }
   });
 

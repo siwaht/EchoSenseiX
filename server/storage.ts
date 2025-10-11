@@ -165,6 +165,7 @@ export interface IStorage {
   getCallLogByConversationId(organizationId: string, conversationId: string): Promise<CallLog | undefined>;
   createCallLog(callLog: InsertCallLog & { createdAt?: Date }): Promise<CallLog>;
   updateCallLog(id: string, organizationId: string, updates: Partial<InsertCallLog>): Promise<CallLog>;
+  updateCallLogSummary(id: string, organizationId: string, summary: string, status: string, metadata: any): Promise<CallLog>;
 
   // Phone number operations
   getPhoneNumbers(organizationId: string): Promise<PhoneNumber[]>;
@@ -948,6 +949,20 @@ export class DatabaseStorage implements IStorage {
     const [callLog] = await db()
       .update(callLogs)
       .set(updates)
+      .where(and(eq(callLogs.id, id), eq(callLogs.organizationId, organizationId)))
+      .returning();
+    return callLog;
+  }
+
+  async updateCallLogSummary(id: string, organizationId: string, summary: string, status: string, metadata: any): Promise<CallLog> {
+    const [callLog] = await db()
+      .update(callLogs)
+      .set({
+        summary,
+        summaryStatus: status,
+        summaryMetadata: metadata,
+        summaryGeneratedAt: new Date(),
+      })
       .where(and(eq(callLogs.id, id), eq(callLogs.organizationId, organizationId)))
       .returning();
     return callLog;

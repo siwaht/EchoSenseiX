@@ -2,9 +2,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Bot } from "lucide-react";
+import { Bot, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
 import type { CallLog } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface CallDetailModalProps {
   callLog: CallLog | null;
@@ -13,6 +16,32 @@ interface CallDetailModalProps {
 }
 
 export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModalProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Summary generation mutation
+  const generateSummaryMutation = useMutation({
+    mutationFn: (callLogId: string) => apiRequest("POST", `/api/call-logs/${callLogId}/summary`) as Promise<any>,
+    onSuccess: (data: any) => {
+      toast({
+        title: "Summary Generated",
+        description: data.cached 
+          ? "Summary retrieved from cache" 
+          : "AI summary generated successfully",
+      });
+      // Invalidate call logs cache to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/call-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/call-logs", callLog?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Summary Generation Failed",
+        description: error.message || "Failed to generate summary",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!callLog) return null;
 
   const formatDuration = (seconds: number | null) => {
@@ -91,6 +120,93 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
               </div>
             )}
           </div>
+        </div>
+
+        {/* AI Summary Section */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              AI Summary
+            </h4>
+            {callLog.summaryStatus === 'success' && (
+              <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" data-testid="badge-summary-status">
+                Generated
+              </Badge>
+            )}
+            {callLog.summaryStatus === 'failed' && (
+              <Badge className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200" data-testid="badge-summary-status">
+                Failed
+              </Badge>
+            )}
+          </div>
+          
+          {!callLog.summary && !generateSummaryMutation.isPending && (
+            <Card className="p-4 sm:p-6 text-center bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-dashed border-purple-200 dark:border-purple-800">
+              <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-purple-500 dark:text-purple-400 mb-3" />
+              <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
+                Generate AI Summary
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Get an AI-powered summary of this call including outcome, intent, key topics, and action items.
+              </p>
+              <Button
+                onClick={() => generateSummaryMutation.mutate(callLog.id)}
+                disabled={!callLog.transcript || generateSummaryMutation.isPending}
+                className="flex items-center gap-2"
+                data-testid="button-generate-summary"
+              >
+                <Sparkles className="w-4 h-4" />
+                {!callLog.transcript ? "No Transcript Available" : "Generate Summary"}
+              </Button>
+            </Card>
+          )}
+
+          {generateSummaryMutation.isPending && (
+            <Card className="p-4 sm:p-6 text-center">
+              <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-blue-500 dark:text-blue-400 mb-3 animate-spin" />
+              <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
+                Generating Summary...
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                AI is analyzing the call transcript. This may take a few moments.
+              </p>
+            </Card>
+          )}
+
+          {callLog.summary && (
+            <Card className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700">
+              <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="text-call-summary">
+                <div className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
+                  {callLog.summary}
+                </div>
+              </div>
+              {callLog.summaryGeneratedAt && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Generated: {new Date(callLog.summaryGeneratedAt).toLocaleString()}</span>
+                  {callLog.summaryMetadata && (
+                    <div className="flex gap-3">
+                      {(callLog.summaryMetadata as any).model && (
+                        <span>Model: {(callLog.summaryMetadata as any).model}</span>
+                      )}
+                      {(callLog.summaryMetadata as any).tokens && (
+                        <span>Tokens: {(callLog.summaryMetadata as any).tokens}</span>
+                      )}
+                      {(callLog.summaryMetadata as any).cost && (
+                        <span>Cost: ${Number((callLog.summaryMetadata as any).cost).toFixed(4)}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {callLog.summaryStatus === 'failed' && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Summary generation failed. Click "Generate Summary" to retry.</span>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
         {/* Call Recording with Professional Audio Player */}
