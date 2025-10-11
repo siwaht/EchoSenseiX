@@ -30,6 +30,7 @@ const Playground = lazy(() => import("@/pages/playground"));
 const PhoneNumbers = lazy(() => import("@/pages/phone-numbers"));
 const OutboundCalling = lazy(() => import("@/pages/outbound-calling"));
 const Tools = lazy(() => import("@/pages/tools"));
+const KnowledgeBase = lazy(() => import("@/pages/knowledge-base"));
 const AgentSettings = lazy(() => import("@/pages/agent-settings"));
 const AgentTesting = lazy(() => import("@/pages/agent-testing"));
 const WhitelabelSettings = lazy(() => import("@/pages/whitelabel-settings"));
@@ -112,6 +113,9 @@ function AgencyRouter() {
           </Route>
           <Route path="/agency/:subdomain/tools">
             <PermissionGuard><Tools /></PermissionGuard>
+          </Route>
+          <Route path="/agency/:subdomain/knowledge-base">
+            <PermissionGuard><KnowledgeBase /></PermissionGuard>
           </Route>
           <Route path="/agency/:subdomain/playground">
             <PermissionGuard><Playground /></PermissionGuard>
@@ -206,6 +210,9 @@ function Router() {
           </Route>
           <Route path="/tools">
             <PermissionGuard><Tools /></PermissionGuard>
+          </Route>
+          <Route path="/knowledge-base">
+            <PermissionGuard><KnowledgeBase /></PermissionGuard>
           </Route>
           <Route path="/playground">
             <PermissionGuard><Playground /></PermissionGuard>
