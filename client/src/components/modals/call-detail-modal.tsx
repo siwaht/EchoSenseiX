@@ -1,0 +1,278 @@
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Bot } from "lucide-react";
+import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
+import type { CallLog } from "@shared/schema";
+
+interface CallDetailModalProps {
+  callLog: CallLog | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModalProps) {
+  if (!callLog) return null;
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "N/A";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
+      case "failed":
+        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
+      case "in_progress":
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
+      default:
+        return "bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200";
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base sm:text-lg" data-testid="text-modal-title">
+            Call Details #{callLog.id.slice(-6)}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            View detailed information about this voice agent call including transcript, duration, and status.
+          </DialogDescription>
+        </DialogHeader>
+        
+        {/* Call Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Agent:</span>
+              <p className="text-sm text-gray-900 dark:text-white" data-testid="text-call-agent">
+                Agent ID: {callLog.agentId}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Duration:</span>
+              <p className="text-sm text-gray-900 dark:text-white" data-testid="text-call-duration">
+                {formatDuration(callLog.duration)}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status:</span>
+              <Badge className={getStatusColor(callLog.status || 'unknown')} data-testid="badge-call-status">
+                {callLog.status || 'unknown'}
+              </Badge>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Timestamp:</span>
+              <p className="text-sm text-gray-900 dark:text-white" data-testid="text-call-timestamp">
+                {callLog.createdAt ? new Date(callLog.createdAt).toLocaleString() : "Unknown"}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Cost:</span>
+              <p className="text-sm text-gray-900 dark:text-white" data-testid="text-call-cost">
+                ${callLog.cost ? Number(callLog.cost).toFixed(4) : "N/A"}
+              </p>
+            </div>
+            {callLog.elevenLabsCallId && (
+              <div>
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Call ID:</span>
+                <p className="text-sm text-gray-900 dark:text-white font-mono" data-testid="text-call-id">
+                  {callLog.elevenLabsCallId}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Call Recording with Professional Audio Player */}
+        {callLog.audioUrl && (
+          <div className="mb-4 sm:mb-6">
+            <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Call Recording</h4>
+            <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700">
+              <div className="space-y-3 sm:space-y-4">
+                {/* Waveform Visualization */}
+                <div className="h-12 sm:h-16 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex items-end gap-0.5 sm:gap-1 h-8 sm:h-12">
+                      {Array.from({ length: 30 }, (_, i) => (
+                        <div
+                          key={i}
+                          className="bg-blue-500 dark:bg-blue-400 opacity-70 hover:opacity-100 transition-opacity"
+                          style={{
+                            width: '2px',
+                            height: `${Math.random() * 35 + 8}px`,
+                            borderRadius: '1px'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="absolute bottom-1 sm:bottom-2 left-2 sm:left-4 text-[10px] sm:text-xs text-blue-600 dark:text-blue-300 font-medium">
+                    Audio Waveform
+                  </div>
+                </div>
+                
+                {/* Audio Controls */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                  <audio controls className="w-full sm:flex-1 sm:max-w-md" data-testid="audio-call-recording">
+                    <source src={callLog.audioUrl} type="audio/mpeg" />
+                    <source src={callLog.audioUrl} type="audio/wav" />
+                    <source src={callLog.audioUrl} type="audio/mp4" />
+                    Your browser does not support the audio element.
+                  </audio>
+                  
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="block sm:inline">Duration: {callLog.duration ? `${Math.floor(callLog.duration / 60)}:${String(callLog.duration % 60).padStart(2, '0')}` : 'N/A'}</span>
+                    <a
+                      href={callLog.audioUrl}
+                      download={`call-recording-${callLog.elevenLabsCallId}.mp3`}
+                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
+                      data-testid="link-download-recording"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download
+                    </a>
+                  </div>
+                </div>
+                
+                {/* Recording Info */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
+                  <span>High-quality audio recording</span>
+                  <span>Encrypted & secure storage</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Transcript */}
+        {callLog.transcript && (
+          <div>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Call Transcript</h4>
+              <SentimentIndicator transcript={callLog.transcript} showDetails={false} />
+            </div>
+            <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 max-h-48 sm:max-h-64 overflow-y-auto">
+              <div className="space-y-3" data-testid="text-call-transcript">
+                {(() => {
+                  try {
+                    let transcript = callLog.transcript;
+                    let conversationTurns = [];
+                    
+                    // Check if transcript is already an array
+                    if (Array.isArray(transcript)) {
+                      conversationTurns = transcript;
+                    } else if (typeof transcript === 'string') {
+                      // Try to parse as JSON
+                      try {
+                        const parsed = JSON.parse(transcript);
+                        if (Array.isArray(parsed)) {
+                          conversationTurns = parsed;
+                        }
+                      } catch (e) {
+                        // If parsing fails, treat as a single message
+                        conversationTurns = [{ role: 'system', message: transcript }];
+                      }
+                    } else if (typeof transcript === 'object' && transcript !== null) {
+                      // If it's an object, try to extract conversation turns
+                      conversationTurns = Object.values(transcript);
+                    }
+                    
+                    // Filter out empty messages and ensure proper structure
+                    conversationTurns = conversationTurns.filter((turn: any) => 
+                      turn && turn.message && turn.message.trim()
+                    );
+                    
+                    // Sort by timestamp to maintain conversation order
+                    conversationTurns.sort((a: any, b: any) => (a.time_in_call_secs || 0) - (b.time_in_call_secs || 0));
+                    
+                    // Render professional conversation
+                    if (conversationTurns.length > 0) {
+                      return (
+                        <div className="space-y-3 sm:space-y-4">
+                          {conversationTurns.map((turn, index) => (
+                            <div key={index} className={`flex ${
+                              turn.role === 'agent' ? 'justify-start' : 'justify-end'
+                            }`}>
+                              <div className={`max-w-[85%] sm:max-w-[75%] ${
+                                turn.role === 'agent' ? 'mr-2 sm:mr-8' : 'ml-2 sm:ml-8'
+                              }`}>
+                                <div className={`px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm ${
+                                  turn.role === 'agent' 
+                                    ? 'bg-blue-500 text-white' 
+                                    : 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white'
+                                }`}>
+                                  <p className="text-xs sm:text-sm leading-relaxed">
+                                    {turn.message}
+                                  </p>
+                                </div>
+                                <div className={`flex items-center gap-1 sm:gap-2 mt-1 text-[10px] sm:text-xs text-gray-500 ${
+                                  turn.role === 'agent' ? 'justify-start' : 'justify-end'
+                                }`}>
+                                  <span className="font-medium">
+                                    {turn.role === 'agent' ? 'AI Agent' : 'Customer'}
+                                  </span>
+                                  {turn.time_in_call_secs !== undefined && (
+                                    <span>
+                                      {Math.floor(turn.time_in_call_secs / 60)}:{String(turn.time_in_call_secs % 60).padStart(2, '0')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    
+                    // No conversation data available
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No conversation transcript available</p>
+                      </div>
+                    );
+                  } catch (e) {
+                    return (
+                      <div className="text-center py-8 text-red-500">
+                        <p>Unable to load conversation transcript</p>
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {!callLog.transcript && !callLog.audioUrl && (
+          <Card className="p-6 sm:p-8 text-center">
+            <Bot className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2" data-testid="text-no-data-title">
+              No additional data available
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400" data-testid="text-no-data-description">
+              This call log contains basic information only. Audio and transcript data may be available for newer calls.
+            </p>
+          </Card>
+        )}
+
+        <div className="mt-4 sm:mt-6 flex justify-end">
+          <Button onClick={() => onOpenChange(false)} className="w-full sm:w-auto" data-testid="button-close-modal">
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
