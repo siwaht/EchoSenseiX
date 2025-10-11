@@ -110,11 +110,29 @@ export class SyncService {
             // Continue with list data
           }
 
+          // Look up the local agent using the ElevenLabs agent ID
+          const elevenLabsAgentId = detailedConversation.agent_id || agentId;
+          let localAgentId = null;
+          
+          if (elevenLabsAgentId) {
+            try {
+              const localAgent = await storage.getAgentByElevenLabsId(elevenLabsAgentId, organizationId);
+              if (localAgent) {
+                localAgentId = localAgent.id;
+                console.log(`[SYNC] Mapped ElevenLabs agent ${elevenLabsAgentId} to local agent ${localAgentId}`);
+              } else {
+                console.warn(`[SYNC] No local agent found for ElevenLabs agent ID: ${elevenLabsAgentId}. Call log will be created without agent reference.`);
+              }
+            } catch (agentLookupError: any) {
+              console.warn(`[SYNC] Failed to lookup local agent for ${elevenLabsAgentId}:`, agentLookupError.message);
+            }
+          }
+
           // Prepare call log data using detailed conversation info
           const callLogData: Partial<InsertCallLog> = {
             organizationId,
             conversationId: detailedConversation.conversation_id,
-            agentId: detailedConversation.agent_id || agentId,
+            agentId: localAgentId,
             elevenLabsCallId: detailedConversation.conversation_id,
             phoneNumber: detailedConversation.metadata?.caller_number || null,
             status: detailedConversation.status || "completed",

@@ -506,7 +506,7 @@ export class DatabaseStorage implements IStorage {
         eq(agents.organizationId, organizationId)
       ));
     
-    return result.map(r => r.agent);
+    return result.map((r: { agent: Agent }) => r.agent);
   }
   
   // Batch method to fetch assigned agents for multiple users at once (prevents N+1 queries)
@@ -770,7 +770,7 @@ export class DatabaseStorage implements IStorage {
       .from(agents)
       .leftJoin(organizations, eq(agents.organizationId, organizations.id));
     
-    return result.map(r => ({
+    return result.map((r: { agent: Agent; organization: Organization | null }) => ({
       ...r.agent,
       organizationName: r.organization?.name || 'Unknown',
     }));
@@ -801,7 +801,7 @@ export class DatabaseStorage implements IStorage {
       .from(agents)
       .where(eq(agents.organizationId, organizationId));
     
-    return agentList.map(a => a.id);
+    return agentList.map((a: { id: string }) => a.id);
   }
 
   // User-Agent assignment operations
@@ -819,7 +819,7 @@ export class DatabaseStorage implements IStorage {
           .select()
           .from(organizations)
           .where(eq(organizations.parentOrganizationId, organizationId));
-        const orgIds = [organizationId, ...childOrgs.map(org => org.id)];
+        const orgIds = [organizationId, ...childOrgs.map((org: Organization) => org.id)];
         return db()
           .select()
           .from(agents)
@@ -839,11 +839,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userAgents.userId, userId));
     
     console.log(`Found ${assignedAgents.length} assigned agents for user ${user.email}`);
-    assignedAgents.forEach(a => {
+    assignedAgents.forEach((a: { agent: Agent }) => {
       console.log(`  - ${a.agent.name} (${a.agent.id})`);
     });
     
-    return assignedAgents.map(row => row.agent);
+    return assignedAgents.map((row: { agent: Agent }) => row.agent);
   }
 
   async assignAgentToUser(userId: string, agentId: string, assignedBy?: string): Promise<void> {
@@ -939,15 +939,6 @@ export class DatabaseStorage implements IStorage {
     return callLog;
   }
 
-  async updateCallLog(id: string, updates: Partial<CallLog>): Promise<CallLog> {
-    const [updatedCallLog] = await db()
-      .update(callLogs)
-      .set(updates)
-      .where(eq(callLogs.id, id))
-      .returning();
-    return updatedCallLog;
-  }
-
   async createCallLog(callLogData: InsertCallLog & { createdAt?: Date }): Promise<CallLog> {
     const [callLog] = await db().insert(callLogs).values(callLogData).returning();
     return callLog;
@@ -967,14 +958,6 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(callLogs)
       .where(and(eq(callLogs.elevenLabsCallId, elevenLabsCallId), eq(callLogs.organizationId, organizationId)));
-    return callLog;
-  }
-
-  async getCallLogByConversationId(organizationId: string, conversationId: string): Promise<CallLog | undefined> {
-    const [callLog] = await db()
-      .select()
-      .from(callLogs)
-      .where(and(eq(callLogs.conversationId, conversationId), eq(callLogs.organizationId, organizationId)));
     return callLog;
   }
 
@@ -1132,7 +1115,7 @@ export class DatabaseStorage implements IStorage {
     // Get organization-specific data
     const orgs = await db().select().from(organizations);
     const organizationsData = await Promise.all(
-      orgs.map(async (org) => {
+      orgs.map(async (org: Organization) => {
         const [userStats] = await db()
           .select({ count: count(users.id) })
           .from(users)
