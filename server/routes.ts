@@ -6149,33 +6149,44 @@ Generate the complete prompt now:`;
       const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log(`[RECORDING-FETCH] User not found: ${userId}`);
         return res.status(404).json({ message: "User not found" });
       }
 
       const callLog = await storage.getCallLog(req.params.callId, user.organizationId);
       if (!callLog) {
+        console.log(`[RECORDING-FETCH] Call log not found: ${req.params.callId}`);
         return res.status(404).json({ message: "Call log not found" });
       }
+
+      console.log(`[RECORDING-FETCH] Call ${callLog.id}: audioStorageKey=${callLog.audioStorageKey}, conversationId=${callLog.conversationId}, audioUrl=${callLog.audioUrl}`);
 
       const AudioStorageService = (await import("./services/audio-storage-service")).default;
       const audioStorage = new AudioStorageService();
 
       // Tier 1: Check local storage
       if (callLog.audioStorageKey) {
+        console.log(`[RECORDING-FETCH] Tier 1: Checking local storage for key: ${callLog.audioStorageKey}`);
         const exists = await audioStorage.audioExists(callLog.audioStorageKey);
+        console.log(`[RECORDING-FETCH] Tier 1: Audio exists in local storage: ${exists}`);
         if (exists) {
-          console.log(`Serving audio from local storage: ${callLog.audioStorageKey}`);
+          console.log(`[RECORDING-FETCH] Tier 1: SUCCESS - Serving audio from local storage: ${callLog.audioStorageKey}`);
           const audioBuffer = await audioStorage.downloadAudio(callLog.audioStorageKey);
           res.setHeader('Content-Type', 'audio/mpeg');
           res.setHeader('Content-Length', audioBuffer.length.toString());
           return res.send(audioBuffer);
         }
+        console.log(`[RECORDING-FETCH] Tier 1: FAILED - Audio file not found in local storage`);
+      } else {
+        console.log(`[RECORDING-FETCH] Tier 1: SKIPPED - No audioStorageKey`);
       }
 
       // Tier 2: Fetch from ElevenLabs API
       if (callLog.conversationId) {
+        console.log(`[RECORDING-FETCH] Tier 2: Attempting fetch from ElevenLabs for conversation: ${callLog.conversationId}`);
         const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
         if (integration && integration.apiKey) {
+          console.log(`[RECORDING-FETCH] Tier 2: ElevenLabs integration found, calling fetchAndStoreAudio...`);
           const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
           
           const result = await elevenLabsService.fetchAndStoreAudio(
@@ -6186,35 +6197,50 @@ Generate the complete prompt now:`;
             user.organizationId
           );
 
+          console.log(`[RECORDING-FETCH] Tier 2: fetchAndStoreAudio result:`, result);
+
           if (result.success && result.storageKey) {
+            console.log(`[RECORDING-FETCH] Tier 2: SUCCESS - Downloading audio from storage key: ${result.storageKey}`);
             const audioBuffer = await audioStorage.downloadAudio(result.storageKey);
             res.setHeader('Content-Type', 'audio/mpeg');
             res.setHeader('Content-Length', audioBuffer.length.toString());
             return res.send(audioBuffer);
+          } else {
+            console.log(`[RECORDING-FETCH] Tier 2: FAILED - ${result.error || 'Unknown error'}`);
           }
+        } else {
+          console.log(`[RECORDING-FETCH] Tier 2: SKIPPED - No ElevenLabs integration found`);
         }
+      } else {
+        console.log(`[RECORDING-FETCH] Tier 2: SKIPPED - No conversationId`);
       }
 
       // Tier 3: Check legacy files (if audioUrl exists)
       if (callLog.audioUrl) {
-        console.log(`Attempting to fetch from legacy URL: ${callLog.audioUrl}`);
+        console.log(`[RECORDING-FETCH] Tier 3: Attempting to fetch from legacy URL: ${callLog.audioUrl}`);
         try {
           const response = await fetch(callLog.audioUrl);
           if (response.ok) {
+            console.log(`[RECORDING-FETCH] Tier 3: SUCCESS - Fetched from legacy URL`);
             const arrayBuffer = await response.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             res.setHeader('Content-Type', 'audio/mpeg');
             res.setHeader('Content-Length', buffer.length.toString());
             return res.send(buffer);
+          } else {
+            console.log(`[RECORDING-FETCH] Tier 3: FAILED - HTTP ${response.status}`);
           }
-        } catch (error) {
-          console.error("Failed to fetch from legacy URL:", error);
+        } catch (error: any) {
+          console.error(`[RECORDING-FETCH] Tier 3: FAILED - ${error.message}`);
         }
+      } else {
+        console.log(`[RECORDING-FETCH] Tier 3: SKIPPED - No audioUrl`);
       }
 
+      console.log(`[RECORDING-FETCH] ALL TIERS FAILED - Recording not available for call ${callLog.id}`);
       return res.status(404).json({ message: "Recording not available" });
     } catch (error: any) {
-      console.error("Error fetching call recording:", error);
+      console.error("[RECORDING-FETCH] Error fetching call recording:", error);
       res.status(500).json({ message: "Failed to fetch recording", error: error.message });
     }
   });

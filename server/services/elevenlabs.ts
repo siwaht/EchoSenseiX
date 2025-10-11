@@ -236,11 +236,15 @@ class ElevenLabsService {
     organizationId: string
   ): Promise<{ success: boolean; storageKey?: string; recordingUrl?: string; error?: string }> {
     try {
-      console.log(`Fetching audio for conversation ${conversationId}...`);
+      console.log(`[FETCH-STORE-AUDIO] Starting fetch for conversation ${conversationId}, callId ${callId}`);
 
       // Check if audio is available
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Checking if audio is available...`);
       const hasAudio = await this.hasConversationAudio(conversationId);
+      console.log(`[FETCH-STORE-AUDIO] Step 1: hasConversationAudio returned: ${hasAudio}`);
+      
       if (!hasAudio) {
+        console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not available, updating status to 'unavailable'`);
         await storage.updateCallAudioStatus(callId, organizationId, {
           audioFetchStatus: 'unavailable',
           audioFetchedAt: new Date(),
@@ -249,8 +253,11 @@ class ElevenLabsService {
       }
 
       // Fetch the audio
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Downloading audio from ElevenLabs...`);
       const audioBuffer = await this.getConversationAudio(conversationId);
+      
       if (!audioBuffer) {
+        console.log(`[FETCH-STORE-AUDIO] Step 2: Failed to download audio, updating status to 'failed'`);
         await storage.updateCallAudioStatus(callId, organizationId, {
           audioFetchStatus: 'failed',
           audioFetchedAt: new Date(),
@@ -258,31 +265,45 @@ class ElevenLabsService {
         return { success: false, error: 'Failed to download audio' };
       }
 
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Successfully downloaded ${audioBuffer.length} bytes`);
+
       // Store the audio
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Uploading audio to local storage...`);
       const { storageKey } = await audioStorageService.uploadAudio(conversationId, audioBuffer, {
         callId,
         organizationId,
       });
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Audio uploaded with storageKey: ${storageKey}`);
 
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Generating signed URL...`);
       const recordingUrl = audioStorageService.getSignedUrl(storageKey);
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Generated signed URL: ${recordingUrl}`);
 
       // Update database
-      await storage.updateCallAudioStatus(callId, organizationId, {
+      console.log(`[FETCH-STORE-AUDIO] Step 5: Updating database with storageKey=${storageKey}, recordingUrl=${recordingUrl}, status='available'`);
+      const updated = await storage.updateCallAudioStatus(callId, organizationId, {
         audioStorageKey: storageKey,
         audioFetchStatus: 'available',
         recordingUrl,
         audioFetchedAt: new Date(),
       });
+      console.log(`[FETCH-STORE-AUDIO] Step 5: Database update result:`, updated ? 'SUCCESS' : 'FAILED');
 
-      console.log(`Audio stored successfully for conversation ${conversationId}: ${storageKey}`);
+      console.log(`[FETCH-STORE-AUDIO] ✅ Complete success for conversation ${conversationId}: ${storageKey}`);
       return { success: true, storageKey, recordingUrl };
     } catch (error: any) {
-      console.error(`Error in fetchAndStoreAudio for ${conversationId}:`, error);
+      console.error(`[FETCH-STORE-AUDIO] ❌ Error in fetchAndStoreAudio for ${conversationId}:`, error);
+      console.error(`[FETCH-STORE-AUDIO] Error stack:`, error.stack);
       
-      await storage.updateCallAudioStatus(callId, organizationId, {
-        audioFetchStatus: 'failed',
-        audioFetchedAt: new Date(),
-      });
+      try {
+        await storage.updateCallAudioStatus(callId, organizationId, {
+          audioFetchStatus: 'failed',
+          audioFetchedAt: new Date(),
+        });
+        console.log(`[FETCH-STORE-AUDIO] Updated status to 'failed' after error`);
+      } catch (dbError: any) {
+        console.error(`[FETCH-STORE-AUDIO] Failed to update status after error:`, dbError);
+      }
 
       return { success: false, error: error.message };
     }
