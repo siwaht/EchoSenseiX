@@ -18,7 +18,7 @@ interface SummaryResult {
 
 class SummaryService {
   private client: Mistral;
-  private model = 'mistral-small-latest'; // Cost-efficient model
+  private model = 'mistral-tiny'; // Fast and cost-efficient model
 
   constructor() {
     const apiKey = process.env.MISTRAL_API_KEY;
@@ -111,8 +111,8 @@ class SummaryService {
       const outputTokens = response.usage?.completionTokens || 0;
       const totalTokens = inputTokens + outputTokens;
       
-      // Mistral Small pricing (approximate): $0.002 per 1K tokens
-      const estimatedCost = (totalTokens / 1000) * 0.002;
+      // Mistral Tiny pricing (approximate): $0.00025 per 1K tokens
+      const estimatedCost = (totalTokens / 1000) * 0.00025;
 
       console.log('[SUMMARY-SERVICE] Summary generated successfully:', {
         callId: callLog.id,
