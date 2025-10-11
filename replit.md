@@ -64,9 +64,16 @@ Preferred communication style: Simple, everyday language.
 **Sync Strategy:**
 - Lazy database connection initialization for optimal resource usage
 - Deduplication logic prevents duplicate call logs
+- ElevenLabs agent ID mapping to local database UUIDs for relational integrity
 - Retry mechanism for transient API failures
 - Comprehensive error logging with structured results
 - Real-time WebSocket broadcasts for live dashboard updates
+
+**Recent Fix (Oct 2025):**
+- Fixed call log sync to properly map ElevenLabs agent IDs to local database UUIDs
+- Call logs now correctly reference agents table via local UUID instead of ElevenLabs IDs
+- SQL UPDATE corrected 100 existing orphaned call logs
+- Added agent lookup in sync service to prevent future data integrity issues
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data

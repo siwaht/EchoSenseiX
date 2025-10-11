@@ -92,7 +92,8 @@ export class CacheManager {
   // Get cache size in bytes (approximate)
   getCacheSizeBytes(): number {
     let totalSize = 0;
-    for (const [key, item] of this.cache.entries()) {
+    const entries = Array.from(this.cache.entries());
+    for (const [key, item] of entries) {
       totalSize += key.length + JSON.stringify(item.value).length;
     }
     return totalSize;
