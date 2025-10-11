@@ -441,7 +441,6 @@ export class ElevenLabsRealtimeSync {
         cost: conversation.cost ? String(conversation.cost) : null,
         transcript: null,
         audioUrl: conversation.recording_url || null,
-        createdAt: conversation.created_at ? new Date(conversation.created_at) : new Date(),
       };
 
       // Get transcript if available
@@ -514,7 +513,7 @@ export class ElevenLabsRealtimeSync {
   private async calculatePerformanceMetrics(): Promise<any> {
     try {
       // Get recent call logs from database
-      const recentCalls = await storage.getCallLogs(this.organizationId, { limit: 100 });
+      const { data: recentCalls } = await storage.getCallLogs(this.organizationId, 100);
       
       const metrics = {
         totalCalls: recentCalls.length,
@@ -545,7 +544,12 @@ export class ElevenLabsRealtimeSync {
    * Generate insights from usage data
    */
   private async generateInsights(usage: any, llmUsage: any): Promise<any> {
-    const insights = {
+    const insights: {
+      peakUsageHours: { hour: number; calls: number }[];
+      costOptimization: { type: string; message: string; potential_savings?: string }[];
+      performanceRecommendations: string[];
+      trends: any[];
+    } = {
       peakUsageHours: [],
       costOptimization: [],
       performanceRecommendations: [],
@@ -556,22 +560,24 @@ export class ElevenLabsRealtimeSync {
     if (usage) {
       // Peak usage analysis
       if (usage.daily_usage) {
-        const hourlyUsage = {};
+        const hourlyUsage: Record<string, number> = {};
         usage.daily_usage.forEach((day: any) => {
           if (day.hourly_breakdown) {
-            Object.entries(day.hourly_breakdown).forEach(([hour, count]) => {
-              hourlyUsage[hour] = (hourlyUsage[hour] || 0) + (count as number);
+            Object.entries(day.hourly_breakdown as Record<string, number>).forEach(([hour, count]) => {
+              const h = String(hour);
+              const c = Number(count || 0);
+              hourlyUsage[h] = (hourlyUsage[h] ?? 0) + c;
             });
           }
         });
         
         const sortedHours = Object.entries(hourlyUsage)
-          .sort(([,a], [,b]) => (b as number) - (a as number))
+          .sort(([, a], [, b]) => Number(b) - Number(a))
           .slice(0, 3);
         
         insights.peakUsageHours = sortedHours.map(([hour, count]) => ({
-          hour: parseInt(hour),
-          calls: count
+          hour: parseInt(hour, 10),
+          calls: Number(count)
         }));
       }
 

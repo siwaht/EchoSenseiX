@@ -213,13 +213,22 @@ export function registerRealtimeSyncRoutes(app: Express) {
       const client = createElevenLabsClient(integration.apiKey);
       const testResult = await client.getUser();
       
-      const status = {
+      const status: {
+        isConfigured: boolean;
+        apiKeyValid: boolean;
+        lastSync: Date | null;
+        status: typeof integration.status;
+        organizationId: string;
+        timestamp: string;
+        error?: string;
+      } = {
         isConfigured: true,
         apiKeyValid: testResult.success,
         lastSync: integration.lastTested,
         status: integration.status,
         organizationId: user.organizationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        error: undefined
       };
       
       if (!testResult.success) {
@@ -269,13 +278,14 @@ export function registerRealtimeSyncRoutes(app: Express) {
       const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
       const result = await syncService.syncAllData();
       
-      // Update all organizations if admin
+      // Update all organizations' integration last tested if admin
       if (user.role === 'admin') {
-        const organizations = await storage.getOrganizations();
+        const organizations = await storage.getAllOrganizations();
         for (const org of organizations) {
-          await storage.updateOrganization(org.id, {
-            lastSync: new Date()
-          });
+          const integ = await storage.getIntegration(org.id, "elevenlabs");
+          if (integ) {
+            await storage.updateIntegrationStatus(integ.id, "ACTIVE", new Date());
+          }
         }
       }
       
