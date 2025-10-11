@@ -351,7 +351,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 mb-4">
+        <TabsList className="grid w-full grid-cols-6 mb-4">
           <TabsTrigger value="chat" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat</span>
@@ -367,6 +367,10 @@ Always maintain a professional yet conversational tone, and ensure all responses
           <TabsTrigger value="language" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
             <span className="hidden md:inline">Language</span>
+          </TabsTrigger>
+          <TabsTrigger value="knowledge" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden md:inline">Knowledge</span>
           </TabsTrigger>
           <TabsTrigger 
             value="turntaking" 
@@ -795,45 +799,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
 
         {/* Language Settings */}
         <TabsContent value="language" className="space-y-6">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Language Settings</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="language">Primary Language</Label>
-                <Select 
-                  value={language} 
-                  onValueChange={(value) => {
-                    setLanguage(value);
-                    setHasChanges(true);
-                  }}
-                >
-                  <SelectTrigger id="language" className="mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                    <SelectItem value="it">Italian</SelectItem>
-                    <SelectItem value="pt">Portuguese</SelectItem>
-                    <SelectItem value="nl">Dutch</SelectItem>
-                    <SelectItem value="pl">Polish</SelectItem>
-                    <SelectItem value="ru">Russian</SelectItem>
-                    <SelectItem value="zh">Chinese</SelectItem>
-                    <SelectItem value="ja">Japanese</SelectItem>
-                    <SelectItem value="ko">Korean</SelectItem>
-                    <SelectItem value="ar">Arabic</SelectItem>
-                    <SelectItem value="hi">Hindi</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  The primary language the agent will use for conversations
-                </p>
-              </div>
-            </div>
-          </Card>
+          <MultilingualConfig agentId={agentId || ""} />
         </TabsContent>
 
         {/* Turn-taking Settings */}
