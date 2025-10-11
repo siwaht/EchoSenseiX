@@ -130,7 +130,7 @@ export default function Landing() {
                 </div>
               )}
               <span className="text-xl font-bold text-card-foreground">
-                {whitelabelConfig?.appName || "VoiceAI Dashboard"}
+                {whitelabelConfig?.appName || "EchoSensei Dashboard"}
               </span>
             </div>
             <div className="flex items-center">
@@ -167,7 +167,7 @@ export default function Landing() {
               <p className="text-sm text-muted-foreground">
                 {whitelabelConfig?.companyName 
                   ? `Sign in to access ${whitelabelConfig.companyName}` 
-                  : "Sign in to access your VoiceAI Dashboard"}
+                  : "Sign in to access your EchoSensei Dashboard"}
               </p>
             </div>
 
@@ -238,7 +238,7 @@ export default function Landing() {
             {!whitelabelConfig?.removePlatformBranding && (
               <>
                 <h3 className="text-lg font-semibold text-card-foreground mb-4">
-                  What is {whitelabelConfig?.appName || "VoiceAI Dashboard"}?
+                  What is {whitelabelConfig?.appName || "EchoSensei Dashboard"}?
                 </h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto" data-testid="text-info-description">
                   A comprehensive monitoring platform for voice AI agents with enterprise-grade security, 

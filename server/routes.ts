@@ -1840,7 +1840,7 @@ export function registerRoutes(app: Express): Server {
         event: 'test',
         timestamp: new Date().toISOString(),
         data: {
-          message: 'This is a test webhook from VoiceAI Dashboard',
+          message: 'This is a test webhook from EchoSensei Dashboard',
           webhookId: webhook.id,
           webhookName: webhook.name
         }
@@ -3244,7 +3244,7 @@ Generate the complete prompt now:`;
         organizationId: user.organizationId,
         elevenLabsAgentId: elevenLabsResponse.agent_id,
         name: name,
-        description: `Created via VoiceAI Dashboard`,
+        description: `Created via EchoSensei Dashboard`,
         firstMessage: firstMessage,
         systemPrompt: systemPrompt,
         language: language || "en",
@@ -4803,7 +4803,7 @@ Generate the complete prompt now:`;
   });
 
 
-  // Get available VoiceAI voices - Updated with latest ElevenLabs API
+  // Get available EchoSensei voices - Updated with latest ElevenLabs API
   app.get("/api/voiceai/voices", isAuthenticated, checkPermission('manage_voices'), async (req: any, res) => {
     try {
       const userId = req.user.id;
@@ -6640,7 +6640,7 @@ Generate the complete prompt now:`;
         // If subdomain not found, return 404
         return res.status(404).json({
           error: "Agency not found",
-          appName: "VoiceAI Dashboard",
+          appName: "EchoSensei Dashboard",
           companyName: "",
           removePlatformBranding: false,
         });
@@ -6662,7 +6662,7 @@ Generate the complete prompt now:`;
       } else {
         // Return default config
         res.json({
-          appName: "VoiceAI Dashboard",
+          appName: "EchoSensei Dashboard",
           companyName: "",
           removePlatformBranding: false,
         });
@@ -6671,7 +6671,7 @@ Generate the complete prompt now:`;
       console.error("Error fetching public whitelabel config:", error);
       // Return default config on error
       res.json({
-        appName: "VoiceAI Dashboard",
+        appName: "EchoSensei Dashboard",
         companyName: "",
         removePlatformBranding: false,
       });
@@ -6698,7 +6698,7 @@ Generate the complete prompt now:`;
         // Return default config if none exists
         return res.json({
           organizationId: user.organizationId,
-          appName: "VoiceAI Dashboard",
+          appName: "EchoSensei Dashboard",
           companyName: organization.name,
           removePlatformBranding: false,
         });
@@ -7170,7 +7170,7 @@ Generate the complete prompt now:`;
       // Get ElevenLabs API key
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (!integration || integration.status !== "ACTIVE") {
-        return res.status(400).json({ message: "VoiceAI integration not configured or inactive. Please configure your API key in the Integrations tab." });
+        return res.status(400).json({ message: "EchoSensei integration not configured or inactive. Please configure your API key in the Integrations tab." });
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
@@ -7205,7 +7205,7 @@ Generate the complete prompt now:`;
         expectedField = 'signed_url';
       }
       
-      console.log("Calling VoiceAI API:", url);
+      console.log("Calling EchoSensei API:", url);
       
       const response = await fetch(url, {
         method: "GET",

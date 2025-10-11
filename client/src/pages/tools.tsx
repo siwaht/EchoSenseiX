@@ -331,7 +331,7 @@ export default function Tools() {
         test: true,
         timestamp: new Date().toISOString(),
         agent_id: selectedAgentId,
-        message: "This is a test request from VoiceAI Dashboard",
+        message: "This is a test request from EchoSensei Dashboard",
       };
 
       const requestOptions: RequestInit = {

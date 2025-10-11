@@ -150,8 +150,8 @@ export default function Playground() {
       toast({
         title: "API not configured", 
         description: isAdmin 
-          ? "Please add your VoiceAI API key in the Integrations tab"
-          : "VoiceAI API key not configured. Please contact your administrator.",
+          ? "Please add your EchoSensei API key in the Integrations tab"
+          : "EchoSensei API key not configured. Please contact your administrator.",
         variant: "destructive",
       });
       return;
@@ -224,7 +224,7 @@ export default function Playground() {
         throw new Error('WebRTC connection requires voice AI React SDK. Please use WebSocket for now.');
       }
       
-      // Connect to VoiceAI WebSocket (legacy support)
+      // Connect to EchoSensei WebSocket (legacy support)
       if (!signedUrl) {
         throw new Error('No connection URL received from server');
       }
@@ -250,7 +250,7 @@ export default function Playground() {
           const data = JSON.parse(event.data);
           // WebSocket message received
           
-          // Handle different message formats from VoiceAI
+          // Handle different message formats from EchoSensei
           if (data.type === "conversation_initiation_metadata") {
             // Conversation metadata received
             
@@ -605,7 +605,7 @@ export default function Playground() {
     const audioData = audioQueueRef.current.shift()!;
     
     try {
-      // VoiceAI sends PCM 16-bit audio at 16kHz encoded in base64
+      // EchoSensei sends PCM 16-bit audio at 16kHz encoded in base64
       // We need to convert it to a playable format
       
       // Decode base64 to binary
@@ -857,7 +857,7 @@ export default function Playground() {
               <div className="space-y-1">
                 <p className="text-sm font-medium">Test Environment</p>
                 <p className="text-xs text-muted-foreground">
-                  This playground uses your VoiceAI API key. Voice calls will consume your API credits.
+                  This playground uses your EchoSensei API key. Voice calls will consume your API credits.
                 </p>
               </div>
             </div>
@@ -882,8 +882,8 @@ export default function Playground() {
                   <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">API not configured</h3>
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {user?.isAdmin || user?.permissions?.includes('manage_integrations')
-                      ? "Please add your VoiceAI API key in the Integrations tab"
-                      : "VoiceAI API key not configured. Please contact your administrator."}
+                      ? "Please add your EchoSensei API key in the Integrations tab"
+                      : "EchoSensei API key not configured. Please contact your administrator."}
                   </p>
                 </div>
               ) : (

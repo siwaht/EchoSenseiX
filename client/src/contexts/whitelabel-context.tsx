@@ -77,7 +77,7 @@ export function WhitelabelProvider({ children }: { children: ReactNode }) {
     // Cleanup function to reset title when leaving agency view
     return () => {
       if (!isAgencyView) {
-        document.title = "VoiceAI Dashboard";
+        document.title = "EchoSensei Dashboard";
       }
     };
   }, [config, isAgencyView]);

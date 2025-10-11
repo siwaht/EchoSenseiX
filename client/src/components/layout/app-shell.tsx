@@ -222,7 +222,7 @@ export default function AppShell({ children }: AppShellProps) {
               </div>
             )}
             <span className="text-base lg:text-lg font-bold brand-gradient-text truncate" data-testid="text-app-title">
-              {whitelabelConfig?.appName || "VoiceAI"}
+              {whitelabelConfig?.appName || "EchoSensei"}
             </span>
           </div>
         </div>

@@ -187,53 +187,60 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
               </div>
             </Card>
 
-            {/* Configuration Notice */}
+            {/* Quick Actions */}
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Settings className="w-5 h-5" />
-                Agent Configuration
+                Quick Actions
               </h3>
               
               <div className="space-y-4">
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm font-medium mb-2">Configure in Voice AI Console</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    To modify agent prompts, voice settings, tools, and other advanced configurations, 
-                    you need to access the voice AI console directly.
-                  </p>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-primary rounded-full"></div>
-                      <span>System Prompt & Conversation Settings</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-primary rounded-full"></div>
-                      <span>Voice Selection & Speech Settings</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-primary rounded-full"></div>
-                      <span>Tools & Webhook Configuration</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-2 h-2 bg-primary rounded-full"></div>
-                      <span>Knowledge Base & RAG Settings</span>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Navigate to agent settings page
+                      window.location.href = `/agents/${agent.id}`;
+                    }}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configure Agent Settings
+                  </Button>
                   
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4"
-                    onClick={() => alert('Please access your voice AI platform console to configure agent settings.')}
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Navigate to playground for testing
+                      window.location.href = `/playground?agentId=${agent.id}`;
+                    }}
                   >
-                    Open Voice AI Console
+                    <FlaskConical className="w-4 h-4 mr-2" />
+                    Test Agent in Playground
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      // Copy agent ID to clipboard
+                      navigator.clipboard.writeText(agent.elevenLabsAgentId);
+                      toast({ 
+                        title: "Copied", 
+                        description: "Agent ID copied to clipboard" 
+                      });
+                    }}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Agent ID
                   </Button>
                 </div>
                 
                 <div className="border-t pt-4">
                   <p className="text-xs text-muted-foreground">
-                    Note: Changes made in the voice AI console will automatically sync with this dashboard.
-                    Use the "Sync Agents" button on the agents page to update the latest configuration.
+                    Use the "Configure Agent Settings" button above to access all agent configuration options 
+                    including voice settings, prompts, tools, and knowledge base integration.
                   </p>
                 </div>
               </div>

@@ -337,26 +337,56 @@ export function KnowledgeBaseManager() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-medium text-green-800 mb-2">Benefits of Knowledge Base Integration:</h4>
-                      <ul className="text-sm text-green-700 space-y-1">
-                        <li>• Voice agents can answer questions from your knowledge base</li>
-                        <li>• Natural language understanding for complex queries</li>
-                        <li>• Automatic source citation and follow-up suggestions</li>
-                        <li>• Multilingual support with ElevenLabs models</li>
-                      </ul>
-                    </div>
+                    <div className="space-y-6">
+                      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
+                          <Brain className="w-5 h-5" />
+                          Knowledge Base Integration Benefits
+                        </h4>
+                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+                          <li className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            Voice agents can answer questions from your knowledge base
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            Natural language understanding for complex queries
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            Automatic source citation and follow-up suggestions
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            Multilingual support with ElevenLabs models
+                          </li>
+                        </ul>
+                      </div>
 
-                    <div className="text-center py-8">
-                      <BookOpen className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Ready to Enhance Your Agents?</h3>
-                      <p className="text-gray-600 mb-4">
-                        Go to your Agents page and click "Enhance with Knowledge Base" on any agent to get started.
-                      </p>
-                      <Button>
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Go to Agents
-                      </Button>
+                      <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <h4 className="font-medium text-emerald-800 dark:text-emerald-200 mb-3 flex items-center gap-2">
+                          <Settings className="w-5 h-5" />
+                          How to Configure Agents
+                        </h4>
+                        <div className="text-sm text-emerald-700 dark:text-emerald-300 space-y-2">
+                          <p>To enhance your voice agents with knowledge base capabilities:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-4">
+                            <li>Go to the <strong>Agent Settings</strong> tab in the navigation</li>
+                            <li>Select an agent from the dropdown</li>
+                            <li>Navigate to the <strong>Knowledge</strong> tab</li>
+                            <li>Configure knowledge base integration settings</li>
+                          </ol>
+                        </div>
+                      </div>
+
+                      <div className="text-center py-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full border border-primary/20">
+                          <BookOpen className="w-5 h-5 text-primary" />
+                          <span className="text-sm font-medium text-primary">
+                            Knowledge Base Ready for Integration
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
