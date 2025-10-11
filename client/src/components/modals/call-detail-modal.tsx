@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Bot, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
-import type { CallLog } from "@shared/schema";
+import type { CallLog, SummaryMetadata } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,18 @@ interface CallDetailModalProps {
   callLog: CallLog | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function MetadataDisplay({ metadata }: { metadata: SummaryMetadata | null }) {
+  if (!metadata) return null;
+  
+  return (
+    <div className="flex gap-3">
+      {metadata.model && <span>Model: {metadata.model}</span>}
+      {metadata.tokens && <span>Tokens: {metadata.tokens}</span>}
+      {metadata.cost && <span>Cost: ${Number(metadata.cost).toFixed(4)}</span>}
+    </div>
+  );
 }
 
 export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModalProps) {
@@ -43,6 +55,9 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
   });
 
   if (!callLog) return null;
+
+  const summaryMetadata = callLog.summaryMetadata;
+  const hasTranscript = Boolean(callLog.transcript);
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
@@ -123,7 +138,7 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
         </div>
 
         {/* AI Summary Section */}
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-4 sm:mb-6" data-testid="section-ai-summary">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
             <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
@@ -141,7 +156,7 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
             )}
           </div>
           
-          {!callLog.summary && !generateSummaryMutation.isPending && (
+          {!callLog.summary && !generateSummaryMutation.isPending ? (
             <Card className="p-4 sm:p-6 text-center bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-dashed border-purple-200 dark:border-purple-800">
               <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-purple-500 dark:text-purple-400 mb-3" />
               <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
@@ -152,17 +167,17 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
               </p>
               <Button
                 onClick={() => generateSummaryMutation.mutate(callLog.id)}
-                disabled={!callLog.transcript || generateSummaryMutation.isPending}
+                disabled={!hasTranscript || generateSummaryMutation.isPending}
                 className="flex items-center gap-2"
                 data-testid="button-generate-summary"
               >
                 <Sparkles className="w-4 h-4" />
-                {!callLog.transcript ? "No Transcript Available" : "Generate Summary"}
+                {!hasTranscript ? "No Transcript Available" : "Generate Summary"}
               </Button>
             </Card>
-          )}
+          ) : null}
 
-          {generateSummaryMutation.isPending && (
+          {generateSummaryMutation.isPending ? (
             <Card className="p-4 sm:p-6 text-center">
               <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-blue-500 dark:text-blue-400 mb-3 animate-spin" />
               <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
@@ -172,41 +187,29 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                 AI is analyzing the call transcript. This may take a few moments.
               </p>
             </Card>
-          )}
+          ) : null}
 
-          {callLog.summary && (
+          {callLog.summary ? (
             <Card className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700">
               <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="text-call-summary">
                 <div className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
                   {callLog.summary}
                 </div>
               </div>
-              {callLog.summaryGeneratedAt && (
+              {callLog.summaryGeneratedAt ? (
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                   <span>Generated: {new Date(callLog.summaryGeneratedAt).toLocaleString()}</span>
-                  {callLog.summaryMetadata && (
-                    <div className="flex gap-3">
-                      {(callLog.summaryMetadata as any).model && (
-                        <span>Model: {(callLog.summaryMetadata as any).model}</span>
-                      )}
-                      {(callLog.summaryMetadata as any).tokens && (
-                        <span>Tokens: {(callLog.summaryMetadata as any).tokens}</span>
-                      )}
-                      {(callLog.summaryMetadata as any).cost && (
-                        <span>Cost: ${Number((callLog.summaryMetadata as any).cost).toFixed(4)}</span>
-                      )}
-                    </div>
-                  )}
+                  <MetadataDisplay metadata={summaryMetadata} />
                 </div>
-              )}
-              {callLog.summaryStatus === 'failed' && (
+              ) : null}
+              {callLog.summaryStatus === 'failed' ? (
                 <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
                   <AlertCircle className="w-4 h-4" />
                   <span>Summary generation failed. Click "Generate Summary" to retry.</span>
                 </div>
-              )}
+              ) : null}
             </Card>
-          )}
+          ) : null}
         </div>
 
         {/* Call Recording with Professional Audio Player */}

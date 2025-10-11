@@ -454,6 +454,15 @@ export const userAgents = pgTable("user_agents", {
   agentIdIdx: index("user_agents_agent_id_idx").on(table.agentId),
 }));
 
+// Summary metadata interface
+export interface SummaryMetadata {
+  provider?: string;
+  model?: string;
+  tokens?: number;
+  cost?: number;
+  promptVersion?: string;
+}
+
 // Call logs table
 export const callLogs = pgTable("call_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -470,13 +479,7 @@ export const callLogs = pgTable("call_logs", {
   summary: text("summary"), // AI-generated call summary
   summaryGeneratedAt: timestamp("summary_generated_at"), // When summary was created
   summaryStatus: varchar("summary_status"), // pending | success | failed | null
-  summaryMetadata: json("summary_metadata").$type<{
-    provider?: string;
-    model?: string;
-    tokens?: number;
-    cost?: number;
-    promptVersion?: string;
-  }>(), // Summary generation metadata
+  summaryMetadata: json("summary_metadata").$type<SummaryMetadata | null>(), // Summary generation metadata
   createdAt: timestamp("created_at").defaultNow(),
 });
 
