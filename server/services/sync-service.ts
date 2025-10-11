@@ -181,6 +181,31 @@ export class SyncService {
                 console.error(`[SYNC] Failed to auto-generate summary for call ${existingLog.id}:`, summaryError.message);
               }
             }
+            
+            // Auto-fetch audio recording if available and not already fetched
+            if (updatedLog && updatedLog.conversationId && !updatedLog.audioStorageKey) {
+              try {
+                console.log(`[SYNC] Auto-fetching recording for updated call: ${existingLog.id}`);
+                const { default: AudioStorageService } = await import('./audio-storage-service');
+                const audioStorage = new AudioStorageService();
+                
+                const audioResult = await client.fetchAndStoreAudio(
+                  updatedLog.conversationId,
+                  updatedLog.id,
+                  audioStorage,
+                  storage,
+                  organizationId
+                );
+                
+                if (audioResult.success) {
+                  console.log(`[SYNC] Recording auto-fetched for updated call: ${existingLog.id}`);
+                } else {
+                  console.log(`[SYNC] Recording not available for updated call ${existingLog.id}: ${audioResult.error}`);
+                }
+              } catch (audioError: any) {
+                console.error(`[SYNC] Failed to auto-fetch recording for updated call ${existingLog.id}:`, audioError.message);
+              }
+            }
           } else {
             // Create new call log
             const newCallLog = await storage.createCallLog({
@@ -209,6 +234,31 @@ export class SyncService {
                 }
               } catch (summaryError: any) {
                 console.error(`[SYNC] Failed to auto-generate summary for new call ${newCallLog.id}:`, summaryError.message);
+              }
+            }
+            
+            // Auto-fetch audio recording if available
+            if (newCallLog && newCallLog.conversationId && !newCallLog.audioStorageKey) {
+              try {
+                console.log(`[SYNC] Auto-fetching recording for new call: ${newCallLog.id}`);
+                const { default: AudioStorageService } = await import('./audio-storage-service');
+                const audioStorage = new AudioStorageService();
+                
+                const audioResult = await client.fetchAndStoreAudio(
+                  newCallLog.conversationId,
+                  newCallLog.id,
+                  audioStorage,
+                  storage,
+                  organizationId
+                );
+                
+                if (audioResult.success) {
+                  console.log(`[SYNC] Recording auto-fetched for new call: ${newCallLog.id}`);
+                } else {
+                  console.log(`[SYNC] Recording not available for new call ${newCallLog.id}: ${audioResult.error}`);
+                }
+              } catch (audioError: any) {
+                console.error(`[SYNC] Failed to auto-fetch recording for new call ${newCallLog.id}:`, audioError.message);
               }
             }
           }
