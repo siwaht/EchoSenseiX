@@ -13,14 +13,16 @@ let database: ReturnType<typeof drizzle> | ReturnType<typeof drizzleSQLite> | nu
 
 function getDatabaseConnection() {
   if (!database) {
-    // Check if we're in development mode and DATABASE_URL is not a real connection
-    const isDevelopment = process.env.NODE_ENV === 'development' && 
-                         (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('username:password'));
+    // Check if we're using SQLite (file: protocol) or development mode
+    const isSQLite = process.env.DATABASE_URL?.startsWith('file:') || 
+                     (process.env.NODE_ENV === 'development' && 
+                      (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('username:password')));
     
-    if (isDevelopment) {
+    if (isSQLite) {
       console.log('[DB] Using SQLite for development');
       // Use SQLite for development
-      sqliteDb = new Database('./dev.db');
+      const dbPath = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
+      sqliteDb = new Database(dbPath);
       database = drizzleSQLite(sqliteDb, { schema });
     } else {
       if (!process.env.DATABASE_URL) {
