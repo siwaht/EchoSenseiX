@@ -6047,6 +6047,217 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Call Recording Endpoints with 3-tier fallback
+  // GET /api/recordings/:callId/audio - Main endpoint with 3-tier fallback logic
+  app.get("/api/recordings/:callId/audio", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const callLog = await storage.getCallLog(req.params.callId, user.organizationId);
+      if (!callLog) {
+        return res.status(404).json({ message: "Call log not found" });
+      }
+
+      const AudioStorageService = (await import("./services/audio-storage-service")).default;
+      const audioStorage = new AudioStorageService();
+
+      // Tier 1: Check local storage
+      if (callLog.audioStorageKey) {
+        const exists = await audioStorage.audioExists(callLog.audioStorageKey);
+        if (exists) {
+          console.log(`Serving audio from local storage: ${callLog.audioStorageKey}`);
+          const audioBuffer = await audioStorage.downloadAudio(callLog.audioStorageKey);
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Content-Length', audioBuffer.length.toString());
+          return res.send(audioBuffer);
+        }
+      }
+
+      // Tier 2: Fetch from ElevenLabs API
+      if (callLog.conversationId) {
+        const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
+        if (integration && integration.apiKey) {
+          const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
+          
+          const result = await elevenLabsService.fetchAndStoreAudio(
+            callLog.conversationId,
+            callLog.id,
+            audioStorage,
+            storage,
+            user.organizationId
+          );
+
+          if (result.success && result.storageKey) {
+            const audioBuffer = await audioStorage.downloadAudio(result.storageKey);
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Content-Length', audioBuffer.length.toString());
+            return res.send(audioBuffer);
+          }
+        }
+      }
+
+      // Tier 3: Check legacy files (if audioUrl exists)
+      if (callLog.audioUrl) {
+        console.log(`Attempting to fetch from legacy URL: ${callLog.audioUrl}`);
+        try {
+          const response = await fetch(callLog.audioUrl);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Content-Length', buffer.length.toString());
+            return res.send(buffer);
+          }
+        } catch (error) {
+          console.error("Failed to fetch from legacy URL:", error);
+        }
+      }
+
+      return res.status(404).json({ message: "Recording not available" });
+    } catch (error: any) {
+      console.error("Error fetching call recording:", error);
+      res.status(500).json({ message: "Failed to fetch recording", error: error.message });
+    }
+  });
+
+  // GET /api/audio/:fileName - Serve files from audio-storage/
+  app.get("/api/audio/:fileName", isAuthenticated, async (req: any, res) => {
+    try {
+      const fileName = req.params.fileName;
+      const userId = req.user.id;
+      
+      // Get user to check organization
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // SECURITY: Validate that the audio file belongs to the user's organization
+      const callLog = await storage.getCallLogByAudioStorageKey(fileName, user.organizationId);
+      
+      if (!callLog) {
+        console.warn(`Unauthorized audio access attempt by user ${userId} for file ${fileName}`);
+        return res.status(403).json({ message: "Unauthorized access to recording" });
+      }
+
+      // File is authorized - proceed to serve it
+      const AudioStorageService = (await import("./services/audio-storage-service")).default;
+      const audioStorage = new AudioStorageService();
+      
+      const exists = await audioStorage.audioExists(fileName);
+      
+      if (!exists) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+
+      const audioBuffer = await audioStorage.downloadAudio(fileName);
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Length', audioBuffer.length.toString());
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+      res.send(audioBuffer);
+    } catch (error: any) {
+      console.error("Error serving audio file:", error);
+      res.status(500).json({ message: "Failed to serve audio file", error: error.message });
+    }
+  });
+
+  // GET /api/calls/:callId/recording/availability - Poll availability status
+  app.get("/api/calls/:callId/recording/availability", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const callLog = await storage.getCallLog(req.params.callId, user.organizationId);
+      if (!callLog) {
+        return res.status(404).json({ message: "Call log not found" });
+      }
+
+      res.json({
+        available: callLog.audioStorageKey ? true : false,
+        status: callLog.audioFetchStatus || 'pending',
+        recordingUrl: callLog.recordingUrl,
+        lastFetchedAt: callLog.audioFetchedAt,
+      });
+    } catch (error: any) {
+      console.error("Error checking recording availability:", error);
+      res.status(500).json({ message: "Failed to check availability", error: error.message });
+    }
+  });
+
+  // POST /api/jobs/fetch-missing-audio - Admin batch fetch for all pending recordings
+  app.post("/api/jobs/fetch-missing-audio", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get all call logs without audio storage
+      const result = await storage.getCallLogs(user.organizationId, 1000, 0);
+      const callLogsWithoutAudio = result.data.filter(call => 
+        !call.audioStorageKey && call.conversationId
+      );
+
+      const AudioStorageService = (await import("./services/audio-storage-service")).default;
+      const audioStorage = new AudioStorageService();
+      const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
+      
+      if (!integration || !integration.apiKey) {
+        return res.status(400).json({ message: "ElevenLabs integration not configured" });
+      }
+
+      const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
+      const results = {
+        total: callLogsWithoutAudio.length,
+        success: 0,
+        failed: 0,
+        unavailable: 0,
+      };
+
+      // Process in parallel with a limit
+      const processCall = async (call: any) => {
+        const result = await elevenLabsService.fetchAndStoreAudio(
+          call.conversationId,
+          call.id,
+          audioStorage,
+          storage,
+          user.organizationId
+        );
+
+        if (result.success) {
+          results.success++;
+        } else if (result.error?.includes('not available')) {
+          results.unavailable++;
+        } else {
+          results.failed++;
+        }
+      };
+
+      // Process 5 at a time
+      const batchSize = 5;
+      for (let i = 0; i < callLogsWithoutAudio.length; i += batchSize) {
+        const batch = callLogsWithoutAudio.slice(i, i + batchSize);
+        await Promise.all(batch.map(processCall));
+      }
+
+      res.json({
+        message: "Batch fetch completed",
+        results,
+      });
+    } catch (error: any) {
+      console.error("Error in batch fetch:", error);
+      res.status(500).json({ message: "Batch fetch failed", error: error.message });
+    }
+  });
+
   // ElevenLabs SDK webhook test endpoint
   app.get("/api/public/rag/test", async (req: any, res: any) => {
     res.json({

@@ -192,6 +192,102 @@ class ElevenLabsService {
     });
   }
 
+  // Conversation audio endpoints
+  async hasConversationAudio(conversationId: string): Promise<boolean> {
+    const result = await this.getConversation(conversationId);
+    if (!result.success || !result.data) {
+      return false;
+    }
+    // Check if the conversation has audio available
+    return result.data.recording_enabled === true || result.data.has_recording === true;
+  }
+
+  async getConversationAudio(conversationId: string): Promise<Buffer | null> {
+    try {
+      const url = `${this.config.baseUrl}/v1/convai/conversations/${conversationId}/audio`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "xi-api-key": this.config.apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log(`No audio available for conversation ${conversationId}`);
+          return null;
+        }
+        throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (error: any) {
+      console.error(`Error fetching conversation audio for ${conversationId}:`, error.message);
+      return null;
+    }
+  }
+
+  async fetchAndStoreAudio(
+    conversationId: string, 
+    callId: string, 
+    audioStorageService: any,
+    storage: any,
+    organizationId: string
+  ): Promise<{ success: boolean; storageKey?: string; recordingUrl?: string; error?: string }> {
+    try {
+      console.log(`Fetching audio for conversation ${conversationId}...`);
+
+      // Check if audio is available
+      const hasAudio = await this.hasConversationAudio(conversationId);
+      if (!hasAudio) {
+        await storage.updateCallAudioStatus(callId, organizationId, {
+          audioFetchStatus: 'unavailable',
+          audioFetchedAt: new Date(),
+        });
+        return { success: false, error: 'Audio not available for this conversation' };
+      }
+
+      // Fetch the audio
+      const audioBuffer = await this.getConversationAudio(conversationId);
+      if (!audioBuffer) {
+        await storage.updateCallAudioStatus(callId, organizationId, {
+          audioFetchStatus: 'failed',
+          audioFetchedAt: new Date(),
+        });
+        return { success: false, error: 'Failed to download audio' };
+      }
+
+      // Store the audio
+      const { storageKey } = await audioStorageService.uploadAudio(conversationId, audioBuffer, {
+        callId,
+        organizationId,
+      });
+
+      const recordingUrl = audioStorageService.getSignedUrl(storageKey);
+
+      // Update database
+      await storage.updateCallAudioStatus(callId, organizationId, {
+        audioStorageKey: storageKey,
+        audioFetchStatus: 'available',
+        recordingUrl,
+        audioFetchedAt: new Date(),
+      });
+
+      console.log(`Audio stored successfully for conversation ${conversationId}: ${storageKey}`);
+      return { success: true, storageKey, recordingUrl };
+    } catch (error: any) {
+      console.error(`Error in fetchAndStoreAudio for ${conversationId}:`, error);
+      
+      await storage.updateCallAudioStatus(callId, organizationId, {
+        audioFetchStatus: 'failed',
+        audioFetchedAt: new Date(),
+      });
+
+      return { success: false, error: error.message };
+    }
+  }
+
   // Voice endpoints
   async getVoices() {
     return this.makeRequest<any>("/v1/voices");

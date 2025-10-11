@@ -163,9 +163,11 @@ export interface IStorage {
   getCallLog(id: string, organizationId: string): Promise<CallLog | undefined>;
   getCallLogByElevenLabsId(elevenLabsCallId: string, organizationId: string): Promise<CallLog | undefined>;
   getCallLogByConversationId(organizationId: string, conversationId: string): Promise<CallLog | undefined>;
+  getCallLogByAudioStorageKey(storageKey: string, organizationId: string): Promise<CallLog | undefined>;
   createCallLog(callLog: InsertCallLog & { createdAt?: Date }): Promise<CallLog>;
   updateCallLog(id: string, organizationId: string, updates: Partial<InsertCallLog>): Promise<CallLog>;
   updateCallLogSummary(id: string, organizationId: string, summary: string, status: string, metadata: any): Promise<CallLog>;
+  updateCallAudioStatus(callId: string, organizationId: string, updates: { audioStorageKey?: string; audioFetchStatus?: string; recordingUrl?: string; audioFetchedAt?: Date }): Promise<CallLog>;
 
   // Phone number operations
   getPhoneNumbers(organizationId: string): Promise<PhoneNumber[]>;
@@ -940,6 +942,14 @@ export class DatabaseStorage implements IStorage {
     return callLog;
   }
 
+  async getCallLogByAudioStorageKey(storageKey: string, organizationId: string): Promise<CallLog | undefined> {
+    const [callLog] = await db()
+      .select()
+      .from(callLogs)
+      .where(and(eq(callLogs.audioStorageKey, storageKey), eq(callLogs.organizationId, organizationId)));
+    return callLog;
+  }
+
   async createCallLog(callLogData: InsertCallLog & { createdAt?: Date }): Promise<CallLog> {
     const [callLog] = await db().insert(callLogs).values(callLogData).returning();
     return callLog;
@@ -964,6 +974,24 @@ export class DatabaseStorage implements IStorage {
         summaryGeneratedAt: new Date(),
       })
       .where(and(eq(callLogs.id, id), eq(callLogs.organizationId, organizationId)))
+      .returning();
+    return callLog;
+  }
+
+  async updateCallAudioStatus(
+    callId: string, 
+    organizationId: string, 
+    updates: { 
+      audioStorageKey?: string; 
+      audioFetchStatus?: string; 
+      recordingUrl?: string; 
+      audioFetchedAt?: Date 
+    }
+  ): Promise<CallLog> {
+    const [callLog] = await db()
+      .update(callLogs)
+      .set(updates)
+      .where(and(eq(callLogs.id, callId), eq(callLogs.organizationId, organizationId)))
       .returning();
     return callLog;
   }

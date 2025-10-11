@@ -480,6 +480,10 @@ export const callLogs = pgTable("call_logs", {
   summaryGeneratedAt: timestamp("summary_generated_at"), // When summary was created
   summaryStatus: varchar("summary_status"), // pending | success | failed | null
   summaryMetadata: json("summary_metadata").$type<SummaryMetadata | null>(), // Summary generation metadata
+  audioStorageKey: varchar("audio_storage_key"), // Path to stored audio file in audio-storage/
+  audioFetchStatus: varchar("audio_fetch_status"), // 'pending' | 'available' | 'failed' | 'unavailable' | null
+  audioFetchedAt: timestamp("audio_fetched_at"), // Last fetch attempt timestamp
+  recordingUrl: varchar("recording_url"), // Public URL for playback
   createdAt: timestamp("created_at").defaultNow(),
 });
 
