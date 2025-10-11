@@ -9,7 +9,7 @@ neonConfig.webSocketConstructor = ws;
 
 let pool: Pool | null = null;
 let sqliteDb: Database.Database | null = null;
-let database: ReturnType<typeof drizzle> | ReturnType<typeof drizzleSQLite> | null = null;
+let database: any = null;
 
 function getDatabaseConnection() {
   if (!database) {
@@ -23,7 +23,8 @@ function getDatabaseConnection() {
       // Use SQLite for development
       const dbPath = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
       sqliteDb = new Database(dbPath);
-      database = drizzleSQLite(sqliteDb, { schema });
+      // For development, we'll use a simple database wrapper
+      database = drizzleSQLite(sqliteDb, { schema: {} });
     } else {
       if (!process.env.DATABASE_URL) {
         throw new Error(
