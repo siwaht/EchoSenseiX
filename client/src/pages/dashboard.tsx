@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
 import { UserPlanCard } from "@/components/dashboard/user-plan-card";
@@ -728,6 +729,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { selectedAgent, setSelectedAgent, agents } = useAgentContext();
+  const { user } = useAuth();
   
   // Use agent ID from context
   // When there's only one agent, use its ID instead of "all"
