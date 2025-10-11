@@ -238,13 +238,12 @@ class ElevenLabsService {
     try {
       console.log(`[FETCH-STORE-AUDIO] Starting fetch for conversation ${conversationId}, callId ${callId}`);
 
-      // Check if audio is available
-      console.log(`[FETCH-STORE-AUDIO] Step 1: Checking if audio is available...`);
-      const hasAudio = await this.hasConversationAudio(conversationId);
-      console.log(`[FETCH-STORE-AUDIO] Step 1: hasConversationAudio returned: ${hasAudio}`);
+      // Directly attempt to fetch the audio - the API will tell us if it doesn't exist
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Downloading audio from ElevenLabs...`);
+      const audioBuffer = await this.getConversationAudio(conversationId);
       
-      if (!hasAudio) {
-        console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not available, updating status to 'unavailable'`);
+      if (!audioBuffer) {
+        console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not available (404 or error), updating status to 'unavailable'`);
         await storage.updateCallAudioStatus(callId, organizationId, {
           audioFetchStatus: 'unavailable',
           audioFetchedAt: new Date(),
@@ -252,42 +251,29 @@ class ElevenLabsService {
         return { success: false, error: 'Audio not available for this conversation' };
       }
 
-      // Fetch the audio
-      console.log(`[FETCH-STORE-AUDIO] Step 2: Downloading audio from ElevenLabs...`);
-      const audioBuffer = await this.getConversationAudio(conversationId);
-      
-      if (!audioBuffer) {
-        console.log(`[FETCH-STORE-AUDIO] Step 2: Failed to download audio, updating status to 'failed'`);
-        await storage.updateCallAudioStatus(callId, organizationId, {
-          audioFetchStatus: 'failed',
-          audioFetchedAt: new Date(),
-        });
-        return { success: false, error: 'Failed to download audio' };
-      }
-
-      console.log(`[FETCH-STORE-AUDIO] Step 2: Successfully downloaded ${audioBuffer.length} bytes`);
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Successfully downloaded ${audioBuffer.length} bytes`);
 
       // Store the audio
-      console.log(`[FETCH-STORE-AUDIO] Step 3: Uploading audio to local storage...`);
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Uploading audio to local storage...`);
       const { storageKey } = await audioStorageService.uploadAudio(conversationId, audioBuffer, {
         callId,
         organizationId,
       });
-      console.log(`[FETCH-STORE-AUDIO] Step 3: Audio uploaded with storageKey: ${storageKey}`);
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Audio uploaded with storageKey: ${storageKey}`);
 
-      console.log(`[FETCH-STORE-AUDIO] Step 4: Generating signed URL...`);
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Generating signed URL...`);
       const recordingUrl = audioStorageService.getSignedUrl(storageKey);
-      console.log(`[FETCH-STORE-AUDIO] Step 4: Generated signed URL: ${recordingUrl}`);
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Generated signed URL: ${recordingUrl}`);
 
       // Update database
-      console.log(`[FETCH-STORE-AUDIO] Step 5: Updating database with storageKey=${storageKey}, recordingUrl=${recordingUrl}, status='available'`);
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Updating database with storageKey=${storageKey}, recordingUrl=${recordingUrl}, status='available'`);
       const updated = await storage.updateCallAudioStatus(callId, organizationId, {
         audioStorageKey: storageKey,
         audioFetchStatus: 'available',
         recordingUrl,
         audioFetchedAt: new Date(),
       });
-      console.log(`[FETCH-STORE-AUDIO] Step 5: Database update result:`, updated ? 'SUCCESS' : 'FAILED');
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Database update result:`, updated ? 'SUCCESS' : 'FAILED');
 
       console.log(`[FETCH-STORE-AUDIO] ✅ Complete success for conversation ${conversationId}: ${storageKey}`);
       return { success: true, storageKey, recordingUrl };
