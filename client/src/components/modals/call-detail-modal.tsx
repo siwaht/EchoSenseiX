@@ -331,7 +331,6 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
               )}
             </Card>
           </div>
-        </div>
 
         {/* Transcript */}
         {callLog.transcript && (
