@@ -4200,6 +4200,75 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Debug endpoint to test ElevenLabs API directly
+  app.post("/api/debug/elevenlabs-test", async (req: any, res) => {
+    try {
+      console.log("[DEBUG] ElevenLabs API test endpoint called");
+      
+      const { apiKey, organizationId } = req.body;
+      
+      if (!apiKey && !organizationId) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Either apiKey or organizationId is required"
+        });
+      }
+
+      let testApiKey = apiKey;
+      if (!testApiKey && organizationId) {
+        const integration = await storage.getIntegration(organizationId, "elevenlabs");
+        if (!integration?.apiKey) {
+          return res.status(400).json({ 
+            success: false,
+            message: "No ElevenLabs API key found for organization"
+          });
+        }
+        testApiKey = integration.apiKey;
+      }
+
+      // Create ElevenLabs client and test
+      const { createElevenLabsClient } = await import("./services/elevenlabs");
+      const client = createElevenLabsClient(testApiKey);
+
+      // Test user endpoint
+      const userResult = await client.getUser();
+      console.log("[DEBUG] User API result:", userResult);
+
+      // Test agents endpoint
+      const agentsResult = await client.getAgents();
+      console.log("[DEBUG] Agents API result:", {
+        success: agentsResult.success,
+        hasData: !!agentsResult.data,
+        error: agentsResult.error,
+        statusCode: agentsResult.statusCode
+      });
+
+      res.json({
+        success: true,
+        message: "ElevenLabs API test completed",
+        results: {
+          user: userResult,
+          agents: {
+            success: agentsResult.success,
+            hasData: !!agentsResult.data,
+            dataType: typeof agentsResult.data,
+            error: agentsResult.error,
+            statusCode: agentsResult.statusCode
+          }
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[DEBUG] ElevenLabs API test error:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "ElevenLabs API test failed",
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Health check endpoint for sync service
   app.get("/api/sync/health", async (req: any, res) => {
     try {

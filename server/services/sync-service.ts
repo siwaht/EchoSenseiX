@@ -229,11 +229,34 @@ export class SyncService {
       console.log(`[SYNC] Fetching agents from ElevenLabs...`);
       const agentsResult = await client.getAgents();
 
-      if (!agentsResult.success || !agentsResult.data) {
-        throw new Error(agentsResult.error || "Failed to fetch agents");
+      console.log(`[SYNC] Agents API response:`, {
+        success: agentsResult.success,
+        hasData: !!agentsResult.data,
+        error: agentsResult.error,
+        statusCode: agentsResult.statusCode
+      });
+
+      if (!agentsResult.success) {
+        throw new Error(`Failed to fetch agents: ${agentsResult.error}`);
       }
 
-      const agents = agentsResult.data.agents || agentsResult.data || [];
+      if (!agentsResult.data) {
+        throw new Error("No data returned from agents API");
+      }
+
+      // Handle different response structures
+      let agents = [];
+      if (Array.isArray(agentsResult.data)) {
+        agents = agentsResult.data;
+      } else if (agentsResult.data.agents && Array.isArray(agentsResult.data.agents)) {
+        agents = agentsResult.data.agents;
+      } else if (agentsResult.data.data && Array.isArray(agentsResult.data.data)) {
+        agents = agentsResult.data.data;
+      } else {
+        console.log(`[SYNC] Unexpected agents data structure:`, agentsResult.data);
+        agents = [];
+      }
+
       console.log(`[SYNC] Found ${agents.length} agents`);
 
       // Process each agent
@@ -248,18 +271,29 @@ export class SyncService {
           }
 
           // Check if agent already exists
-          const existingAgent = await storage.getAgentByElevenLabsId(agent.agent_id, organizationId);
+          const agentId = agent.agent_id || agent.id;
+          const existingAgent = await storage.getAgentByElevenLabsId(agentId, organizationId);
 
+          // Extract agent data with better error handling
           const agentData: Partial<InsertAgent> = {
             organizationId,
-            elevenLabsAgentId: agent.agent_id,
-            name: agent.name || "Unnamed Agent",
-            voiceId: agent.conversation_config?.voice?.voice_id || null,
-            systemPrompt: agent.prompt?.prompt || null,
-            firstMessage: agent.conversation_config?.first_message || null,
-            language: agent.conversation_config?.language || "en",
+            elevenLabsAgentId: agent.agent_id || agent.id,
+            name: agent.name || agent.agent_name || "Unnamed Agent",
+            voiceId: agent.conversation_config?.voice?.voice_id || agent.voice_id || null,
+            systemPrompt: agent.prompt?.prompt || agent.system_prompt || agent.prompt || null,
+            firstMessage: agent.conversation_config?.first_message || agent.first_message || null,
+            language: agent.conversation_config?.language || agent.language || "en",
             isActive: true, // Set imported agents as active by default
           };
+
+          console.log(`[SYNC] Processing agent:`, {
+            id: agentData.elevenLabsAgentId,
+            name: agentData.name,
+            hasVoice: !!agentData.voiceId,
+            hasPrompt: !!agentData.systemPrompt,
+            hasFirstMessage: !!agentData.firstMessage,
+            language: agentData.language
+          });
 
           if (existingAgent) {
             // Update existing agent
