@@ -128,6 +128,18 @@ export class SyncService {
             }
           }
 
+          // Extract duration from conversation_initiation_client_data.dynamic_variables or other sources
+          const duration = detailedConversation.conversation_initiation_client_data?.dynamic_variables?.system__call_duration_secs ||
+                         detailedConversation.dynamic_variables?.system__call_duration_secs || 
+                         detailedConversation.duration_seconds || 0;
+          
+          // Extract transcript from the main response if available
+          let transcript = null;
+          if (includeTranscripts && detailedConversation.transcript && Array.isArray(detailedConversation.transcript)) {
+            transcript = JSON.stringify(detailedConversation.transcript);
+            console.log(`[SYNC] Extracted transcript from conversation response for ${conversation.conversation_id}`);
+          }
+          
           // Prepare call log data using detailed conversation info
           const callLogData: Partial<InsertCallLog> = {
             organizationId,
@@ -136,28 +148,11 @@ export class SyncService {
             elevenLabsCallId: detailedConversation.conversation_id,
             phoneNumber: detailedConversation.metadata?.caller_number || null,
             status: detailedConversation.status || "completed",
-            duration: detailedConversation.duration_seconds || 0,
+            duration: duration,
             cost: detailedConversation.cost ? String(detailedConversation.cost) : null,
-            transcript: null,
+            transcript: transcript,
             audioUrl: detailedConversation.recording_url || null,
           };
-
-          // Fetch transcript if requested and available
-          if (includeTranscripts && conversation.conversation_id) {
-            try {
-              const transcriptResult = await client.getConversationTranscript(
-                conversation.conversation_id
-              );
-              if (transcriptResult.success && transcriptResult.data) {
-                callLogData.transcript = JSON.stringify(transcriptResult.data);
-              } else {
-                console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}: ${transcriptResult.error}`);
-              }
-            } catch (transcriptError: any) {
-              console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}:`, transcriptError.message);
-              // Continue without transcript
-            }
-          }
 
           if (existingLog) {
             // Update existing call log

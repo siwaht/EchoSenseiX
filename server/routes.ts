@@ -650,12 +650,11 @@ export function registerRoutes(app: Express): Server {
       const syncStatus = {
         isConfigured: elevenLabsIntegrations.length > 0,
         integrations: elevenLabsIntegrations.length,
-        lastSync: null,
         status: 'idle',
         totalAgents: 0,
         totalConversations: 0,
         totalOrganizations: 0,
-        recentActivity: [],
+        recentActivity: [] as any[],
         healthStatus: 'unknown',
         lastSync: new Date().toISOString(),
         apiVersion: 'v1',
@@ -677,7 +676,7 @@ export function registerRoutes(app: Express): Server {
         
         // Get last sync times
         const lastSyncTimes = activeOrganizations
-          .map(org => org.lastSync)
+          .map(org => (org as any).lastSync)
           .filter(Boolean)
           .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
         
@@ -725,7 +724,7 @@ export function registerRoutes(app: Express): Server {
         
         // Get recent activity
         try {
-          const recentCallLogs = [];
+          const recentCallLogs: any[] = [];
           for (const org of activeOrganizations.slice(0, 3)) {
             try {
               const logs = await storage.getCallLogs(org.id, 10, 0);
@@ -745,7 +744,8 @@ export function registerRoutes(app: Express): Server {
           }
           
           syncStatus.recentActivity = recentCallLogs
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .filter(log => log.createdAt !== null)
+            .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
             .slice(0, 10);
         } catch (error) {
           console.warn('Error getting recent activity:', error);
@@ -896,7 +896,7 @@ export function registerRoutes(app: Express): Server {
       const callLogs = await SyncService.syncCallLogs({
         organizationId: elevenLabsIntegration.organizationId,
         limit: 100,
-        includeTranscripts: false,
+        includeTranscripts: true,
       });
       res.json({
         success: agents.success && callLogs.success,
@@ -3404,16 +3404,16 @@ Generate the complete prompt now:`;
       const userAgents = await storage.getAgentsForUser(userId, user.organizationId);
       
       // Legacy sync logic (kept for compatibility but not used for admins anymore)
-      if (integration && integration.apiKey && false && user.isAdmin) {
-        const decryptedKey = decryptApiKey(integration.apiKey);
+      if (integration && integration.apiKey && false && user!.isAdmin) {
+        const decryptedKey = decryptApiKey(integration!.apiKey);
         
         try {
           // Fetch all agents from ElevenLabs using centralized sync service
-          const syncAgentsResult = await SyncService.syncAgents(user.organizationId);
+          const syncAgentsResult = await SyncService.syncAgents(user!.organizationId);
           const elevenLabsAgents = [] as any[]; // no direct list from service; keep existing flow below as display only
           
           // Get local agents
-          const localAgents = await storage.getAgents(user.organizationId);
+          const localAgents = await storage.getAgents(user!.organizationId);
           const localAgentsByElevenLabsId = new Map(
             localAgents.map(a => [a.elevenLabsAgentId, a])
           );
@@ -3459,7 +3459,7 @@ Generate the complete prompt now:`;
             }
             
             const agentData = {
-              organizationId: user.organizationId,
+              organizationId: user!.organizationId,
               elevenLabsAgentId: agentId,
               name: elevenLabsAgent.name || "Unnamed Agent",
               description: elevenLabsAgent.description || "Synced from ElevenLabs",
@@ -3488,7 +3488,7 @@ Generate the complete prompt now:`;
               // Don't overwrite existing agent data - keep local data as source of truth
               // Just add the existing agent to the synced list without updating
               syncedAgents.push(existingAgent);
-            } else if (user.isAdmin) {
+            } else if (user!.isAdmin) {
               // Only admins can create new agents from ElevenLabs sync
               const created = await storage.createAgent(agentData);
               syncedAgents.push(created);
@@ -3500,18 +3500,18 @@ Generate the complete prompt now:`;
           for (const localAgent of localAgents) {
             if (localAgent.elevenLabsAgentId && !elevenLabsAgentIds.has(localAgent.elevenLabsAgentId)) {
               // Agent exists locally but not in ElevenLabs, mark as inactive or delete
-              await storage.updateAgent(localAgent.id, user.organizationId, { isActive: false });
+              await storage.updateAgent(localAgent.id, user!.organizationId, { isActive: false });
             }
           }
           
           // Return only agents the user has access to
-          const allAgents = await storage.getAgentsForUser(userId, user.organizationId);
+          const allAgents = await storage.getAgentsForUser(userId, user!.organizationId);
           res.json(allAgents);
           
         } catch (syncError) {
           console.error("Error syncing with ElevenLabs:", syncError);
           // Fall back to local data if sync fails
-          const agents = await storage.getAgentsForUser(userId, user.organizationId);
+          const agents = await storage.getAgentsForUser(userId, user!.organizationId);
           res.json(agents);
         }
       } else {
@@ -4213,7 +4213,7 @@ Generate the complete prompt now:`;
       res.status(500).json({ 
         success: false,
         message: "Sync test failed",
-        error: error.message,
+        error: (error as Error).message,
         timestamp: new Date().toISOString()
       });
     }
@@ -4282,7 +4282,7 @@ Generate the complete prompt now:`;
       res.status(500).json({ 
         success: false,
         message: "ElevenLabs API test failed",
-        error: error.message,
+        error: (error as Error).message,
         timestamp: new Date().toISOString()
       });
     }
