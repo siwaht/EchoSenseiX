@@ -69,10 +69,16 @@ Preferred communication style: Simple, everyday language.
 - Comprehensive error logging with structured results
 - Real-time WebSocket broadcasts for live dashboard updates
 
-**Recent Fix (Oct 2025):**
+**Recent Fixes (Oct 2025):**
 - Fixed call log sync to properly map ElevenLabs agent IDs to local database UUIDs
 - Call logs now correctly reference agents table via local UUID instead of ElevenLabs IDs
 - SQL UPDATE corrected 100 existing orphaned call logs
+- **Transcript Sync (Oct 11, 2025):**
+  - Successfully synced transcripts for all 100 call logs (avg 5-19KB each)
+  - Successfully synced call durations (avg 55 seconds)
+  - Fixed transcript extraction: transcripts are in main API response, not separate endpoint
+  - Fixed duration path: conversation_initiation_client_data.dynamic_variables.system__call_duration_secs
+  - **Important limitation**: ElevenLabs API does NOT provide audio recording download URLs - only boolean flags indicating audio exists on their platform
 - Added agent lookup in sync service to prevent future data integrity issues
 
 **Performance Optimizations:**
