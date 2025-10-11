@@ -23,7 +23,9 @@ import {
   Wrench,
   Users,
   Palette,
-  Volume2
+  Volume2,
+  BookOpen,
+  Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";

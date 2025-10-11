@@ -29,6 +29,8 @@ import {
   Users
 } from "lucide-react";
 import type { Agent, User } from "@shared/schema";
+import { MultilingualConfig } from "@/components/agents/multilingual-config";
+import { KnowledgeBaseManager } from "@/components/knowledge-base/knowledge-base-manager";
 
 export default function AgentSettings() {
   const [, setLocation] = useLocation();
@@ -800,6 +802,11 @@ Always maintain a professional yet conversational tone, and ensure all responses
         {/* Language Settings */}
         <TabsContent value="language" className="space-y-6">
           <MultilingualConfig agentId={agentId || ""} />
+        </TabsContent>
+
+        {/* Knowledge Base Settings */}
+        <TabsContent value="knowledge" className="space-y-6">
+          <KnowledgeBaseManager />
         </TabsContent>
 
         {/* Turn-taking Settings */}
