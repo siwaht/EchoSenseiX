@@ -346,8 +346,10 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
 }
 
 export function registerRoutes(app: Express): Server {
-  // Seed admin user on startup
-  seedAdminUser().catch(console.error);
+  // Seed admin user on startup (with delay to ensure DB is ready)
+  setTimeout(() => {
+    seedAdminUser().catch(console.error);
+  }, 1000);
   
   // Auth middleware
   setupAuth(app);

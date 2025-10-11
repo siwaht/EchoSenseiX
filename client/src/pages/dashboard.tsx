@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Phone, Clock, DollarSign, Bot, PhoneCall, MessageSquare, AlertCircle, RefreshCw, BarChart3, TrendingUp, Activity, HelpCircle, CheckCircle, XCircle, FileText, Download, TrendingDown, Users } from "lucide-react";
+import { Phone, Clock, DollarSign, Bot, PhoneCall, MessageSquare, AlertCircle, RefreshCw, BarChart3, TrendingUp, Activity, HelpCircle, CheckCircle, XCircle, FileText, Download, TrendingDown, Users, ExternalLink } from "lucide-react";
 import { useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -855,9 +855,11 @@ export default function Dashboard() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-8">
+    <div className="space-y-8 p-1">
+      {/* Premium background gradient overlay */}
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-50/50 via-blue-50/30 to-indigo-50/50 dark:from-purple-950/20 dark:via-blue-950/10 dark:to-indigo-950/20 pointer-events-none -z-10"></div>
       {/* Sync Section */}
-      <div className="space-y-3">
+      <div className="space-y-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-200/50 dark:border-purple-800/30 shadow-xl">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl sm:text-2xl font-bold brand-gradient-text">Dashboard</h2>
           <div className="flex items-start gap-2">
@@ -949,18 +951,62 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* Data Accuracy Notice */}
+      {/* Setup Guide */}
       {!(stats as any)?.lastSync && !lastSyncTime && (
-        <Card className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                Data Not Yet Synced
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                Click the "Sync Data" button above to fetch your latest call data and ensure all metrics are accurate.
-              </p>
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <Activity className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                  Welcome to EchoSensei! 🎉
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  To start monitoring your voice agents, you'll need to configure your ElevenLabs integration first.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                  <span className="text-blue-800 dark:text-blue-200">
+                    <strong>Step 1:</strong> Get your ElevenLabs API key from your account dashboard
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                  <span className="text-blue-800 dark:text-blue-200">
+                    <strong>Step 2:</strong> Go to Integrations and add your API key
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                  <span className="text-blue-800 dark:text-blue-200">
+                    <strong>Step 3:</strong> Click "Sync Data" to fetch your agents and call logs
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  onClick={() => window.location.href = '/integrations'}
+                  className="btn-brand-premium"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Go to Integrations
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => window.open('https://elevenlabs.io/app/settings/api-keys', '_blank')}
+                >
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Get API Key
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -1039,7 +1085,7 @@ export default function Dashboard() {
       )}
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 fade-in">
         {/* Total calls */}
         <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 dark:from-blue-500/20 dark:to-blue-600/20 border-blue-500/20 dark:border-blue-400/30 backdrop-blur hover:from-blue-500/15 hover:to-blue-600/15 transition-all card-hover group">
           <div className="space-y-1 sm:space-y-2">
@@ -1147,13 +1193,13 @@ export default function Dashboard() {
       </div>
 
       {/* User Plan Card */}
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
         <div className="lg:col-span-1">
           <UserPlanCard />
         </div>
         <div className="lg:col-span-3">
           {/* Call Volume Line Chart */}
-          <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur shadow-xl border-0 h-full">
+          <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur shadow-xl border-0 h-full bg-white/80 dark:bg-slate-900/80 border-purple-200/30 dark:border-purple-800/20 hover:shadow-2xl transition-all duration-300">
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={(() => {
@@ -1206,7 +1252,7 @@ export default function Dashboard() {
           <div className="border-t"></div>
 
           {/* Most Called Agents and Language Side by Side */}
-          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Most called agents</h3>

@@ -145,7 +145,7 @@ export class ElevenLabsRealtimeSync {
   /**
    * Sync credits and billing data
    */
-  private async syncCreditsData(): Promise<CreditsData> {
+  public async syncCreditsData(): Promise<CreditsData> {
     try {
       console.log(`[REALTIME-SYNC] Syncing credits data...`);
 
@@ -186,7 +186,7 @@ export class ElevenLabsRealtimeSync {
   /**
    * Sync dashboard data (agents, recent calls, overview)
    */
-  private async syncDashboardData(): Promise<DashboardData> {
+  public async syncDashboardData(): Promise<DashboardData> {
     try {
       console.log(`[REALTIME-SYNC] Syncing dashboard data...`);
 
@@ -231,7 +231,7 @@ export class ElevenLabsRealtimeSync {
   /**
    * Sync comprehensive calls data (transcripts, recordings, summaries, logs)
    */
-  private async syncCallsData(): Promise<CallsData> {
+  public async syncCallsData(): Promise<CallsData> {
     try {
       console.log(`[REALTIME-SYNC] Syncing calls data...`);
 
@@ -312,7 +312,7 @@ export class ElevenLabsRealtimeSync {
   /**
    * Sync analytics and usage data
    */
-  private async syncAnalyticsData(): Promise<AnalyticsData> {
+  public async syncAnalyticsData(): Promise<AnalyticsData> {
     try {
       console.log(`[REALTIME-SYNC] Syncing analytics data...`);
 

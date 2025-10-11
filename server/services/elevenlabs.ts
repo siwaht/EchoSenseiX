@@ -547,34 +547,57 @@ class ElevenLabsService {
   }
 }
 
-// Helper function to decrypt API key
+/**
+ * Helper functions to handle API key encryption/decryption with backward compatibility.
+ * - decryptApiKey: Accepts both plaintext and encrypted values. Never throws on malformed input,
+ *   instead falls back to treating the input as plaintext to avoid blocking API calls.
+ * - encryptApiKey: AES-256-CBC with scrypt-derived key and random IV. Format: ivHex:encryptedHex
+ */
 export function decryptApiKey(encryptedApiKey: string): string {
+  if (!encryptedApiKey) {
+    throw new Error("Missing ElevenLabs API key");
+  }
   try {
+    // If it's already a plaintext key (typical ElevenLabs format like "sk_...")
+    if (!encryptedApiKey.includes(":")) {
+      if (/^sk_[A-Za-z0-9]+$/.test(encryptedApiKey)) {
+        return encryptedApiKey.trim();
+      }
+      // Try legacy decryption (old hex format with createDecipher)
+      try {
+        const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
+        let decrypted = decipher.update(encryptedApiKey, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted.trim();
+      } catch {
+        // Fallback: treat as plaintext
+        return encryptedApiKey.trim();
+      }
+    }
+
+    // New format ivHex:encryptedHex (AES-256-CBC)
     const algorithm = "aes-256-cbc";
     const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-    
-    // Handle both old and new encryption formats
-    if (!encryptedApiKey.includes(":")) {
-      // Old format - try legacy decryption
-      const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
-      let decrypted = decipher.update(encryptedApiKey, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-      return decrypted;
-    }
-    
-    // New format
     const [ivHex, encrypted] = encryptedApiKey.split(":");
     const iv = Buffer.from(ivHex, "hex");
-    
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
-    
-    return decrypted;
+    return decrypted.trim();
   } catch (error) {
-    console.error("Decryption failed:", error);
-    throw new Error("Failed to decrypt API key. Please re-enter your API key.");
+    console.warn("decryptApiKey: falling back to plaintext due to error:", error);
+    return encryptedApiKey.trim();
   }
+}
+
+export function encryptApiKey(plainApiKey: string): string {
+  const algorithm = "aes-256-cbc";
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encrypted = cipher.update(plainApiKey, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return `${iv.toString("hex")}:${encrypted}`;
 }
 
 // Factory function to create client with encrypted key

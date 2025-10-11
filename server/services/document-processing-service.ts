@@ -6,6 +6,8 @@
  */
 
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { storage } from '../storage';
 import { createElevenLabsClient } from './elevenlabs';
 import { KnowledgeBaseService } from './knowledge-base-service';
@@ -26,12 +28,17 @@ export interface DocumentUpload {
 }
 
 export class DocumentProcessingService {
-  private static uploadPath = './uploads/documents';
+  private static uploadPath = path.resolve('./uploads/documents');
 
   /**
    * Configure multer for document uploads
    */
   static getUploadMiddleware() {
+    // Ensure upload directory exists
+    if (!fs.existsSync(this.uploadPath)) {
+      fs.mkdirSync(this.uploadPath, { recursive: true });
+    }
+
     return multer({
       storage: multer.diskStorage({
         destination: (req, file, cb) => {
@@ -77,6 +84,14 @@ export class DocumentProcessingService {
     try {
       console.log(`[DOCUMENT-PROCESSING] Processing document: ${originalName}`);
       
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+
+      // Get file stats
+      const fileStats = fs.statSync(filePath);
+      
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       const document: DocumentUpload = {
@@ -84,7 +99,7 @@ export class DocumentProcessingService {
         filename: filePath,
         originalName,
         mimeType: this.getMimeType(originalName),
-        size: 0, // Will be updated after file processing
+        size: fileStats.size,
         organizationId,
         uploadedBy,
         status: 'processing',
@@ -140,15 +155,14 @@ export class DocumentProcessingService {
     try {
       // Using pdf-parse library for PDF text extraction
       const pdfParse = await import('pdf-parse');
-      const fs = await import('fs');
       
       const dataBuffer = fs.readFileSync(filePath);
       const data = await pdfParse.default(dataBuffer);
       
-      return data.text;
+      return data.text || '';
     } catch (error) {
       console.error('[DOCUMENT-PROCESSING] PDF extraction failed:', error);
-      throw new Error('Failed to extract text from PDF');
+      throw new Error(`Failed to extract text from PDF: ${error.message}`);
     }
   }
 
@@ -159,13 +173,12 @@ export class DocumentProcessingService {
     try {
       // Using mammoth library for DOCX text extraction
       const mammoth = await import('mammoth');
-      const fs = await import('fs');
       
       const result = await mammoth.extractRawText({ path: filePath });
-      return result.value;
+      return result.value || '';
     } catch (error) {
       console.error('[DOCUMENT-PROCESSING] DOCX extraction failed:', error);
-      throw new Error('Failed to extract text from DOCX');
+      throw new Error(`Failed to extract text from DOCX: ${error.message}`);
     }
   }
 
@@ -174,11 +187,10 @@ export class DocumentProcessingService {
    */
   private static async extractTextFromTXT(filePath: string): Promise<string> {
     try {
-      const fs = await import('fs');
       return fs.readFileSync(filePath, 'utf8');
     } catch (error) {
       console.error('[DOCUMENT-PROCESSING] TXT extraction failed:', error);
-      throw new Error('Failed to extract text from file');
+      throw new Error(`Failed to extract text from file: ${error.message}`);
     }
   }
 

@@ -8,7 +8,7 @@
 import { Express, Request, Response } from "express";
 import { storage } from "./storage";
 import ElevenLabsRealtimeSync from "./services/elevenlabs-realtime-sync";
-import { createElevenLabsClient } from "./services/elevenlabs";
+import { createElevenLabsClient, encryptApiKey } from "./services/elevenlabs";
 
 // Helper function to get user from request
 async function getUserFromRequest(req: any) {
@@ -53,10 +53,8 @@ export function registerRealtimeSyncRoutes(app: Express) {
       // Perform comprehensive sync
       const result = await syncService.syncAllData();
       
-      // Update organization sync timestamp
-      await storage.updateOrganization(user.organizationId, {
-        lastSync: new Date()
-      });
+      // Update integration last tested timestamp to reflect successful sync
+      await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
       
       res.json({
         success: result.success,
@@ -218,7 +216,7 @@ export function registerRealtimeSyncRoutes(app: Express) {
       const status = {
         isConfigured: true,
         apiKeyValid: testResult.success,
-        lastSync: integration.lastSync,
+        lastSync: integration.lastTested,
         status: integration.status,
         organizationId: user.organizationId,
         timestamp: new Date().toISOString()
@@ -391,26 +389,18 @@ export function registerRealtimeSyncRoutes(app: Express) {
         });
       }
       
-      // Create or update integration
-      let integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-      
-      if (integration) {
-        // Update existing integration
-        await storage.updateIntegration(integration.id, {
-          apiKey: apiKey,
-          status: "ACTIVE",
-          lastSync: new Date()
-        });
-      } else {
-        // Create new integration
-        await storage.createIntegration({
-          organizationId: user.organizationId,
-          type: "elevenlabs",
-          apiKey: apiKey,
-          status: "ACTIVE",
-          lastSync: new Date()
-        });
-      }
+      // Upsert integration with encrypted key and metadata
+      const encrypted = encryptApiKey(apiKey.trim());
+      const apiKeyLast4 = apiKey.slice(-4);
+
+      const integration = await storage.upsertIntegration({
+        organizationId: user.organizationId,
+        provider: "elevenlabs",
+        apiKey: encrypted,
+        apiKeyLast4,
+        status: "ACTIVE",
+        lastTested: new Date()
+      });
       
       res.json({
         success: true,
