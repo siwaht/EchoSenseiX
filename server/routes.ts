@@ -16,6 +16,9 @@ import SyncService from "./services/sync-service";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
+import KnowledgeBaseService from "./services/knowledge-base-service";
+import DocumentProcessingService from "./services/document-processing-service";
+import MultilingualService from "./services/multilingual-service";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -4220,9 +4223,6 @@ Generate the complete prompt now:`;
   });
 
   // Knowledge Base API endpoints
-  const KnowledgeBaseService = (await import("./services/knowledge-base-service")).default;
-  const DocumentProcessingService = (await import("./services/document-processing-service")).default;
-  const MultilingualService = (await import("./services/multilingual-service")).default;
 
   // Search knowledge base
   app.post("/api/knowledge-base/search", isAuthenticated, async (req: any, res) => {
