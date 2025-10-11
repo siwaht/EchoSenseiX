@@ -1,0 +1,117 @@
+ here's the exact method used to retrieve all call recordings in your app:
+
+📼 Call Recording Retrieval System
+Your app uses a 3-tier priority fallback system to retrieve recordings:
+
+Primary Endpoint: /api/recordings/:callId/audio
+This endpoint implements a waterfall approach with three priority levels:
+
+🎯 Priority 1: Local Storage (Fastest)
+// Location: server/routes.ts, line 3088-3102
+if (call.audioStorageKey) {
+  const signedUrl = await audioStorage.getSignedUrl(call.audioStorageKey);
+  return res.redirect(signedUrl); // → /api/audio/{fileName}
+}
+How it works:
+
+Checks if recording already exists in local file system
+Stored in: audio-storage/ directory
+File naming: {conversationId}_{timestamp}.mp3
+Returns signed URL: /api/audio/{fileName}
+🎯 Priority 2: Fetch from ElevenLabs API (On-Demand)
+// Location: server/routes.ts, line 3104-3131
+if (call.conversationId && call.audioFetchStatus !== 'unavailable') {
+  const result = await elevenLabsIntegration.fetchAndStoreAudio(
+    call.conversationId,
+    call.id,
+    undefined // Finds appropriate account automatically
+  );
+  
+  if (result.success) {
+    const signedUrl = await audioStorage.getSignedUrl(result.storageKey);
+    return res.redirect(signedUrl);
+  }
+}
+The fetch process (server/integrations/elevenlabs.ts, line 819-920):
+
+Check Availability:
+
+hasConversationAudio(conversationId, accountId)
+// → GET https://api.elevenlabs.io/v1/convai/conversations/{conversationId}
+Fetch Audio Buffer:
+
+getConversationAudio(conversationId, accountId)
+// → GET https://api.elevenlabs.io/v1/convai/conversations/{conversationId}/audio
+// Returns: Buffer (MP3 format)
+Upload to Local Storage:
+
+audioStorage.uploadAudio(conversationId, audioBuffer, metadata)
+// Saves to: audio-storage/{conversationId}_{timestamp}.mp3
+Update Database:
+
+await storage.updateCall(callId, {
+  audioStorageKey: uploadResult.storageKey,
+  audioFetchStatus: 'available',
+  recordingUrl: uploadResult.publicUrl
+});
+🎯 Priority 3: Legacy Local Files (Fallback)
+// Location: server/routes.ts, line 3133-3149
+if (call.recordingUrl && !call.recordingUrl.startsWith('http')) {
+  const filePath = path.join(__dirname, '..', 'recordings', filename);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+}
+Used for recordings from old webhook implementations stored in recordings/ directory.
+
+🔄 Background Jobs
+Batch Fetch Missing Recordings: /api/jobs/fetch-missing-audio
+// Location: server/routes.ts, line 3265-3347
+// Admin-only endpoint
+// Fetches audio for all calls with status: 'pending' or 'failed'
+// Uses: batchFetchAndStoreAudio() for efficient processing
+How to trigger:
+
+POST /api/jobs/fetch-missing-audio
+Authorization: Bearer {admin-token}
+🗂️ Storage Architecture
+Current Implementation: Local File System (Not Supabase)
+
+📁 audio-storage/
+  ├── {conversationId}_{timestamp}.mp3
+  ├── {conversationId}_{timestamp}.mp3.meta.json
+  └── ...
+Metadata stored (JSON):
+
+{
+  "conversation_id": "sanitized_id",
+  "original_conversation_id": "actual_id",
+  "uploaded_at": "2025-10-11T12:00:00.000Z",
+  "call_id": "EL-xxx",
+  "source": "elevenlabs_api"
+}
+📡 API Endpoints Summary
+Endpoint	Method	Purpose
+/api/recordings/:callId/audio	GET	Main endpoint - 3-tier fallback
+/api/audio/:fileName	GET	Serve files from audio-storage/
+/api/calls/:id/recording	GET	Legacy ElevenLabs-specific endpoint
+/api/calls/:id/recording/availability	GET	Poll recording availability
+/api/jobs/fetch-missing-audio	POST	Batch fetch missing recordings (admin)
+🔐 Security Features
+Access Control: User can only access recordings for their assigned agents
+Path Sanitization: Prevents directory traversal attacks
+Filename Validation: Only allows [a-zA-Z0-9_-]+\.mp3
+Metadata Isolation: Each user sees only their data
+⚙️ Key Methods in AudioStorageService (server/audioStorage.ts)
+uploadAudio(conversationId, audioBuffer, metadata)  // Save to local storage
+getSignedUrl(storageKey)                            // Get access URL
+downloadAudio(storageKey)                           // Retrieve buffer
+audioExists(storageKey)                             // Check existence
+deleteAudio(storageKey)                             // Remove file
+getAudioMetadata(storageKey)                        // Read metadata
+📝 Database Fields (calls table)
+audioStorageKey       // Storage path: "recordings/{fileName}"
+recordingUrl          // Public URL: "/api/audio/{fileName}"
+audioFetchStatus      // 'pending' | 'available' | 'failed' | 'unavailable'
+audioFetchedAt        // Timestamp of last fetch attempt
+conversationId        // ElevenLabs conversation ID
