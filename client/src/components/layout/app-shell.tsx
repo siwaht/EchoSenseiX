@@ -34,8 +34,8 @@ import { useQuery } from "@tanstack/react-query";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard }, // Dashboard is always visible
   { name: "Agents", href: "/agents", icon: Bot }, // Visible to all users (backend filters agents)
+  { name: "Agent Settings", href: "/agent-settings", icon: Settings }, // Direct access to agent settings
   { name: "Voices", href: "/voices", icon: Mic, permission: "manage_voices" },
-  { name: "Voice Configuration", href: "/voice-configuration", icon: Volume2, permission: "manage_voices" },
   { name: "Phone Numbers", href: "/phone-numbers", icon: Phone, permission: "manage_phone_numbers" },
   { name: "Outbound Calling", href: "/outbound-calling", icon: PhoneOutgoing, permission: "make_outbound_calls" },
   { name: "Tools", href: "/tools", icon: Wrench, permission: "configure_tools" },

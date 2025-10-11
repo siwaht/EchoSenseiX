@@ -98,12 +98,12 @@ function AgencyRouter() {
           <Route path="/agency/:subdomain/agents/:id">
             <PermissionGuard><AgentSettings /></PermissionGuard>
           </Route>
+          <Route path="/agency/:subdomain/agent-settings">
+            <PermissionGuard><AgentSettings /></PermissionGuard>
+          </Route>
           <Route path="/agency/:subdomain/agent-testing" component={AgentTesting} />
           <Route path="/agency/:subdomain/voices">
             <PermissionGuard><Voices /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/voice-configuration">
-            <PermissionGuard><VoiceConfiguration /></PermissionGuard>
           </Route>
           <Route path="/agency/:subdomain/phone-numbers">
             <PermissionGuard><PhoneNumbers /></PermissionGuard>
@@ -195,12 +195,12 @@ function Router() {
           <Route path="/agents/:id">
             <PermissionGuard><AgentSettings /></PermissionGuard>
           </Route>
+          <Route path="/agent-settings">
+            <PermissionGuard><AgentSettings /></PermissionGuard>
+          </Route>
           <Route path="/agent-testing" component={AgentTesting} />
           <Route path="/voices">
             <PermissionGuard><Voices /></PermissionGuard>
-          </Route>
-          <Route path="/voice-configuration">
-            <PermissionGuard><VoiceConfiguration /></PermissionGuard>
           </Route>
           <Route path="/phone-numbers">
             <PermissionGuard><PhoneNumbers /></PermissionGuard>

@@ -31,6 +31,7 @@ import {
 import type { Agent, User } from "@shared/schema";
 import { MultilingualConfig } from "@/components/agents/multilingual-config";
 import { KnowledgeBaseManager } from "@/components/knowledge-base/knowledge-base-manager";
+import { VoiceConfiguration } from "@/components/agents/voice-configuration";
 
 export default function AgentSettings() {
   const [, setLocation] = useLocation();
@@ -571,124 +572,32 @@ Always maintain a professional yet conversational tone, and ensure all responses
 
         {/* Voice Settings */}
         <TabsContent value="voice" className="space-y-6">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Voice Configuration</h2>
-            
-            <div className="space-y-6">
-              {/* Voice Selection */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Voice Selection</h3>
-                <div>
-                  <Label htmlFor="voice">Voice</Label>
-                  <Select 
-                    value={selectedVoice} 
-                    onValueChange={(value) => {
-                      setSelectedVoice(value);
-                      setHasChanges(true);
-                    }}
-                  >
-                    <SelectTrigger id="voice" className="mt-2">
-                      <SelectValue placeholder="Select a voice" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {voices && Array.isArray(voices) ? (
-                        voices.map((voice: any) => (
-                          <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                            {voice.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="rachel">Rachel</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose from ElevenLabs' library of natural-sounding voices
-                  </p>
-                </div>
+          {agentId ? (
+            <VoiceConfiguration
+              agentId={agentId}
+              currentVoiceId={selectedVoice}
+              currentVoiceSettings={{
+                stability: stability[0],
+                similarityBoost: similarityBoost[0],
+                style: 0,
+                useSpeakerBoost: true
+              }}
+              currentMultiVoiceConfig={{
+                enabled: false,
+                voices: []
+              }}
+            />
+          ) : (
+            <Card className="p-6">
+              <div className="text-center py-8">
+                <Mic className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Select an Agent</h3>
+                <p className="text-muted-foreground">
+                  Please select an agent from the dropdown above to configure voice settings.
+                </p>
               </div>
-
-              <Separator />
-
-              {/* Voice Quality Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Voice Quality</h3>
-                
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <Label>Stability</Label>
-                    <span className="text-sm text-muted-foreground">{stability[0].toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    value={stability}
-                    onValueChange={(value) => {
-                      setStability(value);
-                      setHasChanges(true);
-                    }}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    className="mt-2"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Higher = more consistent tone, Lower = more expressive variation
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <Label>Similarity Boost</Label>
-                    <span className="text-sm text-muted-foreground">{similarityBoost[0].toFixed(2)}</span>
-                  </div>
-                  <Slider
-                    value={similarityBoost}
-                    onValueChange={(value) => {
-                      setSimilarityBoost(value);
-                      setHasChanges(true);
-                    }}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    className="mt-2"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Higher = closer to original voice character
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Advanced Voice Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Optimization Settings</h3>
-                
-                <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Latency Optimization</p>
-                      <p className="text-xs text-muted-foreground">Automatically enabled for real-time conversations</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Voice Quality</p>
-                      <p className="text-xs text-muted-foreground">Using optimized models for natural speech synthesis</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Streaming</p>
-                      <p className="text-xs text-muted-foreground">Real-time audio streaming for seamless conversations</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
         </TabsContent>
 
         {/* LLM Settings */}
