@@ -6047,6 +6047,101 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Batch generate summaries for all calls with transcripts
+  app.post("/api/jobs/generate-all-summaries", isAuthenticated, checkPermission('manage_organization'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      console.log("[BATCH-SUMMARY] Starting batch summary generation for organization:", user.organizationId);
+      
+      // Get all call logs for the organization
+      const allCallLogs = await storage.getCallLogs(user.organizationId);
+      
+      // Extract data from paginated response
+      const callLogsData = allCallLogs.data || allCallLogs;
+      
+      // Filter to only those needing summaries
+      const callLogsNeedingSummary = callLogsData.filter((log: any) => 
+        log.transcript && (!log.summary || log.summaryStatus === 'failed')
+      );
+      
+      console.log(`[BATCH-SUMMARY] Found ${callLogsNeedingSummary.length} calls needing summaries`);
+      
+      if (callLogsNeedingSummary.length === 0) {
+        return res.json({
+          message: "No calls need summary generation",
+          processed: 0,
+          successful: 0,
+          failed: 0
+        });
+      }
+      
+      let successful = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      
+      // Process in batches to avoid overwhelming the system
+      const batchSize = 5;
+      for (let i = 0; i < callLogsNeedingSummary.length; i += batchSize) {
+        const batch = callLogsNeedingSummary.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (callLog: any) => {
+          try {
+            console.log(`[BATCH-SUMMARY] Generating summary for call: ${callLog.id}`);
+            
+            const result = await SummaryService.generateCallSummary(callLog);
+            
+            if (result.status === 'success' && result.summary) {
+              await storage.updateCallLogSummary(
+                callLog.id,
+                user.organizationId,
+                result.summary,
+                result.status,
+                result.metadata
+              );
+              successful++;
+              console.log(`[BATCH-SUMMARY] Successfully generated summary for call: ${callLog.id}`);
+            } else {
+              failed++;
+              errors.push(`Call ${callLog.id}: ${result.error || 'Unknown error'}`);
+              console.error(`[BATCH-SUMMARY] Failed to generate summary for call: ${callLog.id}`, result.error);
+            }
+          } catch (error: any) {
+            failed++;
+            errors.push(`Call ${callLog.id}: ${error.message}`);
+            console.error(`[BATCH-SUMMARY] Error processing call ${callLog.id}:`, error);
+          }
+        }));
+        
+        // Add a small delay between batches to avoid rate limiting
+        if (i + batchSize < callLogsNeedingSummary.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      console.log(`[BATCH-SUMMARY] Batch summary generation complete. Success: ${successful}, Failed: ${failed}`);
+      
+      res.json({
+        message: "Batch summary generation complete",
+        processed: callLogsNeedingSummary.length,
+        successful,
+        failed,
+        errors: errors.length > 0 ? errors : undefined
+      });
+      
+    } catch (error: any) {
+      console.error("[BATCH-SUMMARY] Error in batch summary generation:", error);
+      res.status(500).json({ 
+        message: "Failed to run batch summary generation",
+        error: error.message 
+      });
+    }
+  });
+
   // Call Recording Endpoints with 3-tier fallback
   // GET /api/recordings/:callId/audio - Main endpoint with 3-tier fallback logic
   app.get("/api/recordings/:callId/audio", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {

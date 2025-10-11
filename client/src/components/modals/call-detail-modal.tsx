@@ -2,12 +2,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Bot, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Bot, Sparkles, Loader2, AlertCircle, Download } from "lucide-react";
 import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
 import type { CallLog, SummaryMetadata } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 interface CallDetailModalProps {
   callLog: CallLog | null;
@@ -30,6 +31,45 @@ function MetadataDisplay({ metadata }: { metadata: SummaryMetadata | null }) {
 export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+
+  // Auto-fetch recording when modal opens if needed
+  useEffect(() => {
+    if (open && callLog && !callLog.audioUrl && !callLog.audioStorageKey && callLog.conversationId) {
+      fetchRecording();
+    }
+    // Reset audio URL when modal closes or callLog changes
+    if (!open || !callLog) {
+      setAudioUrl(null);
+    } else if (callLog.audioUrl) {
+      setAudioUrl(callLog.audioUrl);
+    }
+  }, [open, callLog?.id]);
+
+  // Fetch recording function
+  const fetchRecording = async () => {
+    if (!callLog?.conversationId) return;
+    
+    setIsFetchingAudio(true);
+    try {
+      console.log(`Auto-fetching recording for call: ${callLog.id}`);
+      const response = await apiRequest("GET", `/api/recordings/${callLog.id}/audio`);
+      
+      // The API returns binary audio data, so we need to create a blob URL
+      if (response instanceof Blob || response instanceof ArrayBuffer) {
+        const blob = response instanceof Blob ? response : new Blob([response], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        console.log(`Recording fetched successfully for call: ${callLog.id}`);
+      }
+    } catch (error: any) {
+      console.error(`Failed to fetch recording for call ${callLog?.id}:`, error);
+      // Don't show error toast since recording might not exist for all calls
+    } finally {
+      setIsFetchingAudio(false);
+    }
+  };
 
   // Summary generation mutation
   const generateSummaryMutation = useMutation({
@@ -213,10 +253,16 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
         </div>
 
         {/* Call Recording with Professional Audio Player */}
-        {callLog.audioUrl && (
+        {(audioUrl || callLog.recordingUrl || isFetchingAudio) && (
           <div className="mb-4 sm:mb-6">
             <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Call Recording</h4>
             <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700">
+              {isFetchingAudio ? (
+                <div className="text-center py-4">
+                  <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin mb-2" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Fetching recording...</p>
+                </div>
+              ) : audioUrl || callLog.recordingUrl ? (
               <div className="space-y-3 sm:space-y-4">
                 {/* Waveform Visualization */}
                 <div className="h-12 sm:h-16 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center relative overflow-hidden">
@@ -243,23 +289,21 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                 {/* Audio Controls */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                   <audio controls className="w-full sm:flex-1 sm:max-w-md" data-testid="audio-call-recording">
-                    <source src={callLog.audioUrl} type="audio/mpeg" />
-                    <source src={callLog.audioUrl} type="audio/wav" />
-                    <source src={callLog.audioUrl} type="audio/mp4" />
+                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/mpeg" />
+                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/wav" />
+                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/mp4" />
                     Your browser does not support the audio element.
                   </audio>
                   
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs text-gray-500 dark:text-gray-400">
                     <span className="block sm:inline">Duration: {callLog.duration ? `${Math.floor(callLog.duration / 60)}:${String(callLog.duration % 60).padStart(2, '0')}` : 'N/A'}</span>
                     <a
-                      href={callLog.audioUrl}
-                      download={`call-recording-${callLog.elevenLabsCallId}.mp3`}
+                      href={audioUrl || callLog.recordingUrl || ""}
+                      download={`call-recording-${callLog.elevenLabsCallId || callLog.id}.mp3`}
                       className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
                       data-testid="link-download-recording"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
+                      <Download className="w-4 h-4" />
                       Download
                     </a>
                   </div>
@@ -271,6 +315,7 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                   <span>Encrypted & secure storage</span>
                 </div>
               </div>
+              ) : null}
             </Card>
           </div>
         )}

@@ -156,17 +156,61 @@ export class SyncService {
 
           if (existingLog) {
             // Update existing call log
-            await storage.updateCallLog(existingLog.id, organizationId, callLogData);
+            const updatedLog = await storage.updateCallLog(existingLog.id, organizationId, callLogData);
             updatedCount++;
             console.log(`[SYNC] Updated call log ${existingLog.id}`);
+            
+            // Auto-generate summary if transcript exists but no summary
+            if (updatedLog && updatedLog.transcript && !updatedLog.summary) {
+              try {
+                console.log(`[SYNC] Auto-generating summary for updated call: ${existingLog.id}`);
+                const { default: SummaryService } = await import('./summary-service');
+                const summaryResult = await SummaryService.generateCallSummary(updatedLog);
+                
+                if (summaryResult.status === 'success' && summaryResult.summary) {
+                  await storage.updateCallLogSummary(
+                    existingLog.id,
+                    organizationId,
+                    summaryResult.summary,
+                    summaryResult.status,
+                    summaryResult.metadata
+                  );
+                  console.log(`[SYNC] Summary auto-generated for call: ${existingLog.id}`);
+                }
+              } catch (summaryError: any) {
+                console.error(`[SYNC] Failed to auto-generate summary for call ${existingLog.id}:`, summaryError.message);
+              }
+            }
           } else {
             // Create new call log
-            await storage.createCallLog({
+            const newCallLog = await storage.createCallLog({
               ...callLogData,
               createdAt: conversation.created_at ? new Date(conversation.created_at) : new Date(),
             } as InsertCallLog);
             syncedCount++;
             console.log(`[SYNC] Created new call log for conversation ${conversation.conversation_id}`);
+            
+            // Auto-generate summary if transcript exists
+            if (newCallLog && newCallLog.transcript) {
+              try {
+                console.log(`[SYNC] Auto-generating summary for new call: ${newCallLog.id}`);
+                const { default: SummaryService } = await import('./summary-service');
+                const summaryResult = await SummaryService.generateCallSummary(newCallLog);
+                
+                if (summaryResult.status === 'success' && summaryResult.summary) {
+                  await storage.updateCallLogSummary(
+                    newCallLog.id,
+                    organizationId,
+                    summaryResult.summary,
+                    summaryResult.status,
+                    summaryResult.metadata
+                  );
+                  console.log(`[SYNC] Summary auto-generated for new call: ${newCallLog.id}`);
+                }
+              } catch (summaryError: any) {
+                console.error(`[SYNC] Failed to auto-generate summary for new call ${newCallLog.id}:`, summaryError.message);
+              }
+            }
           }
         } catch (error: any) {
           errorCount++;

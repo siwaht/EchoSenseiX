@@ -446,7 +446,7 @@ export default function History() {
                           onClick={() => handleAudioPlayPause(callLog.audioUrl!, callLog.id)}
                           data-testid={`button-play-audio-${callLog.id}`}
                         >
-                          {playingAudioId === callLog.id ? (
+                          {currentTrackId === callLog.id ? (
                             <>
                               <Pause className="w-4 h-4 mr-1" />
                               Pause
@@ -497,6 +497,9 @@ export default function History() {
                       Duration
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Summary
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Recording
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -536,6 +539,26 @@ export default function History() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white" data-testid={`text-duration-${callLog.id}`}>
                         {formatDuration(callLog.duration || null)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {callLog.summary ? (
+                          <div className="max-w-xs">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 truncate" data-testid={`text-summary-${callLog.id}`}>
+                              {callLog.summary.slice(0, 100)}...
+                            </p>
+                            <Badge className="mt-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" variant="secondary">
+                              Generated
+                            </Badge>
+                          </div>
+                        ) : callLog.transcript ? (
+                          <Badge className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200" variant="secondary">
+                            Pending
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200" variant="secondary">
+                            No transcript
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         {callLog.audioUrl ? (
