@@ -78,7 +78,19 @@ Preferred communication style: Simple, everyday language.
   - Successfully synced call durations (avg 55 seconds)
   - Fixed transcript extraction: transcripts are in main API response, not separate endpoint
   - Fixed duration path: conversation_initiation_client_data.dynamic_variables.system__call_duration_secs
-  - **Important limitation**: ElevenLabs API does NOT provide audio recording download URLs - only boolean flags indicating audio exists on their platform
+- **AI Call Summaries (Oct 11, 2025):**
+  - Implemented Mistral AI-powered call summarization
+  - Generates structured summaries: outcome, intent, topics, actions, sentiment
+  - Token optimization: uses first 3 + last 2 conversation turns
+  - Idempotent caching with cost/metadata tracking
+  - API endpoint: POST /api/call-logs/:id/summary
+- **Call Recording Retrieval (Oct 11, 2025):**
+  - Implemented 3-tier fallback system: local storage → ElevenLabs API → legacy
+  - Audio storage service for local MP3 file management
+  - On-demand fetching from ElevenLabs API endpoint
+  - Multi-tenant security with organization validation
+  - API endpoints: GET /api/recordings/:callId/audio, POST /api/jobs/fetch-missing-audio
+  - Database fields: audioStorageKey, audioFetchStatus, recordingUrl, audioFetchedAt
 - Added agent lookup in sync service to prevent future data integrity issues
 
 **Performance Optimizations:**
