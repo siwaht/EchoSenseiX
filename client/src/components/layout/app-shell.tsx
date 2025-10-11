@@ -39,6 +39,7 @@ const navigation = [
   { name: "Phone Numbers", href: "/phone-numbers", icon: Phone, permission: "manage_phone_numbers" },
   { name: "Outbound Calling", href: "/outbound-calling", icon: PhoneOutgoing, permission: "make_outbound_calls" },
   { name: "Tools", href: "/tools", icon: Wrench, permission: "configure_tools" },
+  { name: "Knowledge Base", href: "/knowledge-base", icon: BookOpen, permission: "manage_integrations" },
   { name: "Playground", href: "/playground", icon: FlaskConical }, // Allow users to test their assigned agents
   { name: "Call History", href: "/history", icon: History, permission: "view_call_history" },
   { name: "Integrations", href: "/integrations", icon: Plug, permission: "manage_integrations" },
