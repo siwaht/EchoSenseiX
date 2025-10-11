@@ -253,16 +253,15 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
         </div>
 
         {/* Call Recording with Professional Audio Player */}
-        {(audioUrl || callLog.recordingUrl || isFetchingAudio) && (
-          <div className="mb-4 sm:mb-6">
-            <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Call Recording</h4>
-            <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700">
-              {isFetchingAudio ? (
-                <div className="text-center py-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin mb-2" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Fetching recording...</p>
-                </div>
-              ) : audioUrl || callLog.recordingUrl ? (
+        <div className="mb-4 sm:mb-6">
+          <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Call Recording</h4>
+          <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700">
+            {isFetchingAudio ? (
+              <div className="text-center py-4">
+                <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Fetching recording...</p>
+              </div>
+            ) : audioUrl || callLog.recordingUrl || callLog.audioStorageKey ? (
               <div className="space-y-3 sm:space-y-4">
                 {/* Waveform Visualization */}
                 <div className="h-12 sm:h-16 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center relative overflow-hidden">
@@ -315,10 +314,24 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                   <span>Encrypted & secure storage</span>
                 </div>
               </div>
-              ) : null}
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">No recording available for this call</p>
+                  <Button 
+                    onClick={fetchRecording}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    data-testid="button-fetch-recording"
+                  >
+                    <Download className="w-4 h-4" />
+                    Fetch Recording
+                  </Button>
+                </div>
+              )}
             </Card>
           </div>
-        )}
+        </div>
 
         {/* Transcript */}
         {callLog.transcript && (

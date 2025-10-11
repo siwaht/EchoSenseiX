@@ -73,6 +73,16 @@ Preferred communication style: Simple, everyday language.
 - Fixed call log sync to properly map ElevenLabs agent IDs to local database UUIDs
 - Call logs now correctly reference agents table via local UUID instead of ElevenLabs IDs
 - SQL UPDATE corrected 100 existing orphaned call logs
+- **Call Summaries (Oct 11, 2025):**
+  - Switched to Mistral Tiny model for 8x faster and cheaper summaries ($0.00025 vs $0.002 per 1K tokens)
+  - Added batch summary generation: POST /api/jobs/generate-all-summaries
+  - Summaries auto-generate during sync for new calls
+  - UI displays summary previews in History table with status badges
+- **Call Recordings (Oct 11, 2025):**
+  - Recording player now always visible with "Fetch Recording" button when empty
+  - Added batch audio fetch: POST /api/jobs/fetch-missing-audio  
+  - UI buttons in History page for bulk operations
+  - Fixed permissions to use view_call_history for batch endpoints
 - **Transcript Sync (Oct 11, 2025):**
   - Successfully synced transcripts for all 100 call logs (avg 5-19KB each)
   - Successfully synced call durations (avg 55 seconds)
