@@ -3585,7 +3585,7 @@ Generate the complete prompt now:`;
             if (updates.firstMessage || updates.systemPrompt || updates.language || updates.voiceId || updates.voiceSettings || updates.llmSettings || updates.tools) {
               elevenLabsPayload.conversation_config = {};
               
-              // Agent configuration
+              // Agent configuration - only create agent object if there are agent-specific updates
               if (updates.firstMessage || updates.systemPrompt || updates.language || updates.tools) {
                 elevenLabsPayload.conversation_config.agent = {};
                 
@@ -3612,10 +3612,18 @@ Generate the complete prompt now:`;
                 
                 
                 // System prompt and language go in the prompt object
-                if (enhancedSystemPrompt || updates.language) {
+                // Only include prompt object if there's actually a system prompt
+                if (enhancedSystemPrompt) {
                   elevenLabsPayload.conversation_config.agent.prompt = {
                     prompt: enhancedSystemPrompt,
                     language: updates.language || agent.language
+                  };
+                } else if (updates.language) {
+                  // If only language is being updated and no system prompt exists, 
+                  // we still need to provide a valid prompt to ElevenLabs
+                  elevenLabsPayload.conversation_config.agent.prompt = {
+                    prompt: agent.systemPrompt || "You are a helpful AI assistant.",
+                    language: updates.language
                   };
                 }
                 

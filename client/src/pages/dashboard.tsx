@@ -859,7 +859,7 @@ export default function Dashboard() {
       {/* Sync Section */}
       <div className="space-y-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl sm:text-2xl font-bold">Dashboard</h2>
+          <h2 className="text-xl sm:text-2xl font-bold brand-gradient-text">Dashboard</h2>
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-purple-400 flex-shrink-0 mt-0.5" />
             <span className="text-xs sm:text-sm text-muted-foreground break-words">
