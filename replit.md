@@ -117,6 +117,14 @@ Preferred communication style: Simple, everyday language.
   - **First-time setup** handled gracefully without triggering wipe
   - Database field: `elevenLabsApiKeyHash` in organizations table
   - Middleware runs on all authenticated API requests for instant detection
+  - **Startup API Key Sync:** Environment variable ELEVENLABS_API_KEY automatically syncs to database on server startup
+- **Recording Display Fix (Oct 12, 2025):**
+  - **Root Cause:** Frontend checked `audioUrl` field (empty) instead of `recordingUrl` field (has recordings)
+  - **Schema has TWO fields:** `audioUrl` (legacy/empty) and `recordingUrl` (actual recording URLs)
+  - **Solution:** Updated all frontend components to use `recordingUrl` instead of `audioUrl`
+  - **Files Updated:** history.tsx (mobile + desktop views), call-detail-modal.tsx, transcript-viewer.tsx
+  - **Export Fixed:** Call history export now correctly reports recording availability
+  - All 100 call logs with recordings now display Play/Download buttons in UI
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data
