@@ -62,14 +62,16 @@ export async function detectApiKeyChange(
         
         const result = await cleanupService.wipeOrganizationData(org.id);
         
-        if (result.success) {
-          console.log(`[API-KEY-CHANGE] Successfully wiped data:`, result.deleted);
-        } else {
-          console.error(`[API-KEY-CHANGE] Failed to wipe data:`, result.error);
+        if (!result.success) {
+          console.error(`[API-KEY-CHANGE] ❌ Data wipe failed, will retry on next request:`, result.error);
+          // Don't update hash or trigger sync - let it retry on next request
+          return next();
         }
+        
+        console.log(`[API-KEY-CHANGE] ✅ Successfully wiped data:`, result.deleted);
       }
 
-      // Update the stored API key hash
+      // Update the stored API key hash (only after successful wipe or first-time setup)
       await db()
         .update(organizations)
         .set({ elevenLabsApiKeyHash: currentKeyHash })
