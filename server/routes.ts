@@ -348,6 +348,27 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Health check endpoint (no auth required for load balancers)
+  app.get('/health', async (req, res) => {
+    try {
+      // Check database connectivity
+      await storage.testConnection();
+      
+      res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+      });
+    } catch (error: any) {
+      res.status(503).json({
+        status: 'unhealthy',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   // Seed admin user on startup (with delay to ensure DB is ready)
   setTimeout(() => {
     seedAdminUser().catch(console.error);

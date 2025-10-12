@@ -4,8 +4,15 @@ import { registerRoutes } from "./routes";
 import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocket";
 import { setupVite, serveStatic, log } from "./vite";
 import { rateLimiters } from "./middleware/rate-limiter";
+import { config } from "./config";
 
 const app = express();
+
+// Trust proxy in production (for load balancers, reverse proxies)
+if (config.security.trustProxy) {
+  app.set('trust proxy', 1);
+  console.log('[SERVER] Trust proxy enabled');
+}
 
 // Enable gzip compression for all responses
 app.use(compression({
@@ -62,7 +69,7 @@ app.use((req, res, next) => {
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   // Only capture response body in development for debugging
-  if (process.env.NODE_ENV === "development") {
+  if (config.isDevelopment) {
     const originalResJson = res.json;
     res.json = function (bodyJson, ...args) {
       // Limit response capture to prevent memory issues
@@ -82,7 +89,7 @@ app.use((req, res, next) => {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       
       // Only add response details in development
-      if (process.env.NODE_ENV === "development" && capturedJsonResponse) {
+      if (config.isDevelopment && capturedJsonResponse) {
         const responseStr = JSON.stringify(capturedJsonResponse);
         if (responseStr.length > 80) {
           logLine += ` :: ${responseStr.slice(0, 79)}…`;
@@ -116,22 +123,20 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (config.isDevelopment) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  // Start the server with configured host and port
   server.listen({
-    port,
-    host: "0.0.0.0",
+    port: config.port,
+    host: config.host,
     reusePort: false,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on ${config.host}:${config.port}`);
+    log(`public URL: ${config.publicUrl}`);
+    log(`environment: ${config.nodeEnv}`);
   });
 })();
