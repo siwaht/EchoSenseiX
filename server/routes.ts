@@ -6288,12 +6288,16 @@ Generate the complete prompt now:`;
         return res.status(404).json({ message: "Audio file not found" });
       }
 
-      console.log(`[AUDIO-SERVE] Serving file: ${filePath}`);
+      // Convert to absolute path for res.sendFile()
+      const path = await import('path');
+      const absolutePath = path.resolve(filePath);
+      
+      console.log(`[AUDIO-SERVE] Serving file: ${absolutePath}`);
       
       // Serve the audio file
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-      res.sendFile(filePath);
+      res.sendFile(absolutePath);
     } catch (error: any) {
       console.error("[AUDIO-SERVE] Error serving audio file:", error);
       res.status(500).json({ message: "Failed to serve audio file", error: error.message });
