@@ -38,8 +38,12 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
   // Fetch authenticated audio and convert to blob URL
   useEffect(() => {
     const fetchAuthenticatedAudio = async () => {
-      if (!callLog?.recordingUrl) return;
+      if (!callLog?.recordingUrl) {
+        console.log('[MODAL-AUDIO] No recording URL available');
+        return;
+      }
       
+      console.log('[MODAL-AUDIO] Fetching audio from:', callLog.recordingUrl);
       setIsFetchingAudio(true);
       try {
         // Fetch with credentials to send auth cookies
@@ -50,12 +54,16 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
           }
         });
 
+        console.log('[MODAL-AUDIO] Response status:', response.status, response.statusText);
+
         if (!response.ok) {
-          throw new Error(`Failed to fetch audio: ${response.status}`);
+          throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
         }
 
         const blob = await response.blob();
+        console.log('[MODAL-AUDIO] Blob created, size:', blob.size, 'type:', blob.type);
         const newBlobUrl = URL.createObjectURL(blob);
+        console.log('[MODAL-AUDIO] Blob URL created:', newBlobUrl);
         
         // Clean up old blob URL if exists
         if (blobUrlRef.current) {
@@ -64,8 +72,8 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
         
         blobUrlRef.current = newBlobUrl;
         setAudioUrl(newBlobUrl);
-      } catch (error) {
-        console.error('Error fetching authenticated audio:', error);
+      } catch (error: any) {
+        console.error('[MODAL-AUDIO] Error fetching authenticated audio:', error?.message || error);
         setAudioUrl(null);
       } finally {
         setIsFetchingAudio(false);
