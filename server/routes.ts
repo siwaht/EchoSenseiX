@@ -5955,10 +5955,14 @@ Generate the complete prompt now:`;
         agentId as string
       );
 
-      // Set cache headers for better performance
+      // Set cache headers with version to prevent stale data issues
+      // Version includes recordingUrl field availability to invalidate cache when data structure changes
+      const hasRecordings = result.data.some((log: any) => log.recordingUrl);
+      const dataVersion = hasRecordings ? 'v2-recordings' : 'v1';
+      
       res.set({
-        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
-        'ETag': `W/"${result.total}-${skip}"`
+        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        'ETag': `W/"${dataVersion}-${result.total}-${skip}"`
       });
 
       // Return paginated response
