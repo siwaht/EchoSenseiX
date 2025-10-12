@@ -8,7 +8,7 @@ import type { CallLog, SummaryMetadata } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface CallDetailModalProps {
   callLog: CallLog | null;
@@ -33,19 +33,61 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
   const queryClient = useQueryClient();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
 
-  // Auto-fetch recording when modal opens if needed
+  // Fetch authenticated audio and convert to blob URL
   useEffect(() => {
-    if (open && callLog && !callLog.recordingUrl && !callLog.audioStorageKey && callLog.conversationId) {
+    const fetchAuthenticatedAudio = async () => {
+      if (!callLog?.recordingUrl) return;
+      
+      setIsFetchingAudio(true);
+      try {
+        // Fetch with credentials to send auth cookies
+        const response = await fetch(callLog.recordingUrl, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'audio/mpeg'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch audio: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const newBlobUrl = URL.createObjectURL(blob);
+        
+        // Clean up old blob URL if exists
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
+        
+        blobUrlRef.current = newBlobUrl;
+        setAudioUrl(newBlobUrl);
+      } catch (error) {
+        console.error('Error fetching authenticated audio:', error);
+        setAudioUrl(null);
+      } finally {
+        setIsFetchingAudio(false);
+      }
+    };
+
+    if (open && callLog?.recordingUrl) {
+      fetchAuthenticatedAudio();
+    } else if (open && callLog && !callLog.recordingUrl && !callLog.audioStorageKey && callLog.conversationId) {
       fetchRecording();
-    }
-    // Reset audio URL when modal closes or callLog changes
-    if (!open || !callLog) {
+    } else {
       setAudioUrl(null);
-    } else if (callLog.recordingUrl) {
-      setAudioUrl(callLog.recordingUrl);
     }
-  }, [open, callLog?.id]);
+
+    // Cleanup blob URL when modal closes or callLog changes
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [open, callLog?.id, callLog?.recordingUrl]);
 
   // Fetch recording function
   const fetchRecording = async () => {
