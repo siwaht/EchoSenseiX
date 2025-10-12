@@ -6190,7 +6190,9 @@ Generate the complete prompt now:`;
         console.log(`[RECORDING-FETCH] Tier 2: Attempting fetch from ElevenLabs for conversation: ${callLog.conversationId}`);
         const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
         if (integration && integration.apiKey) {
-          console.log(`[RECORDING-FETCH] Tier 2: ElevenLabs integration found, calling fetchAndStoreAudio...`);
+          const keyLast4 = integration.apiKey.slice(-4);
+          console.log(`[RECORDING-FETCH] Tier 2: ElevenLabs integration found with API key ***${keyLast4}`);
+          console.log(`[RECORDING-FETCH] Tier 2: Creating ElevenLabsService and calling fetchAndStoreAudio...`);
           const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
           
           const result = await elevenLabsService.fetchAndStoreAudio(

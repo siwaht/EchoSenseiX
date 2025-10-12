@@ -198,6 +198,12 @@ class ElevenLabsService {
   async getConversationAudio(conversationId: string): Promise<{ buffer: Buffer | null; error?: string; notFound?: boolean }> {
     try {
       const url = `${this.config.baseUrl}/v1/convai/conversations/${conversationId}/audio`;
+      const keyLast4 = this.config.apiKey.slice(-4);
+      
+      console.log(`[ELEVENLABS-AUDIO] Fetching audio for conversation ${conversationId}`);
+      console.log(`[ELEVENLABS-AUDIO] Using API key: ***${keyLast4}`);
+      console.log(`[ELEVENLABS-AUDIO] Request URL: ${url}`);
+      
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -205,18 +211,24 @@ class ElevenLabsService {
         },
       });
 
+      console.log(`[ELEVENLABS-AUDIO] Response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
         if (response.status === 404) {
-          console.log(`No audio available for conversation ${conversationId} (404)`);
+          console.log(`[ELEVENLABS-AUDIO] No audio available for conversation ${conversationId} (404)`);
           return { buffer: null, notFound: true };
+        }
+        if (response.status === 401) {
+          console.error(`[ELEVENLABS-AUDIO] ❌ 401 Unauthorized - Invalid API key ***${keyLast4}`);
         }
         throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
       }
 
       const arrayBuffer = await response.arrayBuffer();
+      console.log(`[ELEVENLABS-AUDIO] ✅ Successfully fetched ${arrayBuffer.byteLength} bytes of audio`);
       return { buffer: Buffer.from(arrayBuffer) };
     } catch (error: any) {
-      console.error(`Error fetching conversation audio for ${conversationId}:`, error.message);
+      console.error(`[ELEVENLABS-AUDIO] ❌ Error fetching conversation audio for ${conversationId}:`, error.message);
       // Propagate non-404 errors so they can be handled as failures (not unavailable)
       return { buffer: null, error: error.message };
     }
