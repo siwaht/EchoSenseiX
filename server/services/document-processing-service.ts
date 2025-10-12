@@ -154,7 +154,8 @@ export class DocumentProcessingService {
   private static async extractTextFromPDF(filePath: string): Promise<string> {
     try {
       // Using pdf-parse library for PDF text extraction
-      const pdfParse = await import('pdf-parse');
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse = pdfParseModule.default || pdfParseModule;
       
       const dataBuffer = fs.readFileSync(filePath);
       const data = await pdfParse(dataBuffer);
