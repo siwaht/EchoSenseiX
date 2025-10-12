@@ -45,6 +45,29 @@ class AudioStorageService {
     return path.join(this.storageDir, sanitizedKey);
   }
 
+  /**
+   * Get the full file path for a given filename (public method for serving files)
+   * Returns null if the filename is invalid or contains path traversal attempts
+   */
+  public getFilePathForServing(fileName: string): string | null {
+    // Strict validation: only allow alphanumeric, underscores, hyphens, and .mp3 extension
+    if (!/^[a-zA-Z0-9_-]+\.mp3$/.test(fileName)) {
+      console.warn(`Invalid audio filename format: ${fileName}`);
+      return null;
+    }
+
+    const filePath = path.join(this.storageDir, fileName);
+    const normalizedPath = path.normalize(filePath);
+    
+    // Ensure the file is within the storage directory (prevent path traversal)
+    if (!normalizedPath.startsWith(path.resolve(this.storageDir))) {
+      console.warn(`Path traversal attempt detected: ${fileName}`);
+      return null;
+    }
+
+    return filePath;
+  }
+
   private getMetadataPath(storageKey: string): string {
     return `${this.getFilePath(storageKey)}.meta.json`;
   }

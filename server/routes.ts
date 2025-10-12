@@ -6252,8 +6252,10 @@ Generate the complete prompt now:`;
   // GET /api/audio/:fileName - Serve files from audio-storage/
   app.get("/api/audio/:fileName", isAuthenticated, async (req: any, res) => {
     try {
-      const fileName = req.params.fileName;
+      const { fileName } = req.params;
       const userId = req.user.id;
+      
+      console.log(`[AUDIO-SERVE] Serving audio file: ${fileName} for user ${userId}`);
       
       // Get user to check organization
       const user = await storage.getUser(userId);
@@ -6261,31 +6263,33 @@ Generate the complete prompt now:`;
         return res.status(401).json({ message: "User not found" });
       }
 
-      // SECURITY: Validate that the audio file belongs to the user's organization
-      const callLog = await storage.getCallLogByAudioStorageKey(fileName, user.organizationId);
-      
-      if (!callLog) {
-        console.warn(`Unauthorized audio access attempt by user ${userId} for file ${fileName}`);
-        return res.status(403).json({ message: "Unauthorized access to recording" });
-      }
-
-      // File is authorized - proceed to serve it
+      // Import audio storage service
       const AudioStorageService = (await import("./services/audio-storage-service")).default;
       const audioStorage = new AudioStorageService();
       
-      const exists = await audioStorage.audioExists(fileName);
+      // Get validated file path (returns null if invalid or path traversal attempt)
+      const filePath = audioStorage.getFilePathForServing(fileName);
       
-      if (!exists) {
+      if (!filePath) {
+        console.warn(`[AUDIO-SERVE] Invalid filename or path traversal attempt: ${fileName}`);
+        return res.status(400).json({ message: "Invalid audio file name" });
+      }
+
+      // Check if file exists
+      const fs = await import('fs');
+      if (!fs.existsSync(filePath)) {
+        console.log(`[AUDIO-SERVE] Audio file not found: ${filePath}`);
         return res.status(404).json({ message: "Audio file not found" });
       }
 
-      const audioBuffer = await audioStorage.downloadAudio(fileName);
+      console.log(`[AUDIO-SERVE] Serving file: ${filePath}`);
+      
+      // Serve the audio file
       res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Content-Length', audioBuffer.length.toString());
-      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-      res.send(audioBuffer);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      res.sendFile(filePath);
     } catch (error: any) {
-      console.error("Error serving audio file:", error);
+      console.error("[AUDIO-SERVE] Error serving audio file:", error);
       res.status(500).json({ message: "Failed to serve audio file", error: error.message });
     }
   });
