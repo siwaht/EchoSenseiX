@@ -43,6 +43,13 @@ export default function AgentSettings() {
   const urlParams = new URLSearchParams(window.location.search);
   const agentId = params.id || urlParams.get("agentId");
   
+  // Redirect to agents page if no agent ID is provided
+  useEffect(() => {
+    if (!agentId) {
+      setLocation("/agents");
+    }
+  }, [agentId, setLocation]);
+  
   const [activeTab, setActiveTab] = useState("chat");
   const [hasChanges, setHasChanges] = useState(false);
   

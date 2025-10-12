@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Calendar, Clock, DollarSign, Activity, Settings, Phone } from "lucide-react";
+import { Bot, Calendar, Clock, DollarSign, Activity, Settings, Phone, FlaskConical, Copy } from "lucide-react";
 import type { Agent, CallLog } from "@shared/schema";
 
 interface AgentDetailModalProps {

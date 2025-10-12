@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload } from "lucide-react";
+import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload, Settings } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
 
 interface KnowledgeBaseEntry {
