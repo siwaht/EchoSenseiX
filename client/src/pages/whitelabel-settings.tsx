@@ -33,7 +33,7 @@ export default function WhitelabelSettings() {
   // Form state
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
-  const [appName, setAppName] = useState("EchoSensei Dashboard");
+  const [appName, setAppName] = useState("EchoSensei");
   const [companyName, setCompanyName] = useState("");
   const [removeBranding, setRemoveBranding] = useState(false);
   const [subdomain, setSubdomain] = useState("");
@@ -59,7 +59,7 @@ export default function WhitelabelSettings() {
 
   useEffect(() => {
     if (whitelabelData) {
-      setAppName(whitelabelData.appName || "EchoSensei Dashboard");
+      setAppName(whitelabelData.appName || "EchoSensei");
       setCompanyName(whitelabelData.companyName || "");
       setLogoPreview(whitelabelData.logoUrl || "");
       setRemoveBranding(whitelabelData.removeBranding || false);
@@ -282,7 +282,7 @@ export default function WhitelabelSettings() {
                       setAppName(e.target.value);
                       setHasChanges(true);
                     }}
-                    placeholder="EchoSensei Dashboard"
+                    placeholder="EchoSensei"
                     className="mt-2"
                   />
                 </div>
@@ -655,7 +655,7 @@ export default function WhitelabelSettings() {
                             <Upload className="h-6 w-6 text-white" />
                           </div>
                         )}
-                        <h2 className="text-2xl font-bold">{appName || "EchoSensei Dashboard"}</h2>
+                        <h2 className="text-2xl font-bold">{appName || "EchoSensei"}</h2>
                         <p className="text-sm mt-2 text-gray-600">
                           {companyName ? `Welcome to ${companyName}` : "Sign in to your account"}
                         </p>
@@ -688,7 +688,7 @@ export default function WhitelabelSettings() {
                         ) : (
                           <div className="h-8 w-24 bg-white/20 rounded mr-3" />
                         )}
-                        <span className="font-semibold">{appName || "EchoSensei Dashboard"}</span>
+                        <span className="font-semibold">{appName || "EchoSensei"}</span>
                       </div>
                       {/* Dashboard Content Preview */}
                       <div className="p-4 bg-white">

@@ -1868,7 +1868,7 @@ export function registerRoutes(app: Express): Server {
         event: 'test',
         timestamp: new Date().toISOString(),
         data: {
-          message: 'This is a test webhook from EchoSensei Dashboard',
+          message: 'This is a test webhook from EchoSensei',
           webhookId: webhook.id,
           webhookName: webhook.name
         }
@@ -3272,7 +3272,7 @@ Generate the complete prompt now:`;
         organizationId: user.organizationId,
         elevenLabsAgentId: elevenLabsResponse.agent_id,
         name: name,
-        description: `Created via EchoSensei Dashboard`,
+        description: `Created via EchoSensei`,
         firstMessage: firstMessage,
         systemPrompt: systemPrompt,
         language: language || "en",
@@ -7093,7 +7093,7 @@ Generate the complete prompt now:`;
         // If subdomain not found, return 404
         return res.status(404).json({
           error: "Agency not found",
-          appName: "EchoSensei Dashboard",
+          appName: "EchoSensei",
           companyName: "",
           removePlatformBranding: false,
         });
@@ -7115,7 +7115,7 @@ Generate the complete prompt now:`;
       } else {
         // Return default config
         res.json({
-          appName: "EchoSensei Dashboard",
+          appName: "EchoSensei",
           companyName: "",
           removePlatformBranding: false,
         });
@@ -7124,7 +7124,7 @@ Generate the complete prompt now:`;
       console.error("Error fetching public whitelabel config:", error);
       // Return default config on error
       res.json({
-        appName: "EchoSensei Dashboard",
+        appName: "EchoSensei",
         companyName: "",
         removePlatformBranding: false,
       });
@@ -7151,7 +7151,7 @@ Generate the complete prompt now:`;
         // Return default config if none exists
         return res.json({
           organizationId: user.organizationId,
-          appName: "EchoSensei Dashboard",
+          appName: "EchoSensei",
           companyName: organization.name,
           removePlatformBranding: false,
         });
