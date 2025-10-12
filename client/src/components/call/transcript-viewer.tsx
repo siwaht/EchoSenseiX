@@ -17,7 +17,7 @@ interface TranscriptViewerProps {
     duration?: number;
     createdAt?: string;
     cost?: string;
-    audioUrl?: string;
+    recordingUrl?: string;
   };
 }
 
@@ -111,7 +111,7 @@ export function TranscriptViewer({ open, onOpenChange, transcript, metadata }: T
   };
 
   const playAudio = () => {
-    if (metadata?.audioUrl) {
+    if (metadata?.recordingUrl) {
       // Handle audio playback
       setIsPlaying(!isPlaying);
       // In a real implementation, you'd have an audio element to control
@@ -139,7 +139,7 @@ export function TranscriptViewer({ open, onOpenChange, transcript, metadata }: T
                 <Download className="h-4 w-4 mr-1" />
                 Download
               </Button>
-              {metadata?.audioUrl && (
+              {metadata?.recordingUrl && (
                 <Button variant="outline" size="sm" onClick={playAudio}>
                   <Volume2 className="h-4 w-4 mr-1" />
                   {isPlaying ? 'Pause' : 'Play'}

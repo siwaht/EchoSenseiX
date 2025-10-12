@@ -224,7 +224,7 @@ export default function History() {
     status: log.status || "unknown",
     cost: log.cost ? `$${Number(log.cost).toFixed(4)}` : "N/A",
     hasTranscript: !!log.transcript,
-    hasAudio: !!log.audioUrl
+    hasAudio: !!log.recordingUrl
   }));
 
   if (isLoading) {
@@ -495,13 +495,13 @@ export default function History() {
                   </div>
                   
                   <div className="flex gap-2 pt-2">
-                    {callLog.audioUrl && (
+                    {callLog.recordingUrl && (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => handleAudioPlayPause(callLog.audioUrl!, callLog.id)}
+                          onClick={() => handleAudioPlayPause(callLog.recordingUrl!, callLog.id)}
                           data-testid={`button-play-audio-${callLog.id}`}
                         >
                           {currentTrackId === callLog.id ? (
@@ -517,7 +517,7 @@ export default function History() {
                           )}
                         </Button>
                         <a
-                          href={callLog.audioUrl}
+                          href={callLog.recordingUrl}
                           download={`call-${callLog.id.slice(-6)}.mp3`}
                           className="flex items-center justify-center px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
                           data-testid={`link-download-audio-${callLog.id}`}
@@ -619,13 +619,13 @@ export default function History() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {callLog.audioUrl ? (
+                        {callLog.recordingUrl ? (
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
                               className="group hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                              onClick={() => handleAudioPlayPause(callLog.audioUrl!, callLog.id)}
+                              onClick={() => handleAudioPlayPause(callLog.recordingUrl!, callLog.id)}
                               data-testid={`button-play-audio-${callLog.id}`}
                               disabled={audioLoading}
                             >
@@ -647,7 +647,7 @@ export default function History() {
                               )}
                             </Button>
                             <a
-                              href={callLog.audioUrl}
+                              href={callLog.recordingUrl}
                               download={`call-${callLog.id.slice(-6)}.mp3`}
                               className="text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition-colors"
                               title="Download recording"

@@ -36,14 +36,14 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
 
   // Auto-fetch recording when modal opens if needed
   useEffect(() => {
-    if (open && callLog && !callLog.audioUrl && !callLog.audioStorageKey && callLog.conversationId) {
+    if (open && callLog && !callLog.recordingUrl && !callLog.audioStorageKey && callLog.conversationId) {
       fetchRecording();
     }
     // Reset audio URL when modal closes or callLog changes
     if (!open || !callLog) {
       setAudioUrl(null);
-    } else if (callLog.audioUrl) {
-      setAudioUrl(callLog.audioUrl);
+    } else if (callLog.recordingUrl) {
+      setAudioUrl(callLog.recordingUrl);
     }
   }, [open, callLog?.id]);
 
@@ -431,7 +431,7 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
           </div>
         )}
 
-        {!callLog.transcript && !callLog.audioUrl && (
+        {!callLog.transcript && !callLog.recordingUrl && (
           <Card className="p-6 sm:p-8 text-center">
             <Bot className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
             <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2" data-testid="text-no-data-title">
