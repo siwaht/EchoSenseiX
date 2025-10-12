@@ -5,7 +5,7 @@
  */
 
 import { Express, Request, Response } from "express";
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { realtimeSyncService } from './services/realtime-sync';
 
 // Define isAuthenticated middleware locally (same as in routes.ts)
