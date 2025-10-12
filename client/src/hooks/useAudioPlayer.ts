@@ -34,11 +34,38 @@ export function useAudioPlayer() {
   const queueRef = useRef<AudioQueueItem[]>([]);
   const isProcessingQueueRef = useRef(false);
 
+  // Fetch authenticated audio and create blob URL
+  const fetchAuthenticatedAudio = useCallback(async (url: string): Promise<string> => {
+    try {
+      const response = await fetch(url, {
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Accept': 'audio/mpeg'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    } catch (error) {
+      console.error('Error fetching authenticated audio:', error);
+      throw error;
+    }
+  }, []);
+
   // Create audio element with proper configuration
-  const createAudioElement = useCallback((url: string) => {
-    const audio = new Audio(url);
-    audio.crossOrigin = 'anonymous';
+  const createAudioElement = useCallback(async (url: string): Promise<HTMLAudioElement> => {
+    // Fetch authenticated audio and get blob URL
+    const blobUrl = await fetchAuthenticatedAudio(url);
+    
+    const audio = new Audio(blobUrl);
     audio.preload = 'metadata';
+    
+    // Store blob URL for cleanup
+    (audio as any)._blobUrl = blobUrl;
     
     // Add event listeners
     audio.addEventListener('loadstart', () => {
@@ -69,7 +96,7 @@ export function useAudioPlayer() {
     });
 
     audio.addEventListener('error', (e) => {
-      const error = e.target?.error;
+      const error = (e.target as HTMLAudioElement)?.error;
       let errorMessage = 'Audio playback failed';
       
       if (error) {
@@ -113,7 +140,7 @@ export function useAudioPlayer() {
     });
 
     return audio;
-  }, [toast]);
+  }, [toast, fetchAuthenticatedAudio]);
 
   // Process next item in queue
   const processNextInQueue = useCallback(() => {
@@ -131,22 +158,32 @@ export function useAudioPlayer() {
     isProcessingQueueRef.current = false;
   }, []);
 
+  // Clean up blob URL from audio element
+  const cleanupAudioBlob = useCallback((audio: HTMLAudioElement | null) => {
+    if (audio && (audio as any)._blobUrl) {
+      URL.revokeObjectURL((audio as any)._blobUrl);
+      delete (audio as any)._blobUrl;
+    }
+  }, []);
+
   // Play audio with enhanced error handling
   const playAudio = useCallback(async (item: AudioQueueItem) => {
     try {
-      // Stop current audio if playing
+      // Stop current audio if playing and cleanup blob URL
       if (audioRef.current) {
         audioRef.current.pause();
+        cleanupAudioBlob(audioRef.current);
         audioRef.current = null;
       }
 
       setState(prev => ({ 
         ...prev, 
         currentTrackId: item.id,
-        error: null 
+        error: null,
+        isLoading: true
       }));
 
-      const audio = createAudioElement(item.url);
+      const audio = await createAudioElement(item.url);
       audioRef.current = audio;
       audio.volume = state.volume;
 
@@ -182,7 +219,7 @@ export function useAudioPlayer() {
       // Process next item in queue
       processNextInQueue();
     }
-  }, [createAudioElement, state.volume, toast, processNextInQueue]);
+  }, [createAudioElement, state.volume, toast, processNextInQueue, cleanupAudioBlob]);
 
   // Queue audio for playback
   const queueAudio = useCallback((item: AudioQueueItem) => {
@@ -239,6 +276,7 @@ export function useAudioPlayer() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+      cleanupAudioBlob(audioRef.current);
       audioRef.current = null;
     }
     
@@ -252,7 +290,7 @@ export function useAudioPlayer() {
       currentTime: 0,
       error: null 
     }));
-  }, []);
+  }, [cleanupAudioBlob]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -264,10 +302,11 @@ export function useAudioPlayer() {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+        cleanupAudioBlob(audioRef.current);
         audioRef.current = null;
       }
     };
-  }, []);
+  }, [cleanupAudioBlob]);
 
   return {
     ...state,
