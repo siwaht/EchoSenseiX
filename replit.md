@@ -139,6 +139,12 @@ Preferred communication style: Simple, everyday language.
   - **Security:** Maintained - filename regex still prevents directory separators, blocking actual traversal attacks
   - **Files Updated:** server/services/audio-storage-service.ts (getFilePathForServing method)
   - Audio playback now works correctly while preserving security protections
+- **Audio Serving Absolute Path Fix (Oct 12, 2025):**
+  - **Root Cause:** Express `res.sendFile()` requires absolute path, but relative path was being passed
+  - **Problem:** Playback failed with "path must be absolute or specify root to res.sendFile" error
+  - **Solution:** Convert validated relative path to absolute using `path.resolve()` before passing to `res.sendFile()`
+  - **Files Updated:** server/routes.ts (GET /api/audio/:fileName endpoint)
+  - Audio playback now successfully serves MP3 files to frontend
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data
