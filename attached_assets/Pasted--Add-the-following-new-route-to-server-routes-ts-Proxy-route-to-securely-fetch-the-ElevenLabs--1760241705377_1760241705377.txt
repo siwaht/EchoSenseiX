@@ -1,0 +1,49 @@
+// Add the following new route to server/routes.ts
+// Proxy route to securely fetch the ElevenLabs recording audio
+app.get("/api/calls/EL-:conversationId/recording", requireAuth, async (req, res) => {
+  const { conversationId } = req.params;
+  
+  try {
+    // 1. Fetch the Call Log to get the Agent ID
+    // (You would need a storage function to look up the call by conversationId)
+    const call = await storage.getCallByConversationId(conversationId);
+
+    if (!call) {
+      return res.status(404).send("Recording metadata not found.");
+    }
+
+    // 2. Fetch the Agent and its secure API Key
+    const agent = await storage.getAgent(req.user!.id, call.agentId);
+    if (!agent || !agent.accountId) { // Assuming accountId holds the API Key or reference
+      return res.status(403).send("Agent key not available.");
+    }
+    
+    const apiKey = agent.accountId; // Use a secure way to retrieve the key
+
+    // 3. Request the audio from ElevenLabs API
+    const elevenLabsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
+      {
+        method: 'GET',
+        headers: {
+          'xi-api-key': apiKey,
+        },
+      }
+    );
+
+    if (!elevenLabsResponse.ok) {
+      // Forward ElevenLabs API error response to the client
+      return res.status(elevenLabsResponse.status).send(`ElevenLabs audio fetch failed: ${elevenLabsResponse.statusText}`);
+    }
+
+    // 4. Stream the audio file back to the client
+    // This is crucial for handling large audio files without buffering
+    res.setHeader('Content-Type', elevenLabsResponse.headers.get('Content-Type') || 'audio/mpeg');
+    res.setHeader('Content-Length', elevenLabsResponse.headers.get('Content-Length'));
+    elevenLabsResponse.body.pipe(res); // Pipe the stream directly
+
+  } catch (error) {
+    console.error(`Error streaming recording for ${conversationId}:`, error);
+    res.status(500).send("Failed to stream recording.");
+  }
+});
