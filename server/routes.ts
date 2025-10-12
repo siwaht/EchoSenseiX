@@ -4336,6 +4336,98 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Regenerate all call summaries
+  app.post("/api/call-logs/regenerate-summaries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ 
+          success: false,
+          message: "User not found" 
+        });
+      }
+
+      console.log(`[SUMMARIES] User ${user.email} initiated summary regeneration`);
+
+      // Get all call logs for the organization (use a very high limit to get all)
+      const callLogsResult = await storage.getCallLogs(user.organizationId, 10000, 0);
+      const callLogsList = callLogsResult.data;
+      
+      console.log(`[SUMMARIES] Found ${callLogsList.length} call logs to process`);
+      
+      let successCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+      
+      // Process each call log
+      for (const callLog of callLogsList) {
+        try {
+          // Only regenerate if there's a transcript
+          if (!callLog.transcript) {
+            console.log(`[SUMMARIES] Skipping call ${callLog.id} - no transcript`);
+            continue;
+          }
+
+          console.log(`[SUMMARIES] Regenerating summary for call ${callLog.id}`);
+          
+          // Generate new summary
+          const summaryResult = await SummaryService.generateCallSummary(callLog);
+          
+          if (summaryResult.status === 'success') {
+            // Update call log with new summary
+            await db()
+              .update(callLogs)
+              .set({
+                summary: summaryResult.summary,
+                summaryMetadata: summaryResult.metadata as any
+              })
+              .where(eq(callLogs.id, callLog.id));
+            
+            successCount++;
+            console.log(`[SUMMARIES] ✓ Regenerated summary for call ${callLog.id}`);
+            
+            // Add delay to avoid rate limiting (60 requests/minute = 1 per second)
+            await new Promise(resolve => setTimeout(resolve, 1100));
+          } else {
+            failedCount++;
+            const error = `Call ${callLog.id}: ${summaryResult.error || 'Unknown error'}`;
+            errors.push(error);
+            console.error(`[SUMMARIES] ✗ Failed for call ${callLog.id}:`, summaryResult.error);
+          }
+        } catch (error: any) {
+          failedCount++;
+          const errorMsg = `Call ${callLog.id}: ${error.message}`;
+          errors.push(errorMsg);
+          console.error(`[SUMMARIES] Error regenerating summary for call ${callLog.id}:`, error);
+        }
+      }
+
+      const response = {
+        success: true,
+        message: `Regenerated ${successCount} summaries`,
+        totalCalls: callLogsList.length,
+        successCount,
+        failedCount,
+        skippedCount: callLogsList.length - successCount - failedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`[SUMMARIES] Regeneration complete:`, response);
+      
+      res.json(response);
+    } catch (error: any) {
+      console.error("[SUMMARIES] Summary regeneration error:", error);
+      res.status(500).json({ 
+        success: false,
+        message: error.message || "Failed to regenerate summaries",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Knowledge Base API endpoints
 
   // Search knowledge base
