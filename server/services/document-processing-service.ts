@@ -157,10 +157,10 @@ export class DocumentProcessingService {
       const pdfParse = await import('pdf-parse');
       
       const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdfParse.default(dataBuffer);
+      const data = await pdfParse(dataBuffer);
       
       return data.text || '';
-    } catch (error) {
+    } catch (error: any) {
       console.error('[DOCUMENT-PROCESSING] PDF extraction failed:', error);
       throw new Error(`Failed to extract text from PDF: ${error.message}`);
     }
