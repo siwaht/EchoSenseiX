@@ -125,6 +125,13 @@ Preferred communication style: Simple, everyday language.
   - **Files Updated:** history.tsx (mobile + desktop views), call-detail-modal.tsx, transcript-viewer.tsx
   - **Export Fixed:** Call history export now correctly reports recording availability
   - All 100 call logs with recordings now display Play/Download buttons in UI
+- **API Cache Fix (Oct 12, 2025):**
+  - **Root Cause:** Aggressive caching (60s) with ETag based only on record count caused stale data after frontend updates
+  - **Problem:** Browser returned 304 Not Modified with old cached data missing `recordingUrl` field
+  - **Solution:** Reduced cache from 60s to 10s, added version-based ETag that invalidates when recordingUrl data exists
+  - **ETag versioning:** Old cache (v1) vs new cache with recordings (v2-recordings) forces fresh data fetch
+  - **Files Updated:** server/routes.ts (GET /api/call-logs endpoint)
+  - Prevents future frontend updates from being blocked by stale cached API responses
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data
