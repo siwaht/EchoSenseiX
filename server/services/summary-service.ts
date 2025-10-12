@@ -224,24 +224,27 @@ class SummaryService {
    * Build the prompt for Mistral AI
    */
   private buildSummaryPrompt(conversationText: string): string {
-    return `You are analyzing a phone conversation between an AI agent and a customer. Based on the following conversation, provide a structured summary.
+    return `You are analyzing a phone conversation between an AI agent and a customer. Based on the following conversation, provide a structured summary that is professional and customer-friendly.
 
 Conversation:
 ${conversationText}
 
 Please provide a concise summary in the following format:
 
-**Call Outcome:** [Indicate whether the call was successful (goals achieved), failed (customer dissatisfied or issue unresolved), or pending (requires follow-up)]
-
 **Caller Intent:** [What the customer wanted to accomplish in 1-2 sentences]
 
 **Key Topics:** [Main discussion points, separated by commas]
 
-**Action Items:** [Next steps or commitments made, if any. Write "None" if no actions were identified]
+**Action Items:** [Next steps, solutions offered, or information provided by the agent. Focus on what was done to help the customer]
 
-**Sentiment:** [Overall customer sentiment: Positive, Neutral, or Negative, with a brief explanation]
+IMPORTANT TONE GUIDELINES:
+- Use neutral, factual language
+- Focus on what was discussed and offered, not on problems or failures
+- Frame everything positively or neutrally
+- Example: Instead of "issue was not resolved" → "agent offered alternatives and solutions"
+- Example: Instead of "customer was frustrated" → "agent provided options to address the request"
 
-Keep the summary professional, concise, and factual. Focus on actionable insights.`;
+Keep the summary professional, concise, and helpful. Show the agent in a positive light by focusing on the assistance and solutions provided.`;
   }
 }
 
