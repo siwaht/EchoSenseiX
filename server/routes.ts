@@ -6261,11 +6261,12 @@ Generate the complete prompt now:`;
       const { fileName } = req.params;
       const userId = req.user.id;
       
-      console.log(`[AUDIO-SERVE] Serving audio file: ${fileName} for user ${userId}`);
+      console.log(`[AUDIO-SERVE] Request for: ${fileName} from user: ${userId}`);
       
       // Get user to check organization
       const user = await storage.getUser(userId);
       if (!user) {
+        console.error(`[AUDIO-SERVE] User not found: ${userId}`);
         return res.status(401).json({ message: "User not found" });
       }
 
@@ -6281,10 +6282,12 @@ Generate the complete prompt now:`;
         return res.status(400).json({ message: "Invalid audio file name" });
       }
 
+      console.log(`[AUDIO-SERVE] Validated file path: ${filePath}`);
+
       // Check if file exists
       const fs = await import('fs');
       if (!fs.existsSync(filePath)) {
-        console.log(`[AUDIO-SERVE] Audio file not found: ${filePath}`);
+        console.error(`[AUDIO-SERVE] File not found: ${filePath}`);
         return res.status(404).json({ message: "Audio file not found" });
       }
 
@@ -6292,15 +6295,26 @@ Generate the complete prompt now:`;
       const path = await import('path');
       const absolutePath = path.resolve(filePath);
       
-      console.log(`[AUDIO-SERVE] Serving file: ${absolutePath}`);
+      console.log(`[AUDIO-SERVE] Sending file: ${absolutePath} (exists: ${fs.existsSync(absolutePath)})`);
       
       // Serve the audio file
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-      res.sendFile(absolutePath);
+      res.sendFile(absolutePath, (err) => {
+        if (err) {
+          console.error(`[AUDIO-SERVE] sendFile error for ${fileName}:`, err);
+          if (!res.headersSent) {
+            res.status(500).json({ message: "Failed to send audio file", error: err.message });
+          }
+        } else {
+          console.log(`[AUDIO-SERVE] Successfully sent: ${fileName}`);
+        }
+      });
     } catch (error: any) {
-      console.error("[AUDIO-SERVE] Error serving audio file:", error);
-      res.status(500).json({ message: "Failed to serve audio file", error: error.message });
+      console.error("[AUDIO-SERVE] Unexpected error:", error, error.stack);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to serve audio file", error: error.message });
+      }
     }
   });
 
