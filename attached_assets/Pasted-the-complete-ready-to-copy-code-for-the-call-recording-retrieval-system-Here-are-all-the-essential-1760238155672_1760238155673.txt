@@ -1,0 +1,329 @@
+the complete, ready-to-copy code for the call recording retrieval system. Here are all the essential files:
+
+📁 1. Audio Storage Service (server/audioStorage.ts)
+import { promises as fs } from 'fs';
+import path from 'path';
+const AUDIO_STORAGE_DIR = path.join(process.cwd(), 'audio-storage');
+const SIGNED_URL_EXPIRY = 3600; // 1 hour in seconds
+export interface AudioUploadResult {
+  success: boolean;
+  storageKey?: string;
+  publicUrl?: string;
+  error?: string;
+}
+export class AudioStorageService {
+  private initialized = false;
+  async ensureDirectory(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      await fs.mkdir(AUDIO_STORAGE_DIR, { recursive: true });
+      this.initialized = true;
+      console.log(`Audio storage directory ready at: ${AUDIO_STORAGE_DIR}`);
+    } catch (error) {
+      console.error('Error creating audio storage directory:', error);
+    }
+  }
+  private sanitizeConversationId(conversationId: string): string {
+    return conversationId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+  async uploadAudio(
+    conversationId: string,
+    audioBuffer: Buffer,
+    metadata?: Record<string, string>
+  ): Promise<AudioUploadResult> {
+    try {
+      await this.ensureDirectory();
+      const sanitizedId = this.sanitizeConversationId(conversationId);
+      const timestamp = Date.now();
+      const fileName = `${sanitizedId}_${timestamp}.mp3`;
+      const storageKey = `recordings/${fileName}`;
+      const filePath = path.join(AUDIO_STORAGE_DIR, fileName);
+      await fs.writeFile(filePath, audioBuffer);
+      if (metadata) {
+        const metadataPath = path.join(AUDIO_STORAGE_DIR, `${fileName}.meta.json`);
+        await fs.writeFile(
+          metadataPath,
+          JSON.stringify({
+            conversation_id: sanitizedId,
+            original_conversation_id: conversationId,
+            uploaded_at: new Date().toISOString(),
+            ...metadata
+          }, null, 2)
+        );
+      }
+      console.log(`Uploaded audio for conversation ${conversationId} to ${filePath}`);
+      return {
+        success: true,
+        storageKey,
+        publicUrl: `/api/audio/${fileName}`
+      };
+    } catch (error: any) {
+      console.error('Error uploading audio:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
+    }
+  }
+  async getSignedUrl(storageKey: string, expiresIn: number = SIGNED_URL_EXPIRY): Promise<string | null> {
+    const fileName = storageKey.split('/').pop();
+    if (!fileName) return null;
+    return `/api/audio/${fileName}`;
+  }
+  getPublicUrl(storageKey: string): string {
+    const fileName = storageKey.split('/').pop();
+    return `/api/audio/${fileName || ''}`;
+  }
+  async audioExists(storageKey: string): Promise<boolean> {
+    try {
+      const fileName = storageKey.split('/').pop();
+      if (!fileName) return false;
+      const filePath = path.join(AUDIO_STORAGE_DIR, fileName);
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async deleteAudio(storageKey: string): Promise<boolean> {
+    try {
+      const fileName = storageKey.split('/').pop();
+      if (!fileName) return false;
+      const filePath = path.join(AUDIO_STORAGE_DIR, fileName);
+      const metadataPath = path.join(AUDIO_STORAGE_DIR, `${fileName}.meta.json`);
+      await fs.unlink(filePath);
+      try {
+        await fs.unlink(metadataPath);
+      } catch {}
+      console.log(`Deleted audio file: ${storageKey}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting audio:', error);
+      return false;
+    }
+  }
+  async downloadAudio(storageKey: string): Promise<Buffer | null> {
+    try {
+      const fileName = storageKey.split('/').pop();
+      if (!fileName) return null;
+      const filePath = path.join(AUDIO_STORAGE_DIR, fileName);
+      return await fs.readFile(filePath);
+    } catch (error) {
+      console.error('Error downloading audio:', error);
+      return null;
+    }
+  }
+  getFilePath(fileName: string): string | null {
+    if (!/^[a-zA-Z0-9_-]+\.mp3$/.test(fileName)) return null;
+    const filePath = path.join(AUDIO_STORAGE_DIR, fileName);
+    const normalizedPath = path.normalize(filePath);
+    if (!normalizedPath.startsWith(AUDIO_STORAGE_DIR)) return null;
+    return filePath;
+  }
+}
+export const audioStorage = new AudioStorageService();
+📁 2. ElevenLabs Audio Fetching (add to your ElevenLabs integration)
+// Check if audio is available
+async hasConversationAudio(conversationId: string, apiKey: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+      {
+        method: 'GET',
+        headers: { 'xi-api-key': apiKey }
+      }
+    );
+    
+    if (!response.ok) {
+      console.log(`[ElevenLabs] Conversation ${conversationId} not found: ${response.status}`);
+      return false;
+    }
+    
+    return true;
+  } catch (error: any) {
+    console.error('[ElevenLabs] Error checking audio availability:', error.message);
+    return false;
+  }
+}
+// Fetch audio buffer from ElevenLabs
+async getConversationAudio(conversationId: string, apiKey: string): Promise<Buffer | null> {
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
+      {
+        method: 'GET',
+        headers: { 'xi-api-key': apiKey }
+      }
+    );
+    
+    if (!response.ok) {
+      console.log(`[ElevenLabs] Failed to fetch audio: ${response.status}`);
+      return null;
+    }
+    
+    const audioBuffer = await response.arrayBuffer();
+    console.log(`[ElevenLabs] Fetched audio (${audioBuffer.byteLength} bytes)`);
+    return Buffer.from(audioBuffer);
+  } catch (error: any) {
+    console.error('[ElevenLabs] Error fetching audio:', error.message);
+    return null;
+  }
+}
+// Fetch and store audio
+async fetchAndStoreAudio(
+  conversationId: string,
+  callId: string,
+  apiKey: string
+): Promise<{ success: boolean; storageKey?: string; error?: string }> {
+  try {
+    // Check availability
+    const hasAudio = await this.hasConversationAudio(conversationId, apiKey);
+    if (!hasAudio) {
+      return { success: false, error: 'Audio not available' };
+    }
+    // Fetch audio
+    const audioBuffer = await this.getConversationAudio(conversationId, apiKey);
+    if (!audioBuffer) {
+      return { success: false, error: 'Failed to fetch audio' };
+    }
+    // Upload to storage
+    const uploadResult = await audioStorage.uploadAudio(
+      conversationId,
+      audioBuffer,
+      { call_id: callId, source: 'elevenlabs_api' }
+    );
+    if (!uploadResult.success) {
+      return { success: false, error: uploadResult.error || 'Failed to upload' };
+    }
+    console.log(`[ElevenLabs] Stored audio at ${uploadResult.storageKey}`);
+    return {
+      success: true,
+      storageKey: uploadResult.storageKey
+    };
+  } catch (error: any) {
+    console.error('[ElevenLabs] Error in fetchAndStoreAudio:', error);
+    return { success: false, error: error.message };
+  }
+}
+📁 3. API Routes (add to your Express routes)
+import { audioStorage } from './audioStorage';
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+// Serve audio files from storage
+app.get("/api/audio/:fileName", async (req, res) => {
+  try {
+    const { fileName } = req.params;
+    const filePath = audioStorage.getFilePath(fileName);
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Audio file not found" });
+    }
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving audio:', error);
+    res.status(500).json({ message: "Failed to serve audio" });
+  }
+});
+// Main recording endpoint with 3-tier fallback
+app.get("/api/recordings/:callId/audio", requireAuth, async (req, res) => {
+  try {
+    const { callId } = req.params;
+    // Get call and verify access (implement your own auth logic)
+    const call = await getCallById(callId, req.user.id);
+    if (!call) {
+      return res.status(404).json({ message: "Recording not found" });
+    }
+    // Priority 1: Check local storage
+    if (call.audioStorageKey) {
+      const signedUrl = await audioStorage.getSignedUrl(call.audioStorageKey);
+      if (signedUrl) {
+        return res.redirect(signedUrl);
+      }
+    }
+    // Priority 2: Fetch from ElevenLabs and store
+    if (call.conversationId && call.audioFetchStatus !== 'unavailable') {
+      const result = await fetchAndStoreAudio(
+        call.conversationId,
+        call.id,
+        YOUR_ELEVENLABS_API_KEY
+      );
+      if (result.success && result.storageKey) {
+        const signedUrl = await audioStorage.getSignedUrl(result.storageKey);
+        if (signedUrl) {
+          return res.redirect(signedUrl);
+        }
+      } else if (result.error === 'Audio not available') {
+        return res.status(404).json({ message: "Audio not available" });
+      }
+    }
+    // Priority 3: Legacy local recordings
+    if (call.recordingUrl && !call.recordingUrl.startsWith('http')) {
+      const filename = call.recordingUrl.split('/').pop();
+      if (filename && /^[a-zA-Z0-9_-]+\.mp3$/.test(filename)) {
+        const filePath = path.join(process.cwd(), 'recordings', filename);
+        if (fs.existsSync(filePath)) {
+          res.setHeader('Content-Type', 'audio/mpeg');
+          return res.sendFile(filePath);
+        }
+      }
+    }
+    return res.status(404).json({ message: "No recording available" });
+  } catch (error) {
+    console.error('Error serving recording:', error);
+    res.status(500).json({ message: "Failed to serve recording" });
+  }
+});
+// Background job to fetch missing audio (admin only)
+app.post("/api/jobs/fetch-missing-audio", requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+  const callsNeedingAudio = await getCallsNeedingAudio(); // Your DB query
+  let successCount = 0;
+  for (const call of callsNeedingAudio) {
+    const result = await fetchAndStoreAudio(
+      call.conversationId,
+      call.id,
+      YOUR_ELEVENLABS_API_KEY
+    );
+    if (result.success) successCount++;
+  }
+  res.json({
+    processed: callsNeedingAudio.length,
+    successful: successCount
+  });
+});
+📁 4. Database Schema (add to your Drizzle schema)
+export const calls = pgTable('calls', {
+  id: varchar('id').primaryKey(),
+  agentId: varchar('agent_id').notNull(),
+  conversationId: varchar('conversation_id'),
+  
+  // Audio fields
+  audioStorageKey: varchar('audio_storage_key'),
+  recordingUrl: text('recording_url'),
+  audioFetchStatus: varchar('audio_fetch_status').$type<'pending' | 'available' | 'failed' | 'unavailable'>(),
+  audioFetchedAt: timestamp('audio_fetched_at'),
+  
+  // Other fields...
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time'),
+  duration: integer('duration'),
+  transcript: jsonb('transcript'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+🔧 Environment Variables
+ELEVENLABS_API_KEY=your_api_key_here
+🚀 Usage Example
+// In your app
+import { audioStorage } from './server/audioStorage';
+// Fetch and store a recording
+const result = await fetchAndStoreAudio(
+  'conversation-123',
+  'call-456',
+  process.env.ELEVENLABS_API_KEY
+);
+// Access the recording
+const url = `/api/recordings/call-456/audio`;

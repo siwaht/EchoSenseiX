@@ -193,15 +193,8 @@ class ElevenLabsService {
   }
 
   // Conversation audio endpoints
-  async hasConversationAudio(conversationId: string): Promise<boolean> {
-    const result = await this.getConversation(conversationId);
-    if (!result.success || !result.data) {
-      return false;
-    }
-    // Check if the conversation has audio available
-    return result.data.recording_enabled === true || result.data.has_recording === true;
-  }
-
+  // Note: ElevenLabs API doesn't return recording_enabled/has_recording fields
+  // The only reliable way to check for audio is to try fetching it directly
   async getConversationAudio(conversationId: string): Promise<{ buffer: Buffer | null; error?: string; notFound?: boolean }> {
     try {
       const url = `${this.config.baseUrl}/v1/convai/conversations/${conversationId}/audio`;
