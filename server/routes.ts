@@ -20,6 +20,7 @@ import KnowledgeBaseService from "./services/knowledge-base-service";
 import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
 import SummaryService from "./services/summary-service";
+import { detectApiKeyChange } from "./middleware/api-key-change-detector";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -354,6 +355,9 @@ export function registerRoutes(app: Express): Server {
   
   // Auth middleware
   setupAuth(app);
+
+  // API key change detection middleware (runs after auth)
+  app.use('/api', detectApiKeyChange);
 
   // Auth routes already handled by setupAuth in auth.ts
   
