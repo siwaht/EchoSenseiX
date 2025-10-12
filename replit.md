@@ -132,6 +132,13 @@ Preferred communication style: Simple, everyday language.
   - **ETag versioning:** Old cache (v1) vs new cache with recordings (v2-recordings) forces fresh data fetch
   - **Files Updated:** server/routes.ts (GET /api/call-logs endpoint)
   - Prevents future frontend updates from being blocked by stale cached API responses
+- **Audio Playback Path Traversal Fix (Oct 12, 2025):**
+  - **Root Cause:** Security check was comparing relative path with absolute path, causing false positives
+  - **Problem:** Valid audio files rejected with "Path traversal attempt detected" error, preventing playback
+  - **Solution:** Changed both paths to absolute using `path.resolve()` before comparison
+  - **Security:** Maintained - filename regex still prevents directory separators, blocking actual traversal attacks
+  - **Files Updated:** server/services/audio-storage-service.ts (getFilePathForServing method)
+  - Audio playback now works correctly while preserving security protections
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data
