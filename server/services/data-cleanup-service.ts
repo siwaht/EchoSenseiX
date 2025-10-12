@@ -24,7 +24,8 @@ export class DataCleanupService {
       console.log(`[DATA-CLEANUP] Starting data wipe for organization ${organizationId}`);
 
       // Step 1: Get all call logs to delete their recordings
-      const callLogs = await this.storage.getCallLogs(organizationId);
+      const callLogsResult = await this.storage.getCallLogs(organizationId);
+      const callLogs = callLogsResult.data;
       console.log(`[DATA-CLEANUP] Found ${callLogs.length} call logs to delete`);
 
       // Step 2: Delete all audio recordings from storage

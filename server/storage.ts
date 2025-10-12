@@ -157,6 +157,7 @@ export interface IStorage {
   createAgent(agent: InsertAgent): Promise<Agent>;
   updateAgent(id: string, organizationId: string, updates: Partial<InsertAgent>): Promise<Agent>;
   deleteAgent(id: string, organizationId: string): Promise<void>;
+  deleteAllAgents(organizationId: string): Promise<number>;
 
   // Call log operations
   getCallLogs(organizationId: string, limit?: number, offset?: number, agentId?: string): Promise<{ data: CallLog[]; total: number }>;
@@ -168,6 +169,7 @@ export interface IStorage {
   updateCallLog(id: string, organizationId: string, updates: Partial<InsertCallLog>): Promise<CallLog>;
   updateCallLogSummary(id: string, organizationId: string, summary: string, status: string, metadata: any): Promise<CallLog>;
   updateCallAudioStatus(callId: string, organizationId: string, updates: { audioStorageKey?: string; audioFetchStatus?: string; recordingUrl?: string; audioFetchedAt?: Date }): Promise<CallLog>;
+  deleteAllCallLogs(organizationId: string): Promise<number>;
 
   // Phone number operations
   getPhoneNumbers(organizationId: string): Promise<PhoneNumber[]>;
@@ -762,6 +764,14 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(agents.id, id), eq(agents.organizationId, organizationId)));
   }
 
+  async deleteAllAgents(organizationId: string): Promise<number> {
+    const result = await db()
+      .delete(agents)
+      .where(eq(agents.organizationId, organizationId))
+      .returning({ id: agents.id });
+    return result.length;
+  }
+
   // Admin Agent operations
   async getAllAgents(): Promise<Agent[]> {
     // Get all agents with their organization details
@@ -994,6 +1004,14 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(callLogs.id, callId), eq(callLogs.organizationId, organizationId)))
       .returning();
     return callLog;
+  }
+
+  async deleteAllCallLogs(organizationId: string): Promise<number> {
+    const result = await db()
+      .delete(callLogs)
+      .where(eq(callLogs.organizationId, organizationId))
+      .returning({ id: callLogs.id });
+    return result.length;
   }
 
   async getCallLogByElevenLabsId(elevenLabsCallId: string, organizationId: string): Promise<CallLog | undefined> {
