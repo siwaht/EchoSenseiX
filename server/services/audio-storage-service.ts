@@ -57,10 +57,11 @@ class AudioStorageService {
     }
 
     const filePath = path.join(this.storageDir, fileName);
-    const normalizedPath = path.normalize(filePath);
+    const absoluteFilePath = path.resolve(filePath);
+    const absoluteStorageDir = path.resolve(this.storageDir);
     
     // Ensure the file is within the storage directory (prevent path traversal)
-    if (!normalizedPath.startsWith(path.resolve(this.storageDir))) {
+    if (!absoluteFilePath.startsWith(absoluteStorageDir)) {
       console.warn(`Path traversal attempt detected: ${fileName}`);
       return null;
     }
