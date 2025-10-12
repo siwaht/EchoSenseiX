@@ -108,6 +108,15 @@ Preferred communication style: Simple, everyday language.
   - API endpoints: GET /api/recordings/:callId/audio, POST /api/jobs/fetch-missing-audio
   - Database fields: audioStorageKey, audioFetchStatus, recordingUrl, audioFetchedAt
 - Added agent lookup in sync service to prevent future data integrity issues
+- **API Key Account Switching (Oct 12, 2025):**
+  - **Automatic account switching** when ELEVENLABS_API_KEY environment variable changes
+  - **Smart detection** using SHA-256 hash comparison (stores hash, not plaintext key)
+  - **Complete data wipe** removes all old account data: call logs, agents, recordings
+  - **Auto-sync** triggers after successful wipe to fetch new account data
+  - **Retry logic** if wipe fails, prevents data corruption by retrying on next request
+  - **First-time setup** handled gracefully without triggering wipe
+  - Database field: `elevenLabsApiKeyHash` in organizations table
+  - Middleware runs on all authenticated API requests for instant detection
 
 **Performance Optimizations:**
 - LRU cache for frequently accessed data
