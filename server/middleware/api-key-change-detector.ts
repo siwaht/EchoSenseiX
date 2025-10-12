@@ -79,6 +79,19 @@ export async function detectApiKeyChange(
 
       console.log(`[API-KEY-CHANGE] Updated API key hash for organization ${org.id}`);
       
+      // Also update or create the ElevenLabs integration with the new API key
+      const storage = req.app.locals.storage as IStorage;
+      console.log(`[API-KEY-CHANGE] Upserting ElevenLabs integration with new API key`);
+      
+      await storage.upsertIntegration({
+        organizationId: org.id,
+        provider: "elevenlabs",
+        apiKey: elevenLabsApiKey,
+        status: "ACTIVE",
+      });
+      
+      console.log(`[API-KEY-CHANGE] ElevenLabs integration updated successfully`);
+      
       // Trigger auto-sync in the background (don't block the request)
       if (storedKeyHash) {
         // Import sync service dynamically to avoid circular dependencies
