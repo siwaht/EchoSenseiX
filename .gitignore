@@ -1,6 +1,68 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# User uploads and storage
+audio-storage/
+uploads/
+server/public/
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+cookies.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE and OS files
 .DS_Store
-server/public
-vite.config.ts.*
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.replit
+.config/
+
+# Database files
+*.sqlite
+*.db
+
+# Test files
+*.test.js
+*.spec.js
+test-*.js
+test-*.mjs
+test-*.md
+trigger-*.js
+trigger-*.mjs
+
+# Documentation files (temporary/test docs)
+TODO.md
+*_TEST.md
+*_FIXES*.md
+*_SUMMARY.md
+*_REPORT.md
+*_PROPOSAL.md
+*_INTEGRATION.md
+*_UPDATE.md
+
+# Build artifacts
 *.tar.gz
+vite.config.ts.*
