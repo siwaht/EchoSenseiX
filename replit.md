@@ -37,6 +37,9 @@ The platform is **platform-agnostic** and can be deployed on any cloud provider 
 
 **Deployment Platforms:**
 - **Replit** - Autoscale Deployments (see `DEPLOYMENT.md`)
+  - ⚠️ **CRITICAL**: Autoscale requires **ONE external port only**
+  - Manual fix required: Edit `.replit` to keep only the first `[[ports]]` block (localPort=5000, externalPort=80)
+  - Delete all other port configurations before deploying
 - **AWS** - ECS Fargate, Elastic Beanstalk, Lambda
 - **Google Cloud** - Cloud Run, GKE, App Engine
 - **Azure** - App Service, Container Instances, AKS
@@ -46,7 +49,8 @@ The platform is **platform-agnostic** and can be deployed on any cloud provider 
 **Build & Runtime:**
 - **Build Process**: Vite for frontend compilation and esbuild for backend bundling to `dist/` directory
 - **Production Server**: Serves static files from `dist/public/` and handles API requests with compression
-- **Health Monitoring**: Endpoints at `/health` and `/api/sync/health` for deployment health checks
+- **Server Binding**: Binds to `0.0.0.0:5000` in all environments for external access
+- **Health Monitoring**: Endpoints at `/health` (returns static healthy status) and `/api/sync/health`
 - **Environment Detection**: Automatically adjusts behavior based on `NODE_ENV` (development vs production)
 - **Containerization**: Production-ready Dockerfile with multi-stage builds
 
