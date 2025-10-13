@@ -19,10 +19,11 @@ async function resyncMissingAudio() {
   const { default: AudioStorageService } = await import('../services/audio-storage-service');
   const audioStorage = new AudioStorageService();
 
-  // Get all call logs from the admin organization
-  const adminOrg = process.env.ADMIN_ORG_ID || '35377501-0723-442c-b569-b7b930023e0e';
-  const result = await storage.getCallLogs(adminOrg);
-  const callLogs = result.data;
+  // Get ALL call logs from the database (across all organizations)
+  const { db: getDb } = await import('../db');
+  const { callLogs: callLogsTable } = await import('../../shared/schema');
+  const database = getDb();
+  const callLogs = await database.select().from(callLogsTable);
   
   let total = 0;
   let missing = 0;
