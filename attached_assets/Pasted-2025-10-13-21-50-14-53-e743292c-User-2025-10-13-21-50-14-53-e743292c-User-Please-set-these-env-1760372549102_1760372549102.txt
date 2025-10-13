@@ -1,0 +1,111 @@
+2025-10-13 21:50:14.53
+e743292c
+User
+2025-10-13 21:50:14.53
+e743292c
+User
+Please set these environment variables before starting the application.
+2025-10-13 21:50:14.53
+e743292c
+User
+at loadConfig (file:///home/runner/workspace/dist/index.js:15294:13)
+2025-10-13 21:50:14.53
+e743292c
+User
+at file:///home/runner/workspace/dist/index.js:15436:14
+2025-10-13 21:50:14.53
+e743292c
+User
+at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+2025-10-13 21:50:14.53
+e743292c
+User
+at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+2025-10-13 21:50:14.53
+e743292c
+User
+at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+2025-10-13 21:50:14.53
+e743292c
+User
+2025-10-13 21:50:14.53
+e743292c
+User
+Node.js v20.19.3
+2025-10-13 21:50:14.57
+e743292c
+System
+command finished with error [npm run start]: exit status 1
+2025-10-13 21:50:16.23
+e743292c
+User
+> rest-express@1.0.0 start
+2025-10-13 21:50:16.23
+e743292c
+User
+> NODE_ENV=production node dist/index.js
+2025-10-13 21:50:17.12
+e743292c
+User
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️ override existing env vars with { override: true }
+2025-10-13 21:50:17.13
+e743292c
+User
+file:///home/runner/workspace/dist/index.js:15294
+2025-10-13 21:50:17.13
+e743292c
+User
+throw new Error(
+2025-10-13 21:50:17.13
+e743292c
+User
+^
+2025-10-13 21:50:17.13
+e743292c
+User
+2025-10-13 21:50:17.13
+e743292c
+User
+Error: Missing or invalid required secrets in production:
+2025-10-13 21:50:17.13
+e743292c
+User
+- ENCRYPTION_KEY (must be at least 32 characters)
+2025-10-13 21:50:17.13
+e743292c
+User
+2025-10-13 21:50:17.13
+e743292c
+User
+Please set these environment variables before starting the application.
+2025-10-13 21:50:17.13
+e743292c
+User
+at loadConfig (file:///home/runner/workspace/dist/index.js:15294:13)
+2025-10-13 21:50:17.13
+e743292c
+User
+at file:///home/runner/workspace/dist/index.js:15436:14
+2025-10-13 21:50:17.13
+e743292c
+User
+at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+2025-10-13 21:50:17.13
+e743292c
+User
+at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+2025-10-13 21:50:17.13
+e743292c
+User
+at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+2025-10-13 21:50:17.13
+e743292c
+User
+2025-10-13 21:50:17.13
+e743292c
+User
+Node.js v20.19.3
+2025-10-13 21:50:17.15
+e743292c
+System
+command finished with error [npm run start]: exit status 1
