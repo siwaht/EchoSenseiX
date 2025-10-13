@@ -79,6 +79,15 @@ EchoSensei is **platform-agnostic** and runs on any cloud provider:
 | **Kubernetes** | Any K8s cluster (EKS, GKE, AKS) | [DEPLOYMENT-PLATFORMS.md](./DEPLOYMENT-PLATFORMS.md#kubernetes-deployment) |
 | **Docker** | Standalone or Docker Compose | [DEPLOYMENT-PLATFORMS.md](./DEPLOYMENT-PLATFORMS.md#docker-deployment) |
 
+### 🔧 Deployment Troubleshooting
+
+Having deployment issues? See **[DEPLOYMENT-TROUBLESHOOTING.md](./DEPLOYMENT-TROUBLESHOOTING.md)** for common issues and solutions.
+
+**Common Issues:**
+- ❌ Missing secrets in production → Configure secrets in deployment settings
+- ❌ Crash loop detected → Check environment variables are set
+- ❌ Port configuration errors → Ensure only ONE external port for Autoscale
+
 ### One-Command Deployments
 
 **AWS ECS:**
