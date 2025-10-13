@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: echosensei-config
+data:
+  storage-provider: "s3"  # Change to s3, gcs, or azure based on your cloud
+  public-url: "https://your-domain.com"
+  trust-proxy: "true"

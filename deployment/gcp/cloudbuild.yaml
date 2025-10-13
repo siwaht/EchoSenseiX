@@ -1,0 +1,55 @@
+# Google Cloud Build configuration
+# Automatically builds and deploys to Cloud Run
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/echosensei:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/echosensei:latest'
+      - '.'
+
+  # Push the Docker image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/echosensei:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/echosensei:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'echosensei'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/echosensei:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '1'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,STORAGE_PROVIDER=gcs,GCS_BUCKET=echosensei-storage,TRUST_PROXY=true'
+      - '--set-secrets'
+      - 'DATABASE_URL=database-url:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,ELEVENLABS_API_KEY=elevenlabs-key:latest,MISTRAL_API_KEY=mistral-key:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/echosensei:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/echosensei:latest'

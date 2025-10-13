@@ -1,0 +1,39 @@
+# Google Cloud Run configuration
+# Deploy with: gcloud run deploy echosensei --source .
+
+service: echosensei
+runtime: custom
+
+env_variables:
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: 5000
+  STORAGE_PROVIDER: gcs
+  GCS_BUCKET: echosensei-storage
+  TRUST_PROXY: true
+
+# Secrets are managed separately via Secret Manager
+# Use: gcloud secrets create SECRET_NAME --data-file=-
+
+# Cloud Run will automatically inject:
+# - DATABASE_URL (from secret)
+# - SESSION_SECRET (from secret)
+# - ENCRYPTION_KEY (from secret)
+# - ELEVENLABS_API_KEY (from secret)
+# - MISTRAL_API_KEY (from secret)
+
+# Resources
+instance_class: F4
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.7
+  target_throughput_utilization: 0.8
+
+# Health check
+health_check:
+  path: /health
+  interval: 30s
+  timeout: 5s
+  unhealthy_threshold: 3
+  healthy_threshold: 2
