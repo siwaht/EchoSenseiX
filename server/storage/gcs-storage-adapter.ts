@@ -14,12 +14,9 @@ export class GCSStorageAdapter implements StorageAdapter {
     keyFilePath: string;
   }) {
     this.bucketName = config.bucket;
-    this.initializeGCSClient(config);
-  }
-
-  private async initializeGCSClient(config: any) {
+    
     try {
-      const { Storage } = await import('@google-cloud/storage');
+      const { Storage } = require('@google-cloud/storage');
       
       this.storage = new Storage({
         projectId: config.projectId,

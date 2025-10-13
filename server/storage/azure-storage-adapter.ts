@@ -14,12 +14,9 @@ export class AzureStorageAdapter implements StorageAdapter {
     containerName: string;
   }) {
     this.containerName = config.containerName;
-    this.initializeAzureClient(config);
-  }
-
-  private async initializeAzureClient(config: any) {
+    
     try {
-      const { BlobServiceClient, StorageSharedKeyCredential } = await import('@azure/storage-blob');
+      const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
       
       const sharedKeyCredential = new StorageSharedKeyCredential(
         config.accountName,
@@ -33,10 +30,8 @@ export class AzureStorageAdapter implements StorageAdapter {
       
       this.containerClient = this.blobServiceClient.getContainerClient(this.containerName);
       
-      // Create container if it doesn't exist
-      await this.containerClient.createIfNotExists();
-      
       console.log(`[AZURE-STORAGE] Initialized Azure Blob Storage client for container: ${this.containerName}`);
+      console.log('[AZURE-STORAGE] Note: Ensure the container exists before use');
     } catch (error) {
       throw new Error(
         'Azure Storage SDK not installed. Run: npm install @azure/storage-blob'
