@@ -133,11 +133,23 @@ export class SyncService {
                          detailedConversation.dynamic_variables?.system__call_duration_secs || 
                          detailedConversation.duration_seconds || 0;
           
-          // Extract transcript from the main response if available
+          // Fetch transcript explicitly from ElevenLabs API
           let transcript = null;
-          if (includeTranscripts && detailedConversation.transcript && Array.isArray(detailedConversation.transcript)) {
-            transcript = JSON.stringify(detailedConversation.transcript);
-            console.log(`[SYNC] Extracted transcript from conversation response for ${conversation.conversation_id}`);
+          if (includeTranscripts) {
+            try {
+              console.log(`[SYNC] Fetching transcript for ${conversation.conversation_id}`);
+              const transcriptResult = await client.getConversationTranscript(conversation.conversation_id);
+              
+              if (transcriptResult.success && transcriptResult.data) {
+                // Store transcript as JSON string
+                transcript = JSON.stringify(transcriptResult.data);
+                console.log(`[SYNC] Successfully fetched transcript for ${conversation.conversation_id}`);
+              } else {
+                console.log(`[SYNC] No transcript available for ${conversation.conversation_id}: ${transcriptResult.error || 'Unknown error'}`);
+              }
+            } catch (transcriptError: any) {
+              console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}:`, transcriptError.message);
+            }
           }
           
           // Prepare call log data using detailed conversation info
