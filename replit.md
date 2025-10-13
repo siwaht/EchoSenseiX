@@ -33,13 +33,35 @@ The knowledge base supports multi-format document processing (PDF, DOCX, TXT, RT
 The application uses a centralized configuration system (`server/config.ts`) that validates environment variables. It includes flexible HOST and PORT configuration, `PUBLIC_URL` for webhooks, database SSL/connection pooling settings, trust proxy configuration, and a storage abstraction layer with adapters for various cloud providers.
 
 ### Deployment
-The platform is configured for Replit Autoscale Deployments with production-ready build and runtime configuration. The deployment uses:
+The platform is **platform-agnostic** and can be deployed on any cloud provider or hosting environment. It supports:
+
+**Deployment Platforms:**
+- **Replit** - Autoscale Deployments (see `DEPLOYMENT.md`)
+- **AWS** - ECS Fargate, Elastic Beanstalk, Lambda
+- **Google Cloud** - Cloud Run, GKE, App Engine
+- **Azure** - App Service, Container Instances, AKS
+- **Kubernetes** - Any K8s cluster (EKS, GKE, AKS, self-hosted)
+- **Docker** - Standalone or Docker Compose
+
+**Build & Runtime:**
 - **Build Process**: Vite for frontend compilation and esbuild for backend bundling to `dist/` directory
 - **Production Server**: Serves static files from `dist/public/` and handles API requests with compression
 - **Health Monitoring**: Endpoints at `/health` and `/api/sync/health` for deployment health checks
 - **Environment Detection**: Automatically adjusts behavior based on `NODE_ENV` (development vs production)
-- **Secret Management**: Workspace secrets automatically sync to deployments
-- **Comprehensive Documentation**: See `DEPLOYMENT.md` for detailed deployment instructions, troubleshooting, and best practices
+- **Containerization**: Production-ready Dockerfile with multi-stage builds
+
+**Storage Flexibility:**
+- **Local** - File system (development/single-server)
+- **AWS S3** - Scalable object storage for AWS deployments
+- **Google Cloud Storage** - Scalable storage for GCP deployments
+- **Azure Blob Storage** - Scalable storage for Azure deployments
+
+**Documentation:**
+- `DEPLOYMENT.md` - Replit-specific deployment guide
+- `DEPLOYMENT-PLATFORMS.md` - Comprehensive multi-cloud deployment guide
+- Platform-specific configs in `deployment/` directory
+- Kubernetes manifests in `k8s/` directory
+- CI/CD templates for GitHub Actions and GitLab CI
 
 ## External Dependencies
 
