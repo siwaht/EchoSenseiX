@@ -32,6 +32,15 @@ The knowledge base supports multi-format document processing (PDF, DOCX, TXT, RT
 ### Platform-Agnostic Configuration
 The application uses a centralized configuration system (`server/config.ts`) that validates environment variables. It includes flexible HOST and PORT configuration, `PUBLIC_URL` for webhooks, database SSL/connection pooling settings, trust proxy configuration, and a storage abstraction layer with adapters for various cloud providers.
 
+### Deployment
+The platform is configured for Replit Autoscale Deployments with production-ready build and runtime configuration. The deployment uses:
+- **Build Process**: Vite for frontend compilation and esbuild for backend bundling to `dist/` directory
+- **Production Server**: Serves static files from `dist/public/` and handles API requests with compression
+- **Health Monitoring**: Endpoints at `/health` and `/api/sync/health` for deployment health checks
+- **Environment Detection**: Automatically adjusts behavior based on `NODE_ENV` (development vs production)
+- **Secret Management**: Workspace secrets automatically sync to deployments
+- **Comprehensive Documentation**: See `DEPLOYMENT.md` for detailed deployment instructions, troubleshooting, and best practices
+
 ## External Dependencies
 
 ### Third-Party APIs
