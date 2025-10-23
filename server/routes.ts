@@ -19,7 +19,6 @@ import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
 import KnowledgeBaseService from "./services/knowledge-base-service";
 import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
-import SummaryService from "./services/summary-service";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
 
 // Authentication middleware
@@ -4325,8 +4324,8 @@ Generate the complete prompt now:`;
     }
   });
 
-  // Regenerate all call summaries
-  app.post("/api/call-logs/regenerate-summaries", isAuthenticated, async (req: any, res) => {
+  // Get call summary status (no longer regenerating with Mistral)
+  app.get("/api/call-logs/summary-status", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
@@ -4338,80 +4337,45 @@ Generate the complete prompt now:`;
         });
       }
 
-      console.log(`[SUMMARIES] User ${user.email} initiated summary regeneration`);
+      console.log(`[SUMMARIES] User ${user.email} checking summary status`);
 
-      // Get all call logs for the organization (use a very high limit to get all)
+      // Get all call logs for the organization
       const callLogsResult = await storage.getCallLogs(user.organizationId, 10000, 0);
       const callLogsList = callLogsResult.data;
       
-      console.log(`[SUMMARIES] Found ${callLogsList.length} call logs to process`);
+      let withSummary = 0;
+      let withoutSummary = 0;
+      let withTranscript = 0;
       
-      let successCount = 0;
-      let failedCount = 0;
-      const errors: string[] = [];
-      
-      // Process each call log
       for (const callLog of callLogsList) {
-        try {
-          // Only regenerate if there's a transcript
-          if (!callLog.transcript) {
-            console.log(`[SUMMARIES] Skipping call ${callLog.id} - no transcript`);
-            continue;
-          }
-
-          console.log(`[SUMMARIES] Regenerating summary for call ${callLog.id}`);
-          
-          // Generate new summary
-          const summaryResult = await SummaryService.generateCallSummary(callLog);
-          
-          if (summaryResult.status === 'success') {
-            // Update call log with new summary
-            await db()
-              .update(callLogs)
-              .set({
-                summary: summaryResult.summary,
-                summaryMetadata: summaryResult.metadata as any
-              })
-              .where(eq(callLogs.id, callLog.id));
-            
-            successCount++;
-            console.log(`[SUMMARIES] ✓ Regenerated summary for call ${callLog.id}`);
-            
-            // Add delay to avoid rate limiting (60 requests/minute = 1 per second)
-            await new Promise(resolve => setTimeout(resolve, 1100));
-          } else {
-            failedCount++;
-            const error = `Call ${callLog.id}: ${summaryResult.error || 'Unknown error'}`;
-            errors.push(error);
-            console.error(`[SUMMARIES] ✗ Failed for call ${callLog.id}:`, summaryResult.error);
-          }
-        } catch (error: any) {
-          failedCount++;
-          const errorMsg = `Call ${callLog.id}: ${error.message}`;
-          errors.push(errorMsg);
-          console.error(`[SUMMARIES] Error regenerating summary for call ${callLog.id}:`, error);
+        if (callLog.transcript) {
+          withTranscript++;
+        }
+        if (callLog.summary) {
+          withSummary++;
+        } else {
+          withoutSummary++;
         }
       }
 
       const response = {
         success: true,
-        message: `Regenerated ${successCount} summaries`,
         totalCalls: callLogsList.length,
-        successCount,
-        failedCount,
-        skippedCount: callLogsList.length - successCount - failedCount,
-        errors: errors.length > 0 ? errors : undefined,
+        withSummary,
+        withoutSummary,
+        withTranscript,
+        message: "Call summaries are now generated automatically by ElevenLabs webhooks",
         timestamp: new Date().toISOString()
       };
 
-      console.log(`[SUMMARIES] Regeneration complete:`, response);
+      console.log(`[SUMMARIES] Status check complete:`, response);
       
       res.json(response);
     } catch (error: any) {
-      console.error("[SUMMARIES] Summary regeneration error:", error);
+      console.error("[SUMMARIES] Summary status error:", error);
       res.status(500).json({ 
         success: false,
-        message: error.message || "Failed to regenerate summaries",
+        message: error.message || "Failed to check summary status",
         timestamp: new Date().toISOString()
       });
     }
@@ -6127,25 +6091,17 @@ Generate the complete prompt now:`;
         });
       }
 
-      // Generate summary using Mistral AI
-      const result = await SummaryService.generateCallSummary(callLog);
-
-      // Update call log with summary results
-      const updatedCallLog = await storage.updateCallLogSummary(
-        callLog.id,
-        user.organizationId,
-        result.summary,
-        result.status,
-        result.metadata
-      );
-
-      // Return summary response
-      res.json({
-        summary: updatedCallLog.summary,
-        status: updatedCallLog.summaryStatus,
-        generatedAt: updatedCallLog.summaryGeneratedAt,
-        metadata: updatedCallLog.summaryMetadata,
-        error: result.error,
+      // Summaries are now generated automatically by ElevenLabs webhook
+      // If no summary exists, inform user about the new approach
+      return res.json({
+        summary: null,
+        status: 'pending',
+        message: 'Call summaries are now automatically generated by ElevenLabs after each call.',
+        instructions: {
+          newCalls: 'All new calls will automatically receive summaries via the post-call webhook',
+          existingCalls: 'Existing calls without summaries will remain as-is',
+          webhookConfig: 'Ensure your agent has the post-call webhook configured'
+        },
         cached: false
       });
     } catch (error: any) {
@@ -6157,7 +6113,7 @@ Generate the complete prompt now:`;
     }
   });
 
-  // Batch generate summaries for all calls with transcripts
+  // Batch generate summaries - DEPRECATED (summaries now auto-generated by ElevenLabs)
   app.post("/api/jobs/generate-all-summaries", isAuthenticated, checkPermission('view_call_history'), async (req: any, res) => {
     try {
       const userId = req.user.id;
@@ -6165,82 +6121,34 @@ Generate the complete prompt now:`;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      console.log("[BATCH-SUMMARY] Starting batch summary generation for organization:", user.organizationId);
-      
+
+      console.log("[BATCH-SUMMARY] Batch summary endpoint called - now deprecated");
+
       // Get all call logs for the organization
       const allCallLogs = await storage.getCallLogs(user.organizationId);
-      
+
       // Extract data from paginated response
       const callLogsData = allCallLogs.data || allCallLogs;
-      
-      // Filter to only those needing summaries
-      const callLogsNeedingSummary = callLogsData.filter((log: any) => 
-        log.transcript && (!log.summary || log.summaryStatus === 'failed')
-      );
-      
-      console.log(`[BATCH-SUMMARY] Found ${callLogsNeedingSummary.length} calls needing summaries`);
-      
-      if (callLogsNeedingSummary.length === 0) {
-        return res.json({
-          message: "No calls need summary generation",
-          processed: 0,
-          successful: 0,
-          failed: 0
-        });
-      }
-      
-      let successful = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      
-      // Process in batches to avoid overwhelming the system
-      const batchSize = 5;
-      for (let i = 0; i < callLogsNeedingSummary.length; i += batchSize) {
-        const batch = callLogsNeedingSummary.slice(i, i + batchSize);
-        
-        await Promise.all(batch.map(async (callLog: any) => {
-          try {
-            console.log(`[BATCH-SUMMARY] Generating summary for call: ${callLog.id}`);
-            
-            const result = await SummaryService.generateCallSummary(callLog);
-            
-            if (result.status === 'success' && result.summary) {
-              await storage.updateCallLogSummary(
-                callLog.id,
-                user.organizationId,
-                result.summary,
-                result.status,
-                result.metadata
-              );
-              successful++;
-              console.log(`[BATCH-SUMMARY] Successfully generated summary for call: ${callLog.id}`);
-            } else {
-              failed++;
-              errors.push(`Call ${callLog.id}: ${result.error || 'Unknown error'}`);
-              console.error(`[BATCH-SUMMARY] Failed to generate summary for call: ${callLog.id}`, result.error);
-            }
-          } catch (error: any) {
-            failed++;
-            errors.push(`Call ${callLog.id}: ${error.message}`);
-            console.error(`[BATCH-SUMMARY] Error processing call ${callLog.id}:`, error);
-          }
-        }));
-        
-        // Add a small delay between batches to avoid rate limiting
-        if (i + batchSize < callLogsNeedingSummary.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      console.log(`[BATCH-SUMMARY] Batch summary generation complete. Success: ${successful}, Failed: ${failed}`);
-      
+
+      // Count calls with and without summaries
+      const callsWithSummary = callLogsData.filter((log: any) => log.summary).length;
+      const callsWithoutSummary = callLogsData.filter((log: any) => log.transcript && !log.summary).length;
+
+      console.log(`[BATCH-SUMMARY] Stats - With summary: ${callsWithSummary}, Without summary: ${callsWithoutSummary}`);
+
       res.json({
-        message: "Batch summary generation complete",
-        processed: callLogsNeedingSummary.length,
-        successful,
-        failed,
-        errors: errors.length > 0 ? errors : undefined
+        message: "Batch summary generation is no longer available. Summaries are now automatically generated by ElevenLabs after each call via webhook.",
+        info: {
+          totalCalls: callLogsData.length,
+          callsWithSummary,
+          callsWithoutSummary,
+          note: "New calls will automatically receive summaries. Existing calls without summaries will remain as-is."
+        },
+        instructions: {
+          newCalls: "All new calls will automatically receive summaries via the post-call webhook",
+          existingCalls: "Existing calls without summaries cannot be retroactively summarized",
+          webhookConfig: "Ensure your agents have the post-call webhook configured in ElevenLabs"
+        }
       });
       
     } catch (error: any) {

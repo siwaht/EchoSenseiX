@@ -172,26 +172,10 @@ export class SyncService {
             updatedCount++;
             console.log(`[SYNC] Updated call log ${existingLog.id}`);
             
-            // Auto-generate summary if transcript exists but no summary
+            // Note: Summary generation now handled by ElevenLabs webhook
+            // No longer auto-generating summaries with Mistral during sync
             if (updatedLog && updatedLog.transcript && !updatedLog.summary) {
-              try {
-                console.log(`[SYNC] Auto-generating summary for updated call: ${existingLog.id}`);
-                const { default: SummaryService } = await import('./summary-service');
-                const summaryResult = await SummaryService.generateCallSummary(updatedLog);
-                
-                if (summaryResult.status === 'success' && summaryResult.summary) {
-                  await storage.updateCallLogSummary(
-                    existingLog.id,
-                    organizationId,
-                    summaryResult.summary,
-                    summaryResult.status,
-                    summaryResult.metadata
-                  );
-                  console.log(`[SYNC] Summary auto-generated for call: ${existingLog.id}`);
-                }
-              } catch (summaryError: any) {
-                console.error(`[SYNC] Failed to auto-generate summary for call ${existingLog.id}:`, summaryError.message);
-              }
+              console.log(`[SYNC] Call ${existingLog.id} has transcript but no summary - waiting for ElevenLabs webhook`);
             }
             
             // Auto-fetch audio recording if available and not already fetched
@@ -227,26 +211,10 @@ export class SyncService {
             syncedCount++;
             console.log(`[SYNC] Created new call log for conversation ${conversation.conversation_id}`);
             
-            // Auto-generate summary if transcript exists
-            if (newCallLog && newCallLog.transcript) {
-              try {
-                console.log(`[SYNC] Auto-generating summary for new call: ${newCallLog.id}`);
-                const { default: SummaryService } = await import('./summary-service');
-                const summaryResult = await SummaryService.generateCallSummary(newCallLog);
-                
-                if (summaryResult.status === 'success' && summaryResult.summary) {
-                  await storage.updateCallLogSummary(
-                    newCallLog.id,
-                    organizationId,
-                    summaryResult.summary,
-                    summaryResult.status,
-                    summaryResult.metadata
-                  );
-                  console.log(`[SYNC] Summary auto-generated for new call: ${newCallLog.id}`);
-                }
-              } catch (summaryError: any) {
-                console.error(`[SYNC] Failed to auto-generate summary for new call ${newCallLog.id}:`, summaryError.message);
-              }
+            // Note: Summary generation now handled by ElevenLabs webhook
+            // No longer auto-generating summaries with Mistral during sync
+            if (newCallLog && newCallLog.transcript && !newCallLog.summary) {
+              console.log(`[SYNC] Call ${newCallLog.id} has transcript but no summary - waiting for ElevenLabs webhook`);
             }
             
             // Auto-fetch audio recording if available

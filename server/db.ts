@@ -21,10 +21,10 @@ function getDatabaseConnection() {
     // Configure the connection pool optimized for high concurrency
     pool = new Pool({ 
       connectionString: process.env.DATABASE_URL,
-      max: 20, // Increased for handling 100s of concurrent users
-      connectionTimeoutMillis: 5000, // 5 seconds connection timeout (faster fail)
-      idleTimeoutMillis: 10000, // 10 seconds idle timeout (more aggressive cleanup)
-      allowExitOnIdle: true
+      max: 50, // Increased from 20 for better concurrency
+      connectionTimeoutMillis: 3000, // 3 seconds connection timeout (faster fail)
+      idleTimeoutMillis: 30000, // 30 seconds idle timeout (keep connections warm)
+      allowExitOnIdle: false, // Keep pool alive
     });
 
     // Add error handling for pool

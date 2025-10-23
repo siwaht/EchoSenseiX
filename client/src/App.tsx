@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +11,8 @@ import AppShell from "@/components/layout/app-shell";
 import { PermissionGuard } from "@/components/auth/permission-guard";
 import { AgentProvider } from "@/contexts/agent-context";
 import { WhitelabelProvider } from "@/contexts/whitelabel-context";
+import { ResourceHints } from "@/components/resource-hints";
+import { useServiceWorker } from "@/hooks/useServiceWorker";
 
 // Eagerly load critical pages
 import Landing from "@/pages/landing";
@@ -248,12 +250,43 @@ function Router() {
 }
 
 function App() {
+  // Register service worker for offline support and caching
+  useServiceWorker();
+
+  // Prefetch critical resources
+  useEffect(() => {
+    // Prefetch common routes when idle
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        // Prefetch common chunks
+        const commonRoutes = ['/agents', '/history', '/settings'];
+        commonRoutes.forEach(route => {
+          const link = document.createElement('link');
+          link.rel = 'prefetch';
+          link.href = route;
+          document.head.appendChild(link);
+        });
+      });
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <WhitelabelProvider>
             <TooltipProvider>
+              {/* Add resource hints for better performance */}
+              <ResourceHints
+                preconnect={[
+                  'https://api.elevenlabs.io',
+                  'https://js.stripe.com',
+                ]}
+                dns={[
+                  'https://www.googletagmanager.com',
+                  'https://www.google-analytics.com',
+                ]}
+              />
               <Toaster />
               <ErrorBoundary>
                 <Router />

@@ -188,6 +188,38 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     // Calculate cost (ElevenLabs may provide this, or calculate based on duration)
     const calculatedCost = cost || (credits_used ? credits_used * 0.001 : 0);
 
+    // Extract summary from analysis field if available
+    let callSummary = null;
+    let summaryMetadata = null;
+    
+    if (analysis) {
+      // ElevenLabs provides analysis with summary and other insights
+      if (typeof analysis === 'object') {
+        callSummary = analysis.summary || analysis.call_summary || analysis.description || null;
+        
+        // Store the full analysis as metadata
+        summaryMetadata = {
+          provider: 'elevenlabs',
+          model: 'elevenlabs-analysis',
+          analysisData: analysis,
+          generatedAt: new Date().toISOString()
+        };
+        
+        console.log("📊 Extracted summary from ElevenLabs analysis:", {
+          hasSummary: !!callSummary,
+          analysisKeys: Object.keys(analysis)
+        });
+      } else if (typeof analysis === 'string') {
+        // If analysis is a string, use it as the summary
+        callSummary = analysis;
+        summaryMetadata = {
+          provider: 'elevenlabs',
+          model: 'elevenlabs-analysis',
+          generatedAt: new Date().toISOString()
+        };
+      }
+    }
+
     // Check for existing call log to prevent duplicates
     const existingCallLog = await storage.getCallLogByConversationId(
       agent.organizationId,
@@ -197,27 +229,36 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     if (existingCallLog) {
       console.log("📝 Updating existing call log:", conversation_id);
       
-      // Update existing call log with new data
-      await storage.updateCallLog(existingCallLog.id, {
+      // Update existing call log with new data including summary
+      const updateData: any = {
         status: call_status || existingCallLog.status,
         duration: call_duration_seconds || existingCallLog.duration,
         cost: String(calculatedCost),
         transcript: transcript || existingCallLog.transcript,
         audioUrl: recording_url || audio_url || existingCallLog.audioUrl,
         phoneNumber: phone_number || existingCallLog.phoneNumber,
-        metadata: {
-          ...existingCallLog.metadata,
-          end_reason,
-          analysis,
-          last_updated: new Date().toISOString(),
-          ...metadata
-        }
-      });
+        summary: callSummary || existingCallLog.summary,
+        summaryMetadata: summaryMetadata || existingCallLog.summaryMetadata
+      };
+      
+      await storage.updateCallLog(existingCallLog.id, agent.organizationId, updateData);
+      
+      // If we have a summary from the webhook, update it separately
+      if (callSummary && !existingCallLog.summary) {
+        console.log("📝 Updating call log with ElevenLabs summary");
+        await storage.updateCallLogSummary(
+          existingCallLog.id,
+          agent.organizationId,
+          callSummary,
+          'success',
+          summaryMetadata
+        );
+      }
     } else {
       console.log("📝 Creating new call log:", conversation_id);
       
       // Create new call log with atomic operation
-      await storage.createCallLog({
+      const newCallLog = await storage.createCallLog({
         organizationId: agent.organizationId,
         conversationId: conversation_id,
         agentId: agent.id,
@@ -228,14 +269,15 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
         audioUrl: recording_url || audio_url || null,
         phoneNumber: phone_number || null,
         elevenLabsCallId: conversation_id,
-        metadata: {
-          end_reason,
-          analysis,
-          webhook_received_at: new Date().toISOString(),
-          ...metadata
-        },
+        summary: callSummary,
+        summaryMetadata: summaryMetadata,
         createdAt: timestamp ? new Date(timestamp) : new Date()
       });
+      
+      // Log if we received a summary from ElevenLabs
+      if (callSummary) {
+        console.log("✅ Call log created with ElevenLabs summary:", conversation_id);
+      }
     }
 
     console.log("✅ Call log processed successfully:", conversation_id);

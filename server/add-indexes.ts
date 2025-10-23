@@ -1,134 +1,112 @@
-import { db } from './db';
-import { sql } from 'drizzle-orm';
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 async function addPerformanceIndexes() {
-  console.log('🚀 Adding performance indexes to database...');
-
+  console.log("Adding performance indexes to database...");
+  
   try {
-    // User indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users(email);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_organization_id ON users(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_user_type ON users(user_type);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_is_admin ON users(is_admin);
-    `);
-
-    // Agent indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_organization_id ON agents(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_eleven_labs_id ON agents(eleven_labs_agent_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_user_id ON agents(user_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_org_user ON agents(organization_id, user_id);
-    `);
-
-    // Call logs indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_organization_id ON call_logs(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_agent_id ON call_logs(agent_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_created_at ON call_logs(created_at DESC);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_org_created ON call_logs(organization_id, created_at DESC);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_status ON call_logs(status);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_call_logs_org_agent ON call_logs(organization_id, agent_id);
-    `);
-
-    // Integration indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_integrations_organization_id ON integrations(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_integrations_provider ON integrations(provider);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_integrations_status ON integrations(status);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_integrations_org_provider ON integrations(organization_id, provider);
-    `);
-
-    // User agents indexes (for role-based access)
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_agents_user_id ON user_agents(user_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_agents_agent_id ON user_agents(agent_id);
-    `);
-
-    // Organization indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_organizations_subdomain ON organizations(subdomain);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_organizations_custom_domain ON organizations(custom_domain);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_organizations_parent_id ON organizations(parent_organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_organizations_type ON organizations(organization_type);
-    `);
-
-    // Payment and billing indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_organization_id ON payments(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
-    `);
-
-    // Credit transaction indexes
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_credit_transactions_org_id ON credit_transactions(organization_id);
-    `);
-    await db().execute(sql`
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_credit_transactions_created ON credit_transactions(created_at DESC);
-    `);
-
-    console.log('✅ Successfully added all performance indexes');
-    console.log('\n📊 Indexes added for:');
-    console.log('   - Users: email, organization_id, user_type, is_admin');
-    console.log('   - Agents: organization_id, eleven_labs_agent_id, user_id, composite');
-    console.log('   - Call Logs: organization_id, agent_id, created_at, status, composites');
-    console.log('   - Integrations: organization_id, provider, status, composite');
-    console.log('   - User Agents: user_id, agent_id');
-    console.log('   - Organizations: subdomain, custom_domain, parent_organization_id, type');
-    console.log('   - Payments: from_organization_id, created_at');
-    console.log('   - Credit Transactions: organization_id, created_at');
-
+    const database = db();
+    
+    // Add indexes for frequently queried columns
+    const indexes = [
+      // Users table indexes
+      "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+      "CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC)",
+      
+      // Agents table indexes
+      "CREATE INDEX IF NOT EXISTS idx_agents_organization_id ON agents(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_agents_elevenlabs_agent_id ON agents(elevenlabs_agent_id)",
+      
+      // Call logs table indexes
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_organization_id ON call_logs(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_agent_id ON call_logs(agent_id)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_user_id ON call_logs(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_created_at ON call_logs(created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_status ON call_logs(status)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_call_id ON call_logs(call_id)",
+      
+      // Composite indexes for common queries
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_org_created ON call_logs(organization_id, created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_org_agent ON call_logs(organization_id, agent_id)",
+      "CREATE INDEX IF NOT EXISTS idx_agents_org_user ON agents(organization_id, user_id)",
+      
+      // Knowledge base indexes
+      "CREATE INDEX IF NOT EXISTS idx_knowledge_base_entries_organization_id ON knowledge_base_entries(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_knowledge_base_entries_agent_id ON knowledge_base_entries(agent_id)",
+      "CREATE INDEX IF NOT EXISTS idx_knowledge_base_entries_created_at ON knowledge_base_entries(created_at DESC)",
+      
+      // Integrations indexes
+      "CREATE INDEX IF NOT EXISTS idx_integrations_organization_id ON integrations(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_integrations_provider ON integrations(provider)",
+      
+      // Phone numbers indexes
+      "CREATE INDEX IF NOT EXISTS idx_phone_numbers_organization_id ON phone_numbers(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_phone_numbers_number ON phone_numbers(number)",
+      "CREATE INDEX IF NOT EXISTS idx_phone_numbers_agent_id ON phone_numbers(agent_id)",
+      
+      // Billing indexes
+      "CREATE INDEX IF NOT EXISTS idx_billing_plans_organization_id ON billing_plans(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_payment_history_organization_id ON payment_history(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_payment_history_created_at ON payment_history(created_at DESC)",
+      
+      // Whitelabel indexes
+      "CREATE INDEX IF NOT EXISTS idx_whitelabel_configs_organization_id ON whitelabel_configs(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_whitelabel_configs_subdomain ON whitelabel_configs(subdomain)",
+      
+      // Analytics indexes
+      "CREATE INDEX IF NOT EXISTS idx_analytics_organization_id ON analytics(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics(created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics(event_type)",
+      
+      // Full-text search indexes for transcript search
+      "CREATE INDEX IF NOT EXISTS idx_call_logs_transcript_gin ON call_logs USING gin(to_tsvector('english', transcript))",
+      "CREATE INDEX IF NOT EXISTS idx_knowledge_base_content_gin ON knowledge_base_entries USING gin(to_tsvector('english', content))",
+    ];
+    
+    // Execute each index creation
+    for (const indexSql of indexes) {
+      try {
+        await database.execute(sql.raw(indexSql));
+        console.log(`✓ Created index: ${indexSql.match(/idx_\w+/)?.[0]}`);
+      } catch (error: any) {
+        if (error.message?.includes('already exists')) {
+          console.log(`- Index already exists: ${indexSql.match(/idx_\w+/)?.[0]}`);
+        } else {
+          console.error(`✗ Failed to create index: ${indexSql.match(/idx_\w+/)?.[0]}`, error.message);
+        }
+      }
+    }
+    
+    // Analyze tables for query planner optimization
+    const tables = [
+      'users', 'agents', 'call_logs', 'knowledge_base_entries',
+      'integrations', 'phone_numbers', 'billing_plans', 'payment_history',
+      'whitelabel_configs', 'analytics'
+    ];
+    
+    for (const table of tables) {
+      try {
+        await database.execute(sql.raw(`ANALYZE ${table}`));
+        console.log(`✓ Analyzed table: ${table}`);
+      } catch (error: any) {
+        console.log(`- Table ${table} may not exist yet`);
+      }
+    }
+    
+    console.log("\n✅ Performance indexes added successfully!");
+    console.log("Note: Run this script periodically to ensure indexes are up to date.");
+    
   } catch (error) {
-    console.error('❌ Error adding indexes:', error);
-    throw error;
+    console.error("Error adding indexes:", error);
+    process.exit(1);
   }
+  
+  process.exit(0);
 }
 
-// Run the index creation
-addPerformanceIndexes()
-  .then(() => {
-    console.log('\n✨ Database optimization completed!');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('Failed to add indexes:', error);
-    process.exit(1);
-  });
+// Run the migration
+addPerformanceIndexes();
