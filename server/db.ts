@@ -27,11 +27,40 @@ function getDatabaseConnection() {
       allowExitOnIdle: true
     });
 
+    // Add error handling for pool
+    pool.on('error', (err) => {
+      console.error('[DB] Unexpected pool error:', err);
+      // Reset connection on critical errors
+      if (err.message.includes('Connection terminated') || err.message.includes('ECONNREFUSED')) {
+        database = null;
+        pool = null;
+      }
+    });
+
     database = drizzle({ client: pool, schema });
   }
   
   return database;
 }
 
-// Export the function that lazy-loads the database connection
-export const db = getDatabaseConnection;
+// Export a function that returns the database instance
+// This ensures the connection is lazy-loaded and properly cached
+export const db = () => getDatabaseConnection();
+
+// Cleanup function for graceful shutdown
+export const closeDatabase = async () => {
+  if (pool) {
+    try {
+      await pool.end();
+      console.log('[DB] Database connection pool closed');
+    } catch (error) {
+      console.error('[DB] Error closing database pool:', error);
+    }
+    pool = null;
+    database = null;
+  }
+};
+
+// Handle process termination
+process.on('SIGINT', closeDatabase);
+process.on('SIGTERM', closeDatabase);
