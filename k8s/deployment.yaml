@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echosensei
+  labels:
+    app: echosensei
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: echosensei
+  template:
+    metadata:
+      labels:
+        app: echosensei
+    spec:
+      containers:
+      - name: echosensei
+        image: echosensei:latest
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "5000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: echosensei-secrets
+              key: database-url
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: echosensei-secrets
+              key: session-secret
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: echosensei-secrets
+              key: encryption-key
+        - name: ELEVENLABS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: echosensei-secrets
+              key: elevenlabs-api-key
+              optional: true
+        - name: MISTRAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: echosensei-secrets
+              key: mistral-api-key
+              optional: true
+        - name: STORAGE_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: echosensei-config
+              key: storage-provider
+        - name: PUBLIC_URL
+          valueFrom:
+            configMapKeyRef:
+              name: echosensei-config
+              key: public-url
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      imagePullSecrets:
+      - name: regcred

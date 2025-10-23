@@ -1,0 +1,109 @@
+# GitLab CI/CD Pipeline for EchoSensei
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  DOCKER_LATEST: $CI_REGISTRY_IMAGE:latest
+
+# Test stage
+test:
+  stage: test
+  image: node:20-alpine
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm run check
+    - npm run build
+  only:
+    - branches
+    - merge_requests
+
+# Build Docker image
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $DOCKER_IMAGE -t $DOCKER_LATEST .
+    - docker push $DOCKER_IMAGE
+    - docker push $DOCKER_LATEST
+  only:
+    - main
+    - production
+
+# Deploy to AWS ECS
+deploy:aws:
+  stage: deploy
+  image: amazon/aws-cli
+  before_script:
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    - aws configure set region us-east-1
+  script:
+    - |
+      aws ecs update-service \
+        --cluster echosensei-cluster \
+        --service echosensei-service \
+        --force-new-deployment
+  only:
+    - production
+  when: manual
+
+# Deploy to Google Cloud Run
+deploy:gcp:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  before_script:
+    - echo $GCP_SA_KEY | base64 -d > key.json
+    - gcloud auth activate-service-account --key-file key.json
+    - gcloud config set project $GCP_PROJECT_ID
+  script:
+    - |
+      gcloud run deploy echosensei \
+        --image $DOCKER_LATEST \
+        --platform managed \
+        --region us-central1 \
+        --allow-unauthenticated
+  only:
+    - production
+  when: manual
+
+# Deploy to Azure
+deploy:azure:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli
+  before_script:
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+  script:
+    - |
+      az webapp config container set \
+        --name echosensei \
+        --resource-group echosensei-rg \
+        --docker-custom-image-name $DOCKER_LATEST
+    - az webapp restart --name echosensei --resource-group echosensei-rg
+  only:
+    - production
+  when: manual
+
+# Deploy to Kubernetes
+deploy:k8s:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  before_script:
+    - echo $KUBECONFIG_DATA | base64 -d > kubeconfig.yaml
+    - export KUBECONFIG=kubeconfig.yaml
+  script:
+    - kubectl set image deployment/echosensei echosensei=$DOCKER_IMAGE -n production
+    - kubectl rollout status deployment/echosensei -n production
+  only:
+    - production
+  when: manual

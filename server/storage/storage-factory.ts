@@ -64,21 +64,13 @@ export class StorageFactory {
   }
 
   private static createGCSAdapter(config: NonNullable<typeof config.storage.gcs>): StorageAdapter {
-    // GCS adapter can be implemented similarly to S3
-    // For now, throw an error to indicate it needs implementation
-    throw new Error(
-      'Google Cloud Storage adapter not yet implemented. ' +
-      'To add support, create server/storage/gcs-storage-adapter.ts following the S3 adapter pattern.'
-    );
+    const { GCSStorageAdapter } = require('./gcs-storage-adapter');
+    return new GCSStorageAdapter(config);
   }
 
   private static createAzureAdapter(config: NonNullable<typeof config.storage.azure>): StorageAdapter {
-    // Azure adapter can be implemented similarly to S3
-    // For now, throw an error to indicate it needs implementation
-    throw new Error(
-      'Azure Blob Storage adapter not yet implemented. ' +
-      'To add support, create server/storage/azure-storage-adapter.ts following the S3 adapter pattern.'
-    );
+    const { AzureStorageAdapter } = require('./azure-storage-adapter');
+    return new AzureStorageAdapter(config);
   }
 
   /**
