@@ -20,6 +20,11 @@ import KnowledgeBaseService from "./services/knowledge-base-service";
 import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
+import { 
+  handleConversationInitWebhook, 
+  handlePostCallWebhook, 
+  handleEventsWebhook 
+} from "./webhooks/elevenlabs-webhooks";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -369,7 +374,19 @@ export function registerRoutes(app: Express): Server {
   app.use('/api', detectApiKeyChange);
 
   // Auth routes already handled by setupAuth in auth.ts
+
+  // ==========================================
+  // ElevenLabs Webhook Routes (No Auth Required)
+  // ==========================================
   
+  // Post-call webhook - receives call summary and metadata after call completion
+  app.post("/api/webhooks/elevenlabs/post-call", handlePostCallWebhook);
+  
+  // Conversation initialization webhook - receives data when conversation starts
+  app.post("/api/webhooks/elevenlabs/conversation-init", handleConversationInitWebhook);
+  
+  // Events webhook - receives real-time events during conversation
+  app.post("/api/webhooks/elevenlabs/events", handleEventsWebhook);
 
   // Admin middleware
   const isAdmin = async (req: any, res: any, next: any) => {
@@ -3199,8 +3216,8 @@ Generate the complete prompt now:`;
             url: ""
           },
           post_call_webhook: {
-            enabled: false,
-            url: ""
+            enabled: true,
+            url: `${process.env.PUBLIC_URL || 'http://localhost:5000'}/api/webhooks/elevenlabs/post-call`
           }
         },
         client_config_override: {
@@ -6873,65 +6890,6 @@ Generate the complete prompt now:`;
     }
   });
   
-  // Legacy webhook endpoint for backwards compatibility
-  app.post("/api/webhooks/elevenlabs", async (req, res) => {
-    try {
-      console.log("Webhook received (legacy):", JSON.stringify(req.body, null, 2));
-      
-      const { type, data } = req.body;
-      
-      if (type === "post_call_transcription") {
-        // Extract call data from webhook
-        const {
-          conversation_id,
-          agent_id,
-          transcript,
-          duration_seconds,
-          conversation_metadata,
-          analysis
-        } = data;
-
-        // Find the agent in our system
-        const agent = await storage.getAgentByElevenLabsId(agent_id, "");
-        if (agent) {
-          // Extract cost data if available from webhook
-          const costData = {
-            llm_cost: data.llm_cost,
-            cost: data.cost,
-            credits_used: data.credits_used,
-          };
-          
-          // Store call log
-          await storage.createCallLog({
-            organizationId: agent.organizationId,
-            conversationId: conversation_id,
-            agentId: agent.id,
-            elevenLabsCallId: conversation_id,
-            phoneNumber: data.customer_phone_number || data.phone_number || conversation_metadata?.phone_number || null,
-            duration: duration_seconds || 0,
-            transcript: transcript,
-            audioUrl: "", // Will be populated from audio webhook if available
-            cost: calculateCallCost(duration_seconds || 0, costData).toString(),
-            status: "completed",
-          });
-          
-          console.log("Call log saved for conversation:", conversation_id);
-        }
-      } else if (type === "post_call_audio") {
-        // Update call log with audio URL
-        const { conversation_id, full_audio } = data;
-        
-        // In production, you'd save the audio to cloud storage
-        // For now, we'll just log that we received it
-        console.log("Audio received for conversation:", conversation_id, "Size:", full_audio?.length || 0);
-      }
-      
-      res.status(200).json({ message: "Webhook processed successfully" });
-    } catch (error) {
-      console.error("Error processing webhook:", error);
-      res.status(500).json({ message: "Failed to process webhook" });
-    }
-  });
 
 
 
@@ -7335,42 +7293,6 @@ Generate the complete prompt now:`;
     }
   });
 
-  // Webhook endpoint for ElevenLabs
-  app.post("/api/webhooks/elevenlabs", async (req, res) => {
-    try {
-      const { agent_id, duration, transcript, audio_url, cost } = req.body;
-
-      if (!agent_id) {
-        return res.status(400).json({ message: "agent_id is required" });
-      }
-
-      // Find the agent to get organization context
-      // Note: This is a simplified approach - in production you might want additional verification
-      const agents = await storage.getAgents(""); // This would need organization context
-      const agent = agents.find(a => a.elevenLabsAgentId === agent_id);
-      
-      if (!agent) {
-        return res.status(404).json({ message: "Agent not found" });
-      }
-
-      const callLogData = insertCallLogSchema.parse({
-        organizationId: agent.organizationId,
-        agentId: agent.id,
-        elevenLabsCallId: req.body.call_id,
-        duration,
-        transcript,
-        audioUrl: audio_url,
-        cost,
-        status: "completed",
-      });
-
-      const callLog = await storage.createCallLog(callLogData);
-      res.json({ message: "Webhook processed successfully", id: callLog.id });
-    } catch (error) {
-      console.error("Error processing webhook:", error);
-      res.status(500).json({ message: "Failed to process webhook" });
-    }
-  });
 
   // Payment Routes
   app.post("/api/payments/create-intent", isAuthenticated, async (req: any, res) => {
