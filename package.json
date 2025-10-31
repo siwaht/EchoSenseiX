@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "start:windows": "set NODE_ENV=production && node dist/index.js",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:client": "vite build",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "mongodb:init": "tsx server/scripts/init-mongodb.ts",
@@ -16,8 +17,13 @@
     "test:health": "tsx server/tests/health-check.ts",
     "test:critical": "tsx server/tests/critical-path-tests.ts",
     "test:webhooks": "tsx server/test-webhook-integration.ts",
+    "test:start-server": "cross-env NODE_ENV=test tsx server/index.ts > server.log 2>&1 &",
+    "test:run": "cross-env NODE_ENV=test tsx server/tests/critical-path-tests.ts",
+    "test:stop-server": "kill %1",
+    "test:e2e": "npm run test:start-server && sleep 5 && npm run test:run && npm run test:stop-server",
     "test:all": "npm run test:health && npm run test:critical && npm run test:webhooks",
-    "test:quick": "npm run test:health"
+    "test:quick": "npm run test:health",
+    "test": "npm run test:all"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -125,6 +131,7 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "drizzle-kit": "^0.30.6",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",

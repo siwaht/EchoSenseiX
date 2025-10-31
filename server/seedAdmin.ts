@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { hashPassword } from "./auth";
+import { nanoid } from "nanoid";
 
 export async function seedAdminUser() {
   try {
@@ -15,6 +16,13 @@ export async function seedAdminUser() {
       await syncElevenLabsApiKey(existingUser.organizationId);
       return;
     }
+
+    // Create a new organization for the admin user
+    const organizationId = nanoid();
+    await storage.db.insertInto('organizations').values({
+      id: organizationId,
+      name: 'Default Organization',
+    }).execute();
     
     // Create admin user with properly hashed password
     const hashedPassword = await hashPassword("Hola173!");
@@ -24,6 +32,7 @@ export async function seedAdminUser() {
       firstName: "Admin",
       lastName: "User",
       isAdmin: true,
+      organizationId,
     });
     
     console.log("[SEED] Admin user created successfully:", adminUser.email);

@@ -1,13 +1,14 @@
 import { config as loadEnv } from 'dotenv';
 
 // Load environment variables from .env file
-loadEnv();
+loadEnv({ override: true });
 
 interface Config {
   // Environment
   nodeEnv: string;
   isDevelopment: boolean;
   isProduction: boolean;
+  isTest: boolean;
   
   // Server
   host: string;
@@ -77,9 +78,11 @@ interface Config {
  * Validate and load application configuration from environment variables
  */
 function loadConfig(): Config {
+  console.log(`[CONFIG] Loading config. NODE_ENV is: ${process.env.NODE_ENV}`);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isDevelopment = nodeEnv === 'development';
   const isProduction = nodeEnv === 'production';
+  const isTest = nodeEnv === 'test';
 
   // Required secrets - must be provided (no defaults for security)
   const requiredSecrets = {
@@ -259,6 +262,7 @@ function loadConfig(): Config {
     nodeEnv,
     isDevelopment,
     isProduction,
+    isTest,
     host,
     port,
     publicUrl,
