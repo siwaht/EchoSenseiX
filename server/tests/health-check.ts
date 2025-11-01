@@ -334,16 +334,6 @@ async function checkExternalServices() {
     });
   }
 
-  // Check SendGrid configuration
-  const sendgridKey = process.env.SENDGRID_API_KEY;
-  if (sendgridKey) {
-    logResult('Services', 'SendGrid Configuration', 'pass', 'Configured');
-  } else {
-    logResult('Services', 'SendGrid Configuration', 'warning', 'Not configured', {
-      note: 'Required for email notifications'
-    });
-  }
-
   // Check public URL
   const publicUrl = process.env.PUBLIC_URL;
   if (publicUrl) {
