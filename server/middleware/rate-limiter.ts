@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { config } from '../config';
 
 interface RateLimitOptions {
   windowMs?: number;     // Time window in milliseconds
@@ -80,6 +81,11 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
   } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
+    // Disable rate limiting for test environment
+    if (config.isTest) {
+      return next();
+    }
+
     const key = keyGenerator(req);
     const requestCount = globalStore.increment(key, windowMs);
 

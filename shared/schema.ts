@@ -1,101 +1,78 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
-  jsonb,
-  json,
-  pgTable,
-  timestamp,
-  varchar,
+  sqliteTable,
   text,
   integer,
-  decimal,
-  pgEnum,
-  boolean,
+  real,
   unique,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table (required for Replit Auth)
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(),
+    expire: integer("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // User storage table
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique().notNull(),
-  password: varchar("password"),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  organizationId: varchar("organization_id").notNull(),
-  isAdmin: boolean("is_admin").default(false),
-  role: varchar("role").default("user"), // user, admin, agency, owner, manager, viewer
-  roleTemplate: varchar("role_template"), // Reference to the role template used
-  status: varchar("status").default("active"), // active, inactive, pending
-  permissions: jsonb("permissions").$type<string[]>().default([]),
-  metadata: jsonb("metadata").$type<Record<string, any>>(), // Custom user attributes
-  lastLoginAt: timestamp("last_login_at"),
-  invitedBy: varchar("invited_by"), // User ID who invited this user
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").unique().notNull(),
+  password: text("password"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  profileImageUrl: text("profile_image_url"),
+  organizationId: text("organization_id").notNull(),
+  isAdmin: integer("is_admin", { mode: 'boolean' }).default(false),
+  role: text("role").default("user"), // user, admin, agency, owner, manager, viewer
+  roleTemplate: text("role_template"), // Reference to the role template used
+  status: text("status").default("active"), // active, inactive, pending
+  permissions: text("permissions", { mode: 'json' }).$type<string[]>().default([]),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(), // Custom user attributes
+  lastLoginAt: integer("last_login_at", { mode: 'timestamp' }),
+  invitedBy: text("invited_by"), // User ID who invited this user
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Billing package enum
-export const billingPackageEnum = pgEnum("billing_package", ["starter", "professional", "enterprise", "custom"]);
-
-// Organization type enum for multi-tier hierarchy
-export const organizationTypeEnum = pgEnum("organization_type", ["platform_owner", "agency", "end_customer"]);
-
-// Credit package type enum
-export const creditPackageTypeEnum = pgEnum("credit_package_type", [
-  "agency_starter", "agency_growth", "agency_scale",
-  "customer_basic", "customer_professional", "customer_business", "customer_enterprise"
-]);
-
-// Credit alert status enum
-export const creditAlertStatusEnum = pgEnum("credit_alert_status", [
-  "normal", "warning_25", "warning_10", "critical_5", "depleted"
-]);
-
 // Organizations table for multi-tenancy and multi-tier hierarchy
-export const organizations = pgTable("organizations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
-  subdomain: varchar("subdomain"), // Custom subdomain for agency (e.g., 'agency-name' for agency-name.voiceai.com)
-  customDomain: varchar("custom_domain"), // Full custom domain (e.g., dashboard.agency.com)
-  parentOrganizationId: varchar("parent_organization_id"), // For hierarchy (agencies have parent, end customers have agency as parent)
-  organizationType: organizationTypeEnum("organization_type").default("end_customer"), // platform_owner, agency, end_customer
-  billingPackage: billingPackageEnum("billing_package").default("starter"),
-  perCallRate: decimal("per_call_rate", { precision: 10, scale: 4 }).default('0.30'),
-  perMinuteRate: decimal("per_minute_rate", { precision: 10, scale: 4 }).default('0.30'),
+export const organizations = sqliteTable("organizations", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  subdomain: text("subdomain"), // Custom subdomain for agency (e.g., 'agency-name' for agency-name.voiceai.com)
+  customDomain: text("custom_domain"), // Full custom domain (e.g., dashboard.agency.com)
+  parentOrganizationId: text("parent_organization_id"), // For hierarchy (agencies have parent, end customers have agency as parent)
+  organizationType: text("organization_type").default("end_customer"), // platform_owner, agency, end_customer
+  billingPackage: text("billing_package").default("starter"),
+  perCallRate: real("per_call_rate").default(0.30),
+  perMinuteRate: real("per_minute_rate").default(0.30),
   monthlyCredits: integer("monthly_credits").default(0),
   usedCredits: integer("used_credits").default(0),
-  creditBalance: decimal("credit_balance", { precision: 10, scale: 2 }).default('0'), // Prepaid credits for agencies
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default('30'), // Percentage agencies keep from sales
-  creditResetDate: timestamp("credit_reset_date"),
-  customRateEnabled: boolean("custom_rate_enabled").default(false),
+  creditBalance: real("credit_balance").default(0), // Prepaid credits for agencies
+  commissionRate: real("commission_rate").default(30), // Percentage agencies keep from sales
+  creditResetDate: integer("credit_reset_date", { mode: 'timestamp' }),
+  customRateEnabled: integer("custom_rate_enabled", { mode: 'boolean' }).default(false),
   maxAgents: integer("max_agents").default(5),
   maxUsers: integer("max_users").default(10),
-  stripeCustomerId: varchar("stripe_customer_id"),
-  stripeConnectAccountId: varchar("stripe_connect_account_id"), // For agencies to receive payouts
-  subscriptionId: varchar("subscription_id"),
-  billingStatus: varchar("billing_status").default('inactive'), // active, inactive, past_due, warning, paused
-  creditAlertStatus: creditAlertStatusEnum("credit_alert_status").default("normal"),
-  lastAlertSentAt: timestamp("last_alert_sent_at"),
-  servicePausedAt: timestamp("service_paused_at"),
-  lastPaymentDate: timestamp("last_payment_date"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeConnectAccountId: text("stripe_connect_account_id"), // For agencies to receive payouts
+  subscriptionId: text("subscription_id"),
+  billingStatus: text("billing_status").default('inactive'), // active, inactive, past_due, warning, paused
+  creditAlertStatus: text("credit_alert_status").default("normal"),
+  lastAlertSentAt: integer("last_alert_sent_at", { mode: 'timestamp' }),
+  servicePausedAt: integer("service_paused_at", { mode: 'timestamp' }),
+  lastPaymentDate: integer("last_payment_date", { mode: 'timestamp' }),
   // New fields for enhanced management
-  metadata: jsonb("metadata").$type<Record<string, any>>(), // Flexible custom attributes
-  settings: jsonb("settings").$type<{ // Organization-specific settings
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(), // Flexible custom attributes
+  settings: text("settings", { mode: 'json' }).$type<{ // Organization-specific settings
     defaultUserRole?: string;
     autoProvisionResources?: boolean;
     welcomeMessage?: string;
@@ -105,159 +82,141 @@ export const organizations = pgTable("organizations", {
       companyUrl?: string;
     };
   }>(),
-  tierLimits: jsonb("tier_limits").$type<{ // Resource usage limits
+  tierLimits: text("tier_limits", { mode: 'json' }).$type<{ // Resource usage limits
     maxMinutesPerMonth?: number;
     maxCallsPerMonth?: number;
     maxStorageGB?: number;
     maxConcurrentCalls?: number;
   }>(),
-  agencyPermissions: jsonb("agency_permissions").$type<string[]>().default([]), // Agency-level permissions
-  agencyRole: varchar("agency_role"), // Role template for agency permissions
-  elevenLabsApiKeyHash: varchar("elevenlabs_api_key_hash"), // Hash of current ElevenLabs API key to detect changes
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  agencyPermissions: text("agency_permissions", { mode: 'json' }).$type<string[]>().default([]), // Agency-level permissions
+  agencyRole: text("agency_role"), // Role template for agency permissions
+  elevenLabsApiKeyHash: text("elevenlabs_api_key_hash"), // Hash of current ElevenLabs API key to detect changes
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Integration status enum
-export const integrationStatusEnum = pgEnum("integration_status", ["ACTIVE", "INACTIVE", "ERROR", "PENDING_APPROVAL"]);
-
-// Phone number provider enum
-export const phoneProviderEnum = pgEnum("phone_provider", ["twilio", "sip_trunk"]);
-
-// Phone number status enum  
-export const phoneStatusEnum = pgEnum("phone_status", ["active", "inactive", "pending"]);
-
-// Task status enum
-export const taskStatusEnum = pgEnum("task_status", ["pending", "in_progress", "completed", "rejected"]);
-
-// Task type enum
-export const taskTypeEnum = pgEnum("task_type", ["integration_approval", "webhook_approval", "agent_approval"]);
-
-// RAG Configuration approval status enum
-
 // Integrations table for storing API keys
-export const integrations = pgTable("integrations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  provider: varchar("provider").notNull(), // 'elevenlabs'
-  apiKey: varchar("api_key").notNull(), // encrypted
-  apiKeyLast4: varchar("api_key_last4", { length: 4 }), // Last 4 chars for display
-  status: integrationStatusEnum("status").notNull().default("PENDING_APPROVAL"),
-  lastTested: timestamp("last_tested"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const integrations = sqliteTable("integrations", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  provider: text("provider").notNull(), // 'elevenlabs'
+  apiKey: text("api_key").notNull(), // encrypted
+  apiKeyLast4: text("api_key_last4"), // Last 4 chars for display
+  status: text("status").notNull().default("PENDING_APPROVAL"),
+  lastTested: integer("last_tested", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
   // Unique constraint on organizationId and provider for upsert operations
   uniqueOrgProvider: unique("unique_org_provider").on(table.organizationId, table.provider),
 }));
 
 // Admin tasks table for tracking approvals
-export const adminTasks = pgTable("admin_tasks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  type: taskTypeEnum("type").notNull(),
-  status: taskStatusEnum("status").notNull().default("pending"),
-  title: varchar("title").notNull(),
+export const adminTasks = sqliteTable("admin_tasks", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  status: text("status").notNull().default("pending"),
+  title: text("title").notNull(),
   description: text("description"),
-  relatedEntityId: varchar("related_entity_id").notNull(), // ID of integration/webhook/agent
-  relatedEntityType: varchar("related_entity_type").notNull(), // 'integration', 'webhook', 'agent'
-  organizationId: varchar("organization_id").notNull(),
-  requestedBy: varchar("requested_by").notNull(), // User ID who requested
-  approvedBy: varchar("approved_by"), // Admin ID who approved
-  rejectedBy: varchar("rejected_by"), // Admin ID who rejected
-  metadata: json("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  relatedEntityId: text("related_entity_id").notNull(), // ID of integration/webhook/agent
+  relatedEntityType: text("related_entity_type").notNull(), // 'integration', 'webhook', 'agent'
+  organizationId: text("organization_id").notNull(),
+  requestedBy: text("requested_by").notNull(), // User ID who requested
+  approvedBy: text("approved_by"), // Admin ID who approved
+  rejectedBy: text("rejected_by"), // Admin ID who rejected
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  completedAt: integer("completed_at", { mode: 'timestamp' }),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Approval webhooks table for notification endpoints
-export const approvalWebhooks = pgTable("approval_webhooks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const approvalWebhooks = sqliteTable("approval_webhooks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
   description: text("description"),
   webhookUrl: text("webhook_url").notNull(),
-  secret: varchar("secret"), // For webhook signature verification
-  events: json("events").$type<string[]>().notNull(), // ['task.created', 'task.approved', 'task.rejected']
-  isActive: boolean("is_active").notNull().default(true),
-  headers: json("headers").$type<Record<string, string>>(), // Custom headers to send with webhook
-  lastTriggered: timestamp("last_triggered"),
+  secret: text("secret"), // For webhook signature verification
+  events: text("events", { mode: 'json' }).$type<string[]>().notNull(), // ['task.created', 'task.approved', 'task.rejected']
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  headers: text("headers", { mode: 'json' }).$type<Record<string, string>>(), // Custom headers to send with webhook
+  lastTriggered: integer("last_triggered", { mode: 'timestamp' }),
   failureCount: integer("failure_count").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-
 // Phone numbers table
-export const phoneNumbers = pgTable("phone_numbers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  label: varchar("label").notNull(),
-  phoneNumber: varchar("phone_number").notNull(),
-  countryCode: varchar("country_code").notNull().default("+1"),
-  provider: phoneProviderEnum("provider").notNull(),
-  twilioAccountSid: varchar("twilio_account_sid"),
-  twilioAuthToken: varchar("twilio_auth_token"), // encrypted
-  sipTrunkUri: varchar("sip_trunk_uri"),
-  sipUsername: varchar("sip_username"),
-  sipPassword: varchar("sip_password"), // encrypted
-  elevenLabsPhoneId: varchar("eleven_labs_phone_id"),
-  agentId: varchar("agent_id"), // Local agent ID
-  elevenLabsAgentId: varchar("elevenlabs_agent_id"), // ElevenLabs agent ID
-  status: phoneStatusEnum("status").notNull().default("pending"),
-  lastSynced: timestamp("last_synced"),
-  metadata: json("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const phoneNumbers = sqliteTable("phone_numbers", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  label: text("label").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  countryCode: text("country_code").notNull().default("+1"),
+  provider: text("provider").notNull(),
+  twilioAccountSid: text("twilio_account_sid"),
+  twilioAuthToken: text("twilio_auth_token"), // encrypted
+  sipTrunkUri: text("sip_trunk_uri"),
+  sipUsername: text("sip_username"),
+  sipPassword: text("sip_password"), // encrypted
+  elevenLabsPhoneId: text("eleven_labs_phone_id"),
+  agentId: text("agent_id"), // Local agent ID
+  elevenLabsAgentId: text("elevenlabs_agent_id"), // ElevenLabs agent ID
+  status: text("status").notNull().default("pending"),
+  lastSynced: integer("last_synced", { mode: 'timestamp' }),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // System Templates table (managed by admins only)
-export const systemTemplates = pgTable("system_templates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const systemTemplates = sqliteTable("system_templates", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
   content: text("content").notNull(),
-  icon: varchar("icon"), // Icon name from lucide-react
-  color: varchar("color"), // Tailwind color class
+  icon: text("icon"), // Icon name from lucide-react
+  color: text("color"), // Tailwind color class
   order: integer("order").default(0),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Quick Action Buttons table (system buttons managed by admins, user buttons by users)
-export const quickActionButtons = pgTable("quick_action_buttons", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const quickActionButtons = sqliteTable("quick_action_buttons", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
   prompt: text("prompt").notNull(),
-  icon: varchar("icon").default("Sparkles"), // Icon name from lucide-react
-  color: varchar("color").default("bg-blue-500 hover:bg-blue-600"), // Tailwind color classes
-  category: varchar("category"), // To group related buttons
+  icon: text("icon").default("Sparkles"), // Icon name from lucide-react
+  color: text("color").default("bg-blue-500 hover:bg-blue-600"), // Tailwind color classes
+  category: text("category"), // To group related buttons
   order: integer("order").default(0),
-  isSystem: boolean("is_system").notNull().default(false), // System buttons managed by admin only
-  isActive: boolean("is_active").notNull().default(true),
-  createdBy: varchar("created_by"), // User who created the button
-  organizationId: varchar("organization_id"), // For user-created buttons
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isSystem: integer("is_system", { mode: 'boolean' }).notNull().default(false), // System buttons managed by admin only
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  createdBy: text("created_by"), // User who created the button
+  organizationId: text("organization_id"), // For user-created buttons
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Agents table
-export const agents = pgTable("agents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  elevenLabsAgentId: varchar("eleven_labs_agent_id").notNull(),
-  name: varchar("name").notNull(),
+export const agents = sqliteTable("agents", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  elevenLabsAgentId: text("eleven_labs_agent_id").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
   firstMessage: text("first_message"),
   systemPrompt: text("system_prompt"),
-  language: varchar("language").default("en"),
-  voiceId: varchar("voice_id"),
-  voiceSettings: json("voice_settings").$type<{
+  language: text("language").default("en"),
+  voiceId: text("voice_id"),
+  voiceSettings: text("voice_settings", { mode: 'json' }).$type<{
     stability?: number;
     similarityBoost?: number;
     style?: number;
     useSpeakerBoost?: boolean;
   }>(),
-  multiVoiceConfig: json("multi_voice_config").$type<{
+  multiVoiceConfig: text("multi_voice_config", { mode: 'json' }).$type<{
     enabled?: boolean;
     voices?: Array<{
       voiceId: string;
@@ -272,12 +231,12 @@ export const agents = pgTable("agents", {
     defaultVoice?: string;
     switchingMode?: "keyword" | "character" | "manual";
   }>(),
-  llmSettings: json("llm_settings").$type<{
+  llmSettings: text("llm_settings", { mode: 'json' }).$type<{
     model?: string;
     temperature?: number;
     maxTokens?: number;
   }>(),
-  tools: json("tools").$type<{
+  tools: text("tools", { mode: 'json' }).$type<{
     // ElevenLabs System Tools
     systemTools?: {
       endCall?: {
@@ -417,12 +376,12 @@ export const agents = pgTable("agents", {
       enabled: boolean;
     }>;
   }>(),
-  dynamicVariables: json("dynamic_variables").$type<Record<string, string>>(),
-  evaluationCriteria: json("evaluation_criteria").$type<{
+  dynamicVariables: text("dynamic_variables", { mode: 'json' }).$type<Record<string, string>>(),
+  evaluationCriteria: text("evaluation_criteria", { mode: 'json' }).$type<{
     enabled?: boolean;
     criteria?: string[];
   }>(),
-  dataCollection: json("data_collection").$type<{
+  dataCollection: text("data_collection", { mode: 'json' }).$type<{
     enabled?: boolean;
     fields?: Array<{
       name: string;
@@ -430,23 +389,23 @@ export const agents = pgTable("agents", {
       description?: string;
     }>;
   }>(),
-  promptTemplates: json("prompt_templates").$type<Array<{
+  promptTemplates: text("prompt_templates", { mode: 'json' }).$type<Array<{
     id: string;
     name: string;
     content: string;
   }>>(),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // User-Agent assignments table (maps which users can access which agents)
-export const userAgents = pgTable("user_agents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull(),
-  agentId: varchar("agent_id").notNull(),
-  assignedAt: timestamp("assigned_at").defaultNow(),
-  assignedBy: varchar("assigned_by"), // User ID of who made the assignment
+export const userAgents = sqliteTable("user_agents", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  agentId: text("agent_id").notNull(),
+  assignedAt: integer("assigned_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  assignedBy: text("assigned_by"), // User ID of who made the assignment
 }, (table) => ({
   // Unique constraint to prevent duplicate assignments
   uniqueUserAgent: unique("unique_user_agent").on(table.userId, table.agentId),
@@ -465,106 +424,97 @@ export interface SummaryMetadata {
 }
 
 // Call logs table
-export const callLogs = pgTable("call_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  conversationId: varchar("conversation_id").notNull(), // Required ElevenLabs conversation ID
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id"),
-  elevenLabsCallId: varchar("eleven_labs_call_id"),
-  phoneNumber: varchar("phone_number"), // Caller's phone number for real calls
+export const callLogs = sqliteTable("call_logs", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id").notNull(), // Required ElevenLabs conversation ID
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id"),
+  elevenLabsCallId: text("eleven_labs_call_id"),
+  phoneNumber: text("phone_number"), // Caller's phone number for real calls
   duration: integer("duration"), // in seconds
-  transcript: json("transcript"),
-  audioUrl: varchar("audio_url"),
-  cost: decimal("cost", { precision: 10, scale: 4 }),
-  status: varchar("status"), // completed, failed, in_progress
+  transcript: text("transcript", { mode: 'json' }),
+  audioUrl: text("audio_url"),
+  cost: real("cost"),
+  status: text("status"), // completed, failed, in_progress
   summary: text("summary"), // AI-generated call summary
-  summaryGeneratedAt: timestamp("summary_generated_at"), // When summary was created
-  summaryStatus: varchar("summary_status"), // pending | success | failed | null
-  summaryMetadata: json("summary_metadata").$type<SummaryMetadata | null>(), // Summary generation metadata
-  audioStorageKey: varchar("audio_storage_key"), // Path to stored audio file in audio-storage/
-  audioFetchStatus: varchar("audio_fetch_status"), // 'pending' | 'available' | 'failed' | 'unavailable' | null
-  audioFetchedAt: timestamp("audio_fetched_at"), // Last fetch attempt timestamp
-  recordingUrl: varchar("recording_url"), // Public URL for playback
-  createdAt: timestamp("created_at").defaultNow(),
+  summaryGeneratedAt: integer("summary_generated_at", { mode: 'timestamp' }), // When summary was created
+  summaryStatus: text("summary_status"), // pending | success | failed | null
+  summaryMetadata: text("summary_metadata", { mode: 'json' }).$type<SummaryMetadata | null>(), // Summary generation metadata
+  audioStorageKey: text("audio_storage_key"), // Path to stored audio file in audio-storage/
+  audioFetchStatus: text("audio_fetch_status"), // 'pending' | 'available' | 'failed' | 'unavailable' | null
+  audioFetchedAt: integer("audio_fetched_at", { mode: 'timestamp' }), // Last fetch attempt timestamp
+  recordingUrl: text("recording_url"), // Public URL for playback
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
-
-// Payment status enum
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded"]);
 
 // Payments table for tracking all payments
-export const payments = pgTable("payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  packageId: varchar("package_id"),
-  planId: varchar("plan_id"), // Unified billing plan ID
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  platformAmount: decimal("platform_amount", { precision: 10, scale: 2 }), // Amount platform keeps
-  agencyAmount: decimal("agency_amount", { precision: 10, scale: 2 }), // Amount agency receives
-  currency: varchar("currency").default('usd'),
-  status: paymentStatusEnum("status").notNull().default("pending"),
-  paymentMethod: varchar("payment_method"), // stripe, paypal
-  transactionId: varchar("transaction_id"), // External payment provider transaction ID
-  stripeTransferId: varchar("stripe_transfer_id"), // Stripe Connect transfer ID
+export const payments = sqliteTable("payments", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  packageId: text("package_id"),
+  planId: text("plan_id"), // Unified billing plan ID
+  amount: real("amount").notNull(),
+  platformAmount: real("platform_amount"), // Amount platform keeps
+  agencyAmount: real("agency_amount"), // Amount agency receives
+  currency: text("currency").default('usd'),
+  status: text("status").notNull().default("pending"),
+  paymentMethod: text("payment_method"), // stripe, paypal
+  transactionId: text("transaction_id"), // External payment provider transaction ID
+  stripeTransferId: text("stripe_transfer_id"), // Stripe Connect transfer ID
   description: text("description"),
-  completedAt: timestamp("completed_at"),
-  failedAt: timestamp("failed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: integer("completed_at", { mode: 'timestamp' }),
+  failedAt: integer("failed_at", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Agency billing cycle enum
-export const billingCycleEnum = pgEnum("billing_cycle", ["monthly", "quarterly", "annual", "one_time"]);
-
-// Agency subscription status enum
-export const agencySubscriptionStatusEnum = pgEnum("agency_subscription_status", ["active", "past_due", "canceled", "trialing", "paused"]);
-
 // Agency Payment Configuration table - stores payment gateway settings for agencies
-export const agencyPaymentConfig = pgTable("agency_payment_config", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull().unique(), // Agency organization ID
+export const agencyPaymentConfig = sqliteTable("agency_payment_config", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().unique(), // Agency organization ID
   
   // Stripe configuration
   stripeSecretKey: text("stripe_secret_key"), // Encrypted
-  stripePublishableKey: varchar("stripe_publishable_key"),
+  stripePublishableKey: text("stripe_publishable_key"),
   stripeWebhookSecret: text("stripe_webhook_secret"), // Encrypted
   
   // PayPal configuration
-  paypalClientId: varchar("paypal_client_id"),
+  paypalClientId: text("paypal_client_id"),
   paypalClientSecret: text("paypal_client_secret"), // Encrypted
-  paypalWebhookId: varchar("paypal_webhook_id"),
+  paypalWebhookId: text("paypal_webhook_id"),
   
   // General settings
-  defaultGateway: varchar("default_gateway"), // 'stripe' or 'paypal'
-  currency: varchar("currency").default('usd'),
-  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('0'),
+  defaultGateway: text("default_gateway"), // 'stripe' or 'paypal'
+  currency: text("currency").default('usd'),
+  taxRate: real("tax_rate").default(0),
   
   // Status
-  isConfigured: boolean("is_configured").default(false),
-  lastVerifiedAt: timestamp("last_verified_at"),
+  isConfigured: integer("is_configured", { mode: 'boolean' }).default(false),
+  lastVerifiedAt: integer("last_verified_at", { mode: 'timestamp' }),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Agency Pricing Plans - agencies define their subscription plans
-export const agencyPricingPlans = pgTable("agency_pricing_plans", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(), // Agency organization ID
+export const agencyPricingPlans = sqliteTable("agency_pricing_plans", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(), // Agency organization ID
   
   // Plan details
-  name: varchar("name").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  billingCycle: billingCycleEnum("billing_cycle").notNull().default("monthly"),
+  billingCycle: text("billing_cycle").notNull().default("monthly"),
   
   // Pricing
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
-  currency: varchar("currency").default('usd'),
+  price: real("price").notNull(),
+  setupFee: real("setup_fee").default(0),
+  currency: text("currency").default('usd'),
   
   // Trial settings
   trialDays: integer("trial_days").default(0),
   
   // Feature limits
-  features: jsonb("features").$type<{
+  features: text("features", { mode: 'json' }).$type<{
     maxAgents?: number;
     maxMinutesPerMonth?: number;
     maxCallsPerMonth?: number;
@@ -577,144 +527,141 @@ export const agencyPricingPlans = pgTable("agency_pricing_plans", {
   
   // Display settings
   displayOrder: integer("display_order").default(0),
-  isActive: boolean("is_active").default(true),
-  isPopular: boolean("is_popular").default(false),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  isPopular: integer("is_popular", { mode: 'boolean' }).default(false),
   
   // Stripe/PayPal product IDs
-  stripeProductId: varchar("stripe_product_id"),
-  stripePriceId: varchar("stripe_price_id"),
-  paypalPlanId: varchar("paypal_plan_id"),
+  stripeProductId: text("stripe_product_id"),
+  stripePriceId: text("stripe_price_id"),
+  paypalPlanId: text("paypal_plan_id"),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Agency Subscriptions - tracks user subscriptions to agency plans
-export const agencySubscriptions = pgTable("agency_subscriptions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agencySubscriptions = sqliteTable("agency_subscriptions", {
+  id: text("id").primaryKey(),
   
   // References
-  userId: varchar("user_id").notNull(),
-  organizationId: varchar("organization_id").notNull(), // Customer organization
-  agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization
-  planId: varchar("plan_id").notNull(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(), // Customer organization
+  agencyOrganizationId: text("agency_organization_id").notNull(), // Agency organization
+  planId: text("plan_id").notNull(),
   
   // Subscription details
-  status: agencySubscriptionStatusEnum("status").notNull().default("active"),
+  status: text("status").notNull().default("active"),
   
   // Billing details
-  currentPeriodStart: timestamp("current_period_start").notNull(),
-  currentPeriodEnd: timestamp("current_period_end").notNull(),
-  cancelAt: timestamp("cancel_at"),
-  canceledAt: timestamp("canceled_at"),
-  trialEnd: timestamp("trial_end"),
+  currentPeriodStart: integer("current_period_start", { mode: 'timestamp' }).notNull(),
+  currentPeriodEnd: integer("current_period_end", { mode: 'timestamp' }).notNull(),
+  cancelAt: integer("cancel_at", { mode: 'timestamp' }),
+  canceledAt: integer("canceled_at", { mode: 'timestamp' }),
+  trialEnd: integer("trial_end", { mode: 'timestamp' }),
   
   // Payment method
-  paymentMethod: varchar("payment_method"), // 'stripe' or 'paypal'
-  stripeSubscriptionId: varchar("stripe_subscription_id"),
-  paypalSubscriptionId: varchar("paypal_subscription_id"),
+  paymentMethod: text("payment_method"), // 'stripe' or 'paypal'
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  paypalSubscriptionId: text("paypal_subscription_id"),
   
   // Usage tracking
-  usageThisMonth: jsonb("usage_this_month").$type<{
+  usageThisMonth: text("usage_this_month", { mode: 'json' }).$type<{
     minutes?: number;
     calls?: number;
     apiRequests?: number;
   }>(),
   
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Agency Transactions - payment history for agency billing
-export const agencyTransactions = pgTable("agency_transactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const agencyTransactions = sqliteTable("agency_transactions", {
+  id: text("id").primaryKey(),
   
   // References
-  subscriptionId: varchar("subscription_id"),
-  userId: varchar("user_id").notNull(),
-  organizationId: varchar("organization_id").notNull(), // Customer organization
-  agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization
+  subscriptionId: text("subscription_id"),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(), // Customer organization
+  agencyOrganizationId: text("agency_organization_id").notNull(), // Agency organization
   
   // Transaction details
-  type: varchar("type").notNull(), // 'subscription', 'one_time', 'refund', 'credit'
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency").default('usd'),
-  status: paymentStatusEnum("status").notNull().default("pending"),
+  type: text("type").notNull(), // 'subscription', 'one_time', 'refund', 'credit'
+  amount: real("amount").notNull(),
+  currency: text("currency").default('usd'),
+  status: text("status").notNull().default("pending"),
   
   // Payment details
-  paymentMethod: varchar("payment_method"), // 'stripe' or 'paypal'
-  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
-  paypalOrderId: varchar("paypal_order_id"),
+  paymentMethod: text("payment_method"), // 'stripe' or 'paypal'
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  paypalOrderId: text("paypal_order_id"),
   
   // Invoice details
-  invoiceNumber: varchar("invoice_number"),
+  invoiceNumber: text("invoice_number"),
   description: text("description"),
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
   
   // Timestamps
-  paidAt: timestamp("paid_at"),
-  failedAt: timestamp("failed_at"),
-  refundedAt: timestamp("refunded_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  paidAt: integer("paid_at", { mode: 'timestamp' }),
+  failedAt: integer("failed_at", { mode: 'timestamp' }),
+  refundedAt: integer("refunded_at", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Payment processor status enum
-export const paymentProcessorStatusEnum = pgEnum("payment_processor_status", ["pending_validation", "active", "invalid", "disabled"]);
-
 // Agency Payment Processors table - stores encrypted payment gateway settings for agencies
-export const agencyPaymentProcessors = pgTable("agency_payment_processors", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(), // Agency organization ID
-  provider: varchar("provider").notNull(), // 'stripe' or 'paypal'
+export const agencyPaymentProcessors = sqliteTable("agency_payment_processors", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(), // Agency organization ID
+  provider: text("provider").notNull(), // 'stripe' or 'paypal'
   
   // Encrypted credentials (AES-256-GCM)
   encryptedCredentials: text("encrypted_credentials").notNull(), // JSON with encrypted keys
   
   // Validation status
-  status: paymentProcessorStatusEnum("status").notNull().default("pending_validation"),
-  lastValidatedAt: timestamp("last_validated_at"),
+  status: text("status").notNull().default("pending_validation"),
+  lastValidatedAt: integer("last_validated_at", { mode: 'timestamp' }),
   validationError: text("validation_error"),
   
   // Configuration
-  isDefault: boolean("is_default").default(false),
-  webhookEndpoint: varchar("webhook_endpoint"), // Agency-specific webhook URL
+  isDefault: integer("is_default", { mode: 'boolean' }).default(false),
+  webhookEndpoint: text("webhook_endpoint"), // Agency-specific webhook URL
   
   // Metadata
-  metadata: jsonb("metadata").$type<{
+  metadata: text("metadata", { mode: 'json' }).$type<{
     publicKey?: string; // Stripe publishable key (safe to expose)
     webhookId?: string; // PayPal webhook ID
     mode?: "sandbox" | "production";
   }>(),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => ({
   // Unique constraint on organizationId and provider for upsert operations
   uniqueOrgProvider: unique("unique_org_processor").on(table.organizationId, table.provider),
 }));
 
 // Agency Billing Plans table - comprehensive billing plans created by agencies
-export const agencyBillingPlans = pgTable("agency_billing_plans", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(), // Agency organization ID
+export const agencyBillingPlans = sqliteTable("agency_billing_plans", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(), // Agency organization ID
   
   // Plan details
-  name: varchar("name").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  billingCycle: billingCycleEnum("billing_cycle").notNull(), // monthly, quarterly, annual, one_time
+  billingCycle: text("billing_cycle").notNull(), // monthly, quarterly, annual, one_time
   
   // Pricing
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
-  currency: varchar("currency").default('usd'),
+  price: real("price").notNull(),
+  setupFee: real("setup_fee").default(0),
+  currency: text("currency").default('usd'),
   
   // Trial settings
   trialPeriodDays: integer("trial_period_days").default(0),
   
   // Features and limits
-  features: jsonb("features").$type<{
+  features: text("features", { mode: 'json' }).$type<{
     highlights: string[]; // Marketing bullet points
     callsLimit?: number;
     minutesLimit?: number;
@@ -724,52 +671,49 @@ export const agencyBillingPlans = pgTable("agency_billing_plans", {
   }>().notNull(),
   
   // Payment processor product IDs
-  stripeProductId: varchar("stripe_product_id"),
-  stripePriceId: varchar("stripe_price_id"),
-  paypalPlanId: varchar("paypal_plan_id"),
+  stripeProductId: text("stripe_product_id"),
+  stripePriceId: text("stripe_price_id"),
+  paypalPlanId: text("paypal_plan_id"),
   
   // Display settings
   displayOrder: integer("display_order").default(0),
-  isActive: boolean("is_active").default(true),
-  isPublic: boolean("is_public").default(true), // Whether plan is visible to customers
-  isPopular: boolean("is_popular").default(false),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  isPublic: integer("is_public", { mode: 'boolean' }).default(true), // Whether plan is visible to customers
+  isPopular: integer("is_popular", { mode: 'boolean' }).default(false),
   
   // Metadata
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Customer subscription status enum
-export const customerSubscriptionStatusEnum = pgEnum("customer_subscription_status", ["active", "past_due", "canceled", "trialing", "paused", "expired"]);
-
 // Customer Subscriptions table - tracks customer subscriptions to agency plans
-export const customerSubscriptions = pgTable("customer_subscriptions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const customerSubscriptions = sqliteTable("customer_subscriptions", {
+  id: text("id").primaryKey(),
   
   // References
-  agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization ID
-  customerOrganizationId: varchar("customer_organization_id").notNull(), // Customer organization ID
-  userId: varchar("user_id").notNull(), // User who subscribed
-  planId: varchar("plan_id").notNull(), // Agency billing plan ID
+  agencyOrganizationId: text("agency_organization_id").notNull(), // Agency organization ID
+  customerOrganizationId: text("customer_organization_id").notNull(), // Customer organization ID
+  userId: text("user_id").notNull(), // User who subscribed
+  planId: text("plan_id").notNull(), // Agency billing plan ID
   
   // Subscription details
-  status: customerSubscriptionStatusEnum("status").notNull().default("active"),
-  currentPeriodStart: timestamp("current_period_start").notNull(),
-  currentPeriodEnd: timestamp("current_period_end").notNull(),
-  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  status: text("status").notNull().default("active"),
+  currentPeriodStart: integer("current_period_start", { mode: 'timestamp' }).notNull(),
+  currentPeriodEnd: integer("current_period_end", { mode: 'timestamp' }).notNull(),
+  cancelAtPeriodEnd: integer("cancel_at_period_end", { mode: 'boolean' }).default(false),
   
   // Payment processor subscription IDs
-  stripeSubscriptionId: varchar("stripe_subscription_id"),
-  paypalSubscriptionId: varchar("paypal_subscription_id"),
-  paymentProcessor: varchar("payment_processor"), // 'stripe' or 'paypal'
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  paypalSubscriptionId: text("paypal_subscription_id"),
+  paymentProcessor: text("payment_processor"), // 'stripe' or 'paypal'
   
   // Trial information
-  trialStart: timestamp("trial_start"),
-  trialEnd: timestamp("trial_end"),
+  trialStart: integer("trial_start", { mode: 'timestamp' }),
+  trialEnd: integer("trial_end", { mode: 'timestamp' }),
   
   // Usage tracking
-  usageData: jsonb("usage_data").$type<{
+  usageData: text("usage_data", { mode: 'json' }).$type<{
     callsUsed: number;
     minutesUsed: number;
     storageUsed?: number;
@@ -777,45 +721,45 @@ export const customerSubscriptions = pgTable("customer_subscriptions", {
   }>().default({ callsUsed: 0, minutesUsed: 0 }),
   
   // Metadata
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  canceledAt: timestamp("canceled_at"),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  canceledAt: integer("canceled_at", { mode: 'timestamp' }),
 });
 
 // Customer Payment Methods table - stores customer payment methods linked to agency processors
-export const customerPaymentMethods = pgTable("customer_payment_methods", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const customerPaymentMethods = sqliteTable("customer_payment_methods", {
+  id: text("id").primaryKey(),
   
   // References
-  agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization ID
-  customerOrganizationId: varchar("customer_organization_id").notNull(), // Customer organization ID
-  userId: varchar("user_id").notNull(), // User who added the payment method
+  agencyOrganizationId: text("agency_organization_id").notNull(), // Agency organization ID
+  customerOrganizationId: text("customer_organization_id").notNull(), // Customer organization ID
+  userId: text("user_id").notNull(), // User who added the payment method
   
   // Payment method details
-  type: varchar("type").notNull(), // 'card', 'bank_account', 'paypal'
-  provider: varchar("provider").notNull(), // 'stripe' or 'paypal'
+  type: text("type").notNull(), // 'card', 'bank_account', 'paypal'
+  provider: text("provider").notNull(), // 'stripe' or 'paypal'
   
   // Provider-specific IDs (encrypted)
-  stripePaymentMethodId: varchar("stripe_payment_method_id"),
-  stripeCustomerId: varchar("stripe_customer_id"),
-  paypalBillingAgreementId: varchar("paypal_billing_agreement_id"),
+  stripePaymentMethodId: text("stripe_payment_method_id"),
+  stripeCustomerId: text("stripe_customer_id"),
+  paypalBillingAgreementId: text("paypal_billing_agreement_id"),
   
   // Display information (safe to expose)
-  displayName: varchar("display_name"), // e.g., "Visa ending in 4242"
-  last4: varchar("last4"), // Last 4 digits of card
-  brand: varchar("brand"), // Card brand (visa, mastercard, etc.)
+  displayName: text("display_name"), // e.g., "Visa ending in 4242"
+  last4: text("last4"), // Last 4 digits of card
+  brand: text("brand"), // Card brand (visa, mastercard, etc.)
   expiryMonth: integer("expiry_month"),
   expiryYear: integer("expiry_year"),
   
   // Status
-  isDefault: boolean("is_default").default(false),
-  isActive: boolean("is_active").default(true),
+  isDefault: integer("is_default", { mode: 'boolean' }).default(false),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
   
   // Metadata
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 
@@ -924,66 +868,66 @@ export const insertPhoneNumberSchema = createInsertSchema(phoneNumbers).omit({
 });
 
 // Batch Calls table for outbound calling
-export const batchCalls = pgTable("batch_calls", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  userId: varchar("user_id").notNull(),
-  name: varchar("name").notNull(),
-  agentId: varchar("agent_id").notNull(),
-  phoneNumberId: varchar("phone_number_id"),
-  elevenlabsBatchId: varchar("elevenlabs_batch_id"),
-  status: varchar("status").notNull().default("draft"), // draft, pending, in_progress, completed, failed, cancelled
+export const batchCalls = sqliteTable("batch_calls", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  agentId: text("agent_id").notNull(),
+  phoneNumberId: text("phone_number_id"),
+  elevenlabsBatchId: text("elevenlabs_batch_id"),
+  status: text("status").notNull().default("draft"), // draft, pending, in_progress, completed, failed, cancelled
   totalRecipients: integer("total_recipients").default(0),
   completedCalls: integer("completed_calls").default(0),
   failedCalls: integer("failed_calls").default(0),
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 4 }),
-  actualCost: decimal("actual_cost", { precision: 10, scale: 4 }),
-  metadata: jsonb("metadata"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  estimatedCost: real("estimated_cost"),
+  actualCost: real("actual_cost"),
+  metadata: text("metadata", { mode: 'json' }),
+  startedAt: integer("started_at", { mode: 'timestamp' }),
+  completedAt: integer("completed_at", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Batch Call Recipients table
-export const batchCallRecipients = pgTable("batch_call_recipients", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  batchCallId: varchar("batch_call_id").notNull(),
-  phoneNumber: varchar("phone_number").notNull(),
-  status: varchar("status").notNull().default("pending"), // pending, calling, completed, failed, no_answer, busy
-  variables: jsonb("variables"), // Dynamic variables for personalization
+export const batchCallRecipients = sqliteTable("batch_call_recipients", {
+  id: text("id").primaryKey(),
+  batchCallId: text("batch_call_id").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  status: text("status").notNull().default("pending"), // pending, calling, completed, failed, no_answer, busy
+  variables: text("variables", { mode: 'json' }), // Dynamic variables for personalization
   callDuration: integer("call_duration"), // in seconds
-  callCost: decimal("call_cost", { precision: 10, scale: 4 }),
+  callCost: real("call_cost"),
   errorMessage: text("error_message"),
-  conversationId: varchar("conversation_id"),
-  calledAt: timestamp("called_at"),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  conversationId: text("conversation_id"),
+  calledAt: integer("called_at", { mode: 'timestamp' }),
+  completedAt: integer("completed_at", { mode: 'timestamp' }),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Billing Packages table with multi-tier support
-export const billingPackages = pgTable("billing_packages", {
-  id: varchar("id").primaryKey(),
-  name: varchar("name").notNull(),
-  displayName: varchar("display_name").notNull(),
-  createdByOrganizationId: varchar("created_by_organization_id"), // Who created this package (null for platform packages)
-  availableToType: organizationTypeEnum("available_to_type").default("end_customer"), // Which tier can buy this
-  baseCost: decimal("base_cost", { precision: 10, scale: 2 }), // What agents pay for this package
-  marginPercentage: decimal("margin_percentage", { precision: 5, scale: 2 }).default('30'), // Maximum margin agents can add
-  perCallRate: decimal("per_call_rate", { precision: 10, scale: 4 }).notNull(),
-  perMinuteRate: decimal("per_minute_rate", { precision: 10, scale: 4 }).notNull(),
+export const billingPackages = sqliteTable("billing_packages", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  displayName: text("display_name").notNull(),
+  createdByOrganizationId: text("created_by_organization_id"), // Who created this package (null for platform packages)
+  availableToType: text("available_to_type").default("end_customer"), // Which tier can buy this
+  baseCost: real("base_cost"), // What agents pay for this package
+  marginPercentage: real("margin_percentage").default(30), // Maximum margin agents can add
+  perCallRate: real("per_call_rate").notNull(),
+  perMinuteRate: real("per_minute_rate").notNull(),
   monthlyCredits: integer("monthly_credits").notNull(),
   maxAgents: integer("max_agents").notNull(),
   maxUsers: integer("max_users").notNull(),
-  features: jsonb("features").notNull().default('[]'),
-  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(),
-  yearlyPrice: decimal("yearly_price", { precision: 10, scale: 2 }),
-  stripeProductId: varchar("stripe_product_id"),
-  stripePriceId: varchar("stripe_price_id"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  features: text("features", { mode: 'json' }).notNull().default('[]'),
+  monthlyPrice: real("monthly_price").notNull(),
+  yearlyPrice: real("yearly_price"),
+  stripeProductId: text("stripe_product_id"),
+  stripePriceId: text("stripe_price_id"),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 export const insertBillingPackageSchema = createInsertSchema(billingPackages).omit({
@@ -1029,13 +973,13 @@ export const insertQuickActionButtonSchema = createInsertSchema(quickActionButto
 
 
 // Agent Testing table
-export const agentTests = pgTable("agent_tests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id").notNull(),
-  name: varchar("name").notNull(),
+export const agentTests = sqliteTable("agent_tests", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  testScenarios: json("test_scenarios").$type<Array<{
+  testScenarios: text("test_scenarios", { mode: 'json' }).$type<Array<{
     id: string;
     name: string;
     userInput: string;
@@ -1044,29 +988,29 @@ export const agentTests = pgTable("agent_tests", {
     success?: boolean;
     actualResponse?: string;
   }>>(),
-  results: json("results").$type<{
+  results: text("results", { mode: 'json' }).$type<{
     totalTests: number;
     passed: number;
     failed: number;
     lastRunAt?: string;
   }>(),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Widget configurations table
-export const widgetConfigurations = pgTable("widget_configurations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id").notNull(),
-  name: varchar("name").notNull(),
-  variant: varchar("variant").default("full"), // full, compact, minimal
-  placement: varchar("placement").default("bottom-right"),
-  bgColor: varchar("bg_color").default("#ffffff"),
-  textColor: varchar("text_color").default("#000000"),
-  btnColor: varchar("btn_color").default("#000000"),
-  btnTextColor: varchar("btn_text_color").default("#ffffff"),
+export const widgetConfigurations = sqliteTable("widget_configurations", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id").notNull(),
+  name: text("name").notNull(),
+  variant: text("variant").default("full"), // full, compact, minimal
+  placement: text("placement").default("bottom-right"),
+  bgColor: text("bg_color").default("#ffffff"),
+  textColor: text("text_color").default("#000000"),
+  btnColor: text("btn_color").default("#000000"),
+  btnTextColor: text("btn_text_color").default("#ffffff"),
   borderRadius: integer("border_radius").default(8),
   actionText: text("action_text"),
   startCallText: text("start_call_text"),
@@ -1074,65 +1018,65 @@ export const widgetConfigurations = pgTable("widget_configurations", {
   expandText: text("expand_text"),
   listeningText: text("listening_text"),
   speakingText: text("speaking_text"),
-  showAvatar: boolean("show_avatar").default(true),
-  disableBanner: boolean("disable_banner").default(false),
-  micMutingEnabled: boolean("mic_muting_enabled").default(false),
-  transcriptEnabled: boolean("transcript_enabled").default(false),
-  textInputEnabled: boolean("text_input_enabled").default(true),
-  defaultExpanded: boolean("default_expanded").default(false),
-  alwaysExpanded: boolean("always_expanded").default(false),
-  languageSelector: boolean("language_selector").default(false),
-  supportsTextOnly: boolean("supports_text_only").default(true),
+  showAvatar: integer("show_avatar", { mode: 'boolean' }).default(true),
+  disableBanner: integer("disable_banner", { mode: 'boolean' }).default(false),
+  micMutingEnabled: integer("mic_muting_enabled", { mode: 'boolean' }).default(false),
+  transcriptEnabled: integer("transcript_enabled", { mode: 'boolean' }).default(false),
+  textInputEnabled: integer("text_input_enabled", { mode: 'boolean' }).default(true),
+  defaultExpanded: integer("default_expanded", { mode: 'boolean' }).default(false),
+  alwaysExpanded: integer("always_expanded", { mode: 'boolean' }).default(false),
+  languageSelector: integer("language_selector", { mode: 'boolean' }).default(false),
+  supportsTextOnly: integer("supports_text_only", { mode: 'boolean' }).default(true),
   customCss: text("custom_css"),
   embedCode: text("embed_code"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // SIP Trunk configurations table
-export const sipTrunkConfigurations = pgTable("sip_trunk_configurations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  name: varchar("name").notNull(),
-  uri: varchar("uri").notNull(),
-  username: varchar("username"),
-  password: varchar("password"), // encrypted
-  domain: varchar("domain"),
-  proxy: varchar("proxy"),
-  transport: varchar("transport").default("udp"), // udp, tcp, tls
+export const sipTrunkConfigurations = sqliteTable("sip_trunk_configurations", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  name: text("name").notNull(),
+  uri: text("uri").notNull(),
+  username: text("username"),
+  password: text("password"), // encrypted
+  domain: text("domain"),
+  proxy: text("proxy"),
+  transport: text("transport").default("udp"), // udp, tcp, tls
   registrationExpiry: integer("registration_expiry").default(3600),
-  codec: varchar("codec").default("PCMU"), // PCMU, PCMA, G729, etc
-  dtmfMode: varchar("dtmf_mode").default("rfc2833"), // rfc2833, inband, info
-  callerIdName: varchar("caller_id_name"),
-  callerIdNumber: varchar("caller_id_number"),
+  codec: text("codec").default("PCMU"), // PCMU, PCMA, G729, etc
+  dtmfMode: text("dtmf_mode").default("rfc2833"), // rfc2833, inband, info
+  callerIdName: text("caller_id_name"),
+  callerIdNumber: text("caller_id_number"),
   maxConcurrentCalls: integer("max_concurrent_calls").default(10),
-  status: varchar("status").default("inactive"), // active, inactive, error
-  lastRegistered: timestamp("last_registered"),
-  metadata: json("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  status: text("status").default("inactive"), // active, inactive, error
+  lastRegistered: integer("last_registered", { mode: 'timestamp' }),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Workspace settings table
-export const workspaceSettings = pgTable("workspace_settings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull().unique(),
-  name: varchar("name").notNull(),
-  logo: varchar("logo"),
-  timezone: varchar("timezone").default("UTC"),
-  dateFormat: varchar("date_format").default("MM/DD/YYYY"),
-  timeFormat: varchar("time_format").default("12h"), // 12h, 24h
-  language: varchar("language").default("en"),
-  currency: varchar("currency").default("USD"),
-  dataResidency: varchar("data_residency").default("us"), // us, eu, ap
-  complianceSettings: json("compliance_settings").$type<{
+export const workspaceSettings = sqliteTable("workspace_settings", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().unique(),
+  name: text("name").notNull(),
+  logo: text("logo"),
+  timezone: text("timezone").default("UTC"),
+  dateFormat: text("date_format").default("MM/DD/YYYY"),
+  timeFormat: text("time_format").default("12h"), // 12h, 24h
+  language: text("language").default("en"),
+  currency: text("currency").default("USD"),
+  dataResidency: text("data_residency").default("us"), // us, eu, ap
+  complianceSettings: text("compliance_settings", { mode: 'json' }).$type<{
     hipaa?: boolean;
     gdpr?: boolean;
     soc2?: boolean;
     zeroRetention?: boolean;
     recordingConsent?: boolean;
   }>(),
-  securitySettings: json("security_settings").$type<{
+  securitySettings: text("security_settings", { mode: 'json' }).$type<{
     twoFactorRequired?: boolean;
     ssoEnabled?: boolean;
     ipWhitelist?: string[];
@@ -1145,84 +1089,84 @@ export const workspaceSettings = pgTable("workspace_settings", {
       expiryDays?: number;
     };
   }>(),
-  notificationSettings: json("notification_settings").$type<{
+  notificationSettings: text("notification_settings", { mode: 'json' }).$type<{
     emailNotifications?: boolean;
     smsNotifications?: boolean;
     webhookNotifications?: boolean;
     dailyDigest?: boolean;
     weeklyReport?: boolean;
   }>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Analytics data table
-export const analyticsData = pgTable("analytics_data", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id"),
-  date: timestamp("date").notNull(),
+export const analyticsData = sqliteTable("analytics_data", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id"),
+  date: integer("date", { mode: 'timestamp' }).notNull(),
   totalCalls: integer("total_calls").default(0),
   successfulCalls: integer("successful_calls").default(0),
   failedCalls: integer("failed_calls").default(0),
-  totalMinutes: decimal("total_minutes", { precision: 10, scale: 2 }).default('0'),
-  totalCost: decimal("total_cost", { precision: 10, scale: 4 }).default('0'),
-  averageCallDuration: decimal("average_call_duration", { precision: 10, scale: 2 }),
-  averageSatisfaction: decimal("average_satisfaction", { precision: 3, scale: 2 }),
+  totalMinutes: real("total_minutes").default(0),
+  totalCost: real("total_cost").default(0),
+  averageCallDuration: real("average_call_duration"),
+  averageSatisfaction: real("average_satisfaction"),
   uniqueCallers: integer("unique_callers").default(0),
   peakConcurrency: integer("peak_concurrency").default(0),
-  languageBreakdown: json("language_breakdown").$type<Record<string, number>>(),
-  errorBreakdown: json("error_breakdown").$type<Record<string, number>>(),
-  hourlyDistribution: json("hourly_distribution").$type<number[]>(),
-  toolUsage: json("tool_usage").$type<Record<string, number>>(),
+  languageBreakdown: text("language_breakdown", { mode: 'json' }).$type<Record<string, number>>(),
+  errorBreakdown: text("error_breakdown", { mode: 'json' }).$type<Record<string, number>>(),
+  hourlyDistribution: text("hourly_distribution", { mode: 'json' }).$type<number[]>(),
+  toolUsage: text("tool_usage", { mode: 'json' }).$type<Record<string, number>>(),
   llmTokensUsed: integer("llm_tokens_used").default(0),
-  llmCost: decimal("llm_cost", { precision: 10, scale: 4 }).default('0'),
-  createdAt: timestamp("created_at").defaultNow(),
+  llmCost: real("llm_cost").default(0),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Conversation feedback table
-export const conversationFeedback = pgTable("conversation_feedback", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  conversationId: varchar("conversation_id").notNull(),
-  agentId: varchar("agent_id"),
+export const conversationFeedback = sqliteTable("conversation_feedback", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  conversationId: text("conversation_id").notNull(),
+  agentId: text("agent_id"),
   rating: integer("rating"), // 1-5
   feedback: text("feedback"),
-  tags: json("tags").$type<string[]>(),
-  sentiment: varchar("sentiment"), // positive, neutral, negative
-  resolved: boolean("resolved").default(false),
-  resolvedBy: varchar("resolved_by"),
-  resolvedAt: timestamp("resolved_at"),
-  metadata: json("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
+  tags: text("tags", { mode: 'json' }).$type<string[]>(),
+  sentiment: text("sentiment"), // positive, neutral, negative
+  resolved: integer("resolved", { mode: 'boolean' }).default(false),
+  resolvedBy: text("resolved_by"),
+  resolvedAt: integer("resolved_at", { mode: 'timestamp' }),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // LLM Usage tracking table
-export const llmUsage = pgTable("llm_usage", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id"),
-  conversationId: varchar("conversation_id"),
-  model: varchar("model").notNull(),
-  provider: varchar("provider").notNull(), // openai, anthropic, google
+export const llmUsage = sqliteTable("llm_usage", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id"),
+  conversationId: text("conversation_id"),
+  model: text("model").notNull(),
+  provider: text("provider").notNull(), // openai, anthropic, google
   inputTokens: integer("input_tokens").default(0),
   outputTokens: integer("output_tokens").default(0),
   totalTokens: integer("total_tokens").default(0),
-  cost: decimal("cost", { precision: 10, scale: 6 }).default('0'),
+  cost: real("cost").default(0),
   latency: integer("latency"), // in milliseconds
-  success: boolean("success").default(true),
+  success: integer("success", { mode: 'boolean' }).default(true),
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Agent overrides table
-export const agentOverrides = pgTable("agent_overrides", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  agentId: varchar("agent_id").notNull(),
-  name: varchar("name").notNull(),
+export const agentOverrides = sqliteTable("agent_overrides", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  agentId: text("agent_id").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  overrideConfig: json("override_config").$type<{
+  overrideConfig: text("override_config", { mode: 'json' }).$type<{
     prompt?: string;
     firstMessage?: string;
     language?: string;
@@ -1233,194 +1177,178 @@ export const agentOverrides = pgTable("agent_overrides", {
     tools?: string[];
     dynamicVariables?: Record<string, string>;
   }>(),
-  conditions: json("conditions").$type<{
+  conditions: text("conditions", { mode: 'json' }).$type<{
     timeRange?: { start: string; end: string };
     dayOfWeek?: string[];
     phoneNumbers?: string[];
     customCondition?: string;
   }>(),
   priority: integer("priority").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // MCP Server configurations table
-export const mcpServerConfigurations = pgTable("mcp_server_configurations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  name: varchar("name").notNull(),
+export const mcpServerConfigurations = sqliteTable("mcp_server_configurations", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  serverType: varchar("server_type").notNull(), // sse, streamable_http
-  url: varchar("url").notNull(),
-  secretToken: varchar("secret_token"), // encrypted
-  approvalMode: varchar("approval_mode").default("always_ask"), // always_ask, fine_grained, no_approval
-  trusted: boolean("trusted").default(false),
-  allowedTools: json("allowed_tools").$type<string[]>(),
-  configuration: json("configuration").$type<Record<string, any>>(),
-  status: varchar("status").default("inactive"), // active, inactive, error
-  lastConnected: timestamp("last_connected"),
+  serverType: text("server_type").notNull(), // sse, streamable_http
+  url: text("url").notNull(),
+  secretToken: text("secret_token"), // encrypted
+  approvalMode: text("approval_mode").default("always_ask"), // always_ask, fine_grained, no_approval
+  trusted: integer("trusted", { mode: 'boolean' }).default(false),
+  allowedTools: text("allowed_tools", { mode: 'json' }).$type<string[]>(),
+  configuration: text("configuration", { mode: 'json' }).$type<Record<string, any>>(),
+  status: text("status").default("inactive"), // active, inactive, error
+  lastConnected: integer("last_connected", { mode: 'timestamp' }),
   errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Transaction type enum for credit transactions
-export const transactionTypeEnum = pgEnum("transaction_type", ["purchase", "usage", "refund", "commission", "transfer"]);
-
 // Agency Commissions table for tracking revenue sharing
-export const agencyCommissions = pgTable("agency_commissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency who earned commission
-  customerOrganizationId: varchar("customer_organization_id").notNull(), // Customer who made purchase
-  paymentId: varchar("payment_id"), // Link to payment record
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Commission amount
-  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(), // Commission rate applied
-  status: varchar("status").default("pending"), // pending, paid, cancelled
-  paidAt: timestamp("paid_at"),
+export const agencyCommissions = sqliteTable("agency_commissions", {
+  id: text("id").primaryKey(),
+  agencyOrganizationId: text("agency_organization_id").notNull(), // Agency who earned commission
+  customerOrganizationId: text("customer_organization_id").notNull(), // Customer who made purchase
+  paymentId: text("payment_id"), // Link to payment record
+  amount: real("amount").notNull(), // Commission amount
+  rate: real("rate").notNull(), // Commission rate applied
+  status: text("status").default("pending"), // pending, paid, cancelled
+  paidAt: integer("paid_at", { mode: 'timestamp' }),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Credit Transactions table for tracking credit purchases and usage
-export const creditTransactions = pgTable("credit_transactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  type: transactionTypeEnum("type").notNull(), // purchase, usage, refund, commission, transfer
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Positive for credits, negative for debits
+export const creditTransactions = sqliteTable("credit_transactions", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  type: text("type").notNull(), // purchase, usage, refund, commission, transfer
+  amount: real("amount").notNull(), // Positive for credits, negative for debits
   creditAmount: integer("credit_amount"), // Number of credits (if applicable)
-  balanceBefore: decimal("balance_before", { precision: 10, scale: 2 }),
-  balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }),
-  relatedPaymentId: varchar("related_payment_id"), // Link to payment if purchase
-  relatedCallId: varchar("related_call_id"), // Link to call if usage
+  balanceBefore: real("balance_before"),
+  balanceAfter: real("balance_after"),
+  relatedPaymentId: text("related_payment_id"), // Link to payment if purchase
+  relatedCallId: text("related_call_id"), // Link to call if usage
   description: text("description"),
-  metadata: json("metadata").$type<Record<string, any>>(),
-  createdAt: timestamp("created_at").defaultNow(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Agency invitation status enum
-export const invitationStatusEnum = pgEnum("invitation_status", ["pending", "accepted", "rejected", "expired"]);
-
 // Agency Invitations table for onboarding new agencies
-export const agencyInvitations = pgTable("agency_invitations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  inviterOrganizationId: varchar("inviter_organization_id").notNull(), // Platform owner who sent invitation
-  inviteeEmail: varchar("invitee_email").notNull(),
-  inviteeName: varchar("invitee_name"),
-  inviteeCompany: varchar("invitee_company"),
-  status: invitationStatusEnum("status").notNull().default("pending"),
-  invitationCode: varchar("invitation_code").notNull().unique(), // Unique code for accepting invitation
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default('30'), // Offered commission rate
-  initialCredits: decimal("initial_credits", { precision: 10, scale: 2 }).default('0'), // Starting credit bonus
+export const agencyInvitations = sqliteTable("agency_invitations", {
+  id: text("id").primaryKey(),
+  inviterOrganizationId: text("inviter_organization_id").notNull(), // Platform owner who sent invitation
+  inviteeEmail: text("invitee_email").notNull(),
+  inviteeName: text("invitee_name"),
+  inviteeCompany: text("invitee_company"),
+  status: text("status").notNull().default("pending"),
+  invitationCode: text("invitation_code").notNull().unique(), // Unique code for accepting invitation
+  commissionRate: real("commission_rate").default(30), // Offered commission rate
+  initialCredits: real("initial_credits").default(0), // Starting credit bonus
   customMessage: text("custom_message"),
-  expiresAt: timestamp("expires_at"),
-  acceptedAt: timestamp("accepted_at"),
-  rejectedAt: timestamp("rejected_at"),
-  createdOrganizationId: varchar("created_organization_id"), // Organization created when invitation accepted
-  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: integer("expires_at", { mode: 'timestamp' }),
+  acceptedAt: integer("accepted_at", { mode: 'timestamp' }),
+  rejectedAt: integer("rejected_at", { mode: 'timestamp' }),
+  createdOrganizationId: text("created_organization_id"), // Organization created when invitation accepted
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // User Invitations table for inviting users to organizations
-export const userInvitations = pgTable("user_invitations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  email: varchar("email").notNull(),
-  role: varchar("role").default("user"),
-  permissions: jsonb("permissions").$type<string[]>().default([]),
-  invitedBy: varchar("invited_by").notNull(),
-  status: invitationStatusEnum("status").notNull().default("pending"),
-  code: varchar("code").notNull().unique(),
-  expiresAt: timestamp("expires_at"),
-  acceptedAt: timestamp("accepted_at"),
-  acceptedBy: varchar("accepted_by"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const userInvitations = sqliteTable("user_invitations", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  email: text("email").notNull(),
+  role: text("role").default("user"),
+  permissions: text("permissions", { mode: 'json' }).$type<string[]>().default([]),
+  invitedBy: text("invited_by").notNull(),
+  status: text("status").notNull().default("pending"),
+  code: text("code").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: 'timestamp' }),
+  acceptedAt: integer("accepted_at", { mode: 'timestamp' }),
+  acceptedBy: text("accepted_by"),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Credit packages table for prepaid credit bundles
-export const creditPackages = pgTable("credit_packages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  packageType: creditPackageTypeEnum("package_type").notNull().unique(),
-  name: varchar("name").notNull(),
+export const creditPackages = sqliteTable("credit_packages", {
+  id: text("id").primaryKey(),
+  packageType: text("package_type").notNull().unique(),
+  name: text("name").notNull(),
   description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  price: real("price").notNull(),
   credits: integer("credits").notNull(),
   bonusCredits: integer("bonus_credits").default(0), // Extra credits as bonus
-  targetAudience: organizationTypeEnum("target_audience").notNull(), // agency or end_customer
-  isMonthly: boolean("is_monthly").default(false), // true for monthly plans, false for one-time packs
-  features: jsonb("features").$type<string[]>(),
-  isActive: boolean("is_active").default(true),
+  targetAudience: text("target_audience").notNull(), // agency or end_customer
+  isMonthly: integer("is_monthly", { mode: 'boolean' }).default(false), // true for monthly plans, false for one-time packs
+  features: text("features", { mode: 'json' }).$type<string[]>(),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
   sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
 // Credit alerts tracking table
-export const creditAlerts = pgTable("credit_alerts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull(),
-  alertType: creditAlertStatusEnum("alert_type").notNull(),
-  creditPercentage: decimal("credit_percentage", { precision: 5, scale: 2 }), // Percentage remaining
+export const creditAlerts = sqliteTable("credit_alerts", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  alertType: text("alert_type").notNull(),
+  creditPercentage: real("credit_percentage"), // Percentage remaining
   creditsRemaining: integer("credits_remaining"),
   message: text("message"),
-  notificationSent: boolean("notification_sent").default(false),
-  emailSent: boolean("email_sent").default(false),
-  acknowledgedAt: timestamp("acknowledged_at"),
-  acknowledgedBy: varchar("acknowledged_by"), // User ID who acknowledged
-  createdAt: timestamp("created_at").defaultNow(),
+  notificationSent: integer("notification_sent", { mode: 'boolean' }).default(false),
+  emailSent: integer("email_sent", { mode: 'boolean' }).default(false),
+  acknowledgedAt: integer("acknowledged_at", { mode: 'timestamp' }),
+  acknowledgedBy: text("acknowledged_by"), // User ID who acknowledged
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("credit_alerts_org_idx").on(table.organizationId),
   index("credit_alerts_created_idx").on(table.createdAt),
 ]);
 
 // Role Templates table for predefined role configurations
-export const roleTemplates = pgTable("role_templates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id"), // Null for system templates, org ID for custom
-  name: varchar("name").notNull(),
-  label: varchar("label").notNull(),
+export const roleTemplates = sqliteTable("role_templates", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id"), // Null for system templates, org ID for custom
+  name: text("name").notNull(),
+  label: text("label").notNull(),
   description: text("description"),
-  organizationType: organizationTypeEnum("organization_type").notNull(),
-  permissions: jsonb("permissions").$type<string[]>().notNull(),
-  isDefault: boolean("is_default").default(false),
-  isSystem: boolean("is_system").default(false), // System templates can't be edited
-  icon: varchar("icon"), // Icon name for UI
-  color: varchar("color"), // Color for UI badge
+  organizationType: text("organization_type").notNull(),
+  permissions: text("permissions", { mode: 'json' }).$type<string[]>().notNull(),
+  isDefault: integer("is_default", { mode: 'boolean' }).default(false),
+  isSystem: integer("is_system", { mode: 'boolean' }).default(false), // System templates can't be edited
+  icon: text("icon"), // Icon name for UI
+  color: text("color"), // Color for UI badge
   order: integer("order").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
-// Audit action enum
-export const auditActionEnum = pgEnum("audit_action", [
-  "user_created", "user_updated", "user_deleted",
-  "org_created", "org_updated", "org_deleted",
-  "permission_granted", "permission_revoked",
-  "agent_created", "agent_updated", "agent_deleted",
-  "login", "logout", "password_changed",
-  "billing_updated", "payment_processed"
-]);
-
 // Audit Logs table for tracking all system changes
-export const auditLogs = pgTable("audit_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id"),
-  userId: varchar("user_id"),
-  userEmail: varchar("user_email"),
-  action: auditActionEnum("action").notNull(),
-  entityType: varchar("entity_type"), // user, organization, agent, etc.
-  entityId: varchar("entity_id"),
-  changes: jsonb("changes").$type<{
+export const auditLogs = sqliteTable("audit_logs", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
+  userId: text("user_id"),
+  userEmail: text("user_email"),
+  action: text("action").notNull(),
+  entityType: text("entity_type"), // user, organization, agent, etc.
+  entityId: text("entity_id"),
+  changes: text("changes", { mode: 'json' }).$type<{
     before?: Record<string, any>;
     after?: Record<string, any>;
   }>(),
-  metadata: jsonb("metadata").$type<{
+  metadata: text("metadata", { mode: 'json' }).$type<{
     ipAddress?: string;
     userAgent?: string;
     sessionId?: string;
     additionalInfo?: Record<string, any>;
   }>(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("audit_logs_org_idx").on(table.organizationId),
   index("audit_logs_user_idx").on(table.userId),
@@ -1429,30 +1357,30 @@ export const auditLogs = pgTable("audit_logs", {
 ]);
 
 // Unified Billing Plans - Hierarchical billing structure for platform, agencies, and customers
-export const unifiedBillingPlans = pgTable("unified_billing_plans", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const unifiedBillingPlans = sqliteTable("unified_billing_plans", {
+  id: text("id").primaryKey(),
   
   // Hierarchy
-  parentPlanId: varchar("parent_plan_id"), // Reference to parent plan for inheritance
-  createdByOrganizationId: varchar("created_by_organization_id").notNull(), // Platform or agency that created this
-  organizationType: organizationTypeEnum("organization_type").notNull(), // Who can purchase this plan
+  parentPlanId: text("parent_plan_id"), // Reference to parent plan for inheritance
+  createdByOrganizationId: text("created_by_organization_id").notNull(), // Platform or agency that created this
+  organizationType: text("organization_type").notNull(), // Who can purchase this plan
   
   // Plan details
-  name: varchar("name").notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  planType: varchar("plan_type").notNull(), // 'subscription', 'one_time', 'usage_based', 'credit_pack'
-  billingCycle: varchar("billing_cycle"), // 'monthly', 'quarterly', 'annual', null for one-time
+  planType: text("plan_type").notNull(), // 'subscription', 'one_time', 'usage_based', 'credit_pack'
+  billingCycle: text("billing_cycle"), // 'monthly', 'quarterly', 'annual', null for one-time
   
   // Pricing
-  basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
-  setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
+  basePrice: real("base_price").notNull(),
+  setupFee: real("setup_fee").default(0),
   
   // Revenue sharing
-  platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).default('30'), // Platform takes this %
-  agencyMarginPercentage: decimal("agency_margin_percentage", { precision: 5, scale: 2 }).default('0'), // Agency adds this margin
+  platformFeePercentage: real("platform_fee_percentage").default(30), // Platform takes this %
+  agencyMarginPercentage: real("agency_margin_percentage").default(0), // Agency adds this margin
   
   // Features and limits
-  features: jsonb("features").$type<{
+  features: text("features", { mode: 'json' }).$type<{
     maxAgents?: number;
     maxUsers?: number;
     maxMinutesPerMonth?: number;
@@ -1467,20 +1395,20 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
   }>().notNull(),
   
   // Stripe/PayPal integration
-  stripeProductId: varchar("stripe_product_id"),
-  stripePriceId: varchar("stripe_price_id"),
-  paypalPlanId: varchar("paypal_plan_id"),
+  stripeProductId: text("stripe_product_id"),
+  stripePriceId: text("stripe_price_id"),
+  paypalPlanId: text("paypal_plan_id"),
   
   // Display settings
-  isActive: boolean("is_active").default(true),
-  isPopular: boolean("is_popular").default(false),
+  isActive: integer("is_active", { mode: 'boolean' }).default(true),
+  isPopular: integer("is_popular", { mode: 'boolean' }).default(false),
   displayOrder: integer("display_order").default(0),
   
   // Metadata
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("unified_plans_parent_idx").on(table.parentPlanId),
   index("unified_plans_org_idx").on(table.createdByOrganizationId),
@@ -1488,29 +1416,29 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
 ]);
 
 // Payment Splits - Track how payments are distributed between platform and agencies
-export const paymentSplits = pgTable("payment_splits", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const paymentSplits = sqliteTable("payment_splits", {
+  id: text("id").primaryKey(),
   
   // References
-  paymentId: varchar("payment_id").notNull(),
-  fromOrganizationId: varchar("from_organization_id").notNull(), // Customer who paid
-  toOrganizationId: varchar("to_organization_id").notNull(), // Platform or agency receiving
+  paymentId: text("payment_id").notNull(),
+  fromOrganizationId: text("from_organization_id").notNull(), // Customer who paid
+  toOrganizationId: text("to_organization_id").notNull(), // Platform or agency receiving
   
   // Split details
-  splitType: varchar("split_type").notNull(), // 'platform_fee', 'agency_revenue', 'commission'
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  percentage: decimal("percentage", { precision: 5, scale: 2 }),
+  splitType: text("split_type").notNull(), // 'platform_fee', 'agency_revenue', 'commission'
+  amount: real("amount").notNull(),
+  percentage: real("percentage"),
   
   // Transfer details
-  transferStatus: varchar("transfer_status").default('pending'), // 'pending', 'processing', 'completed', 'failed'
-  stripeTransferId: varchar("stripe_transfer_id"),
-  transferredAt: timestamp("transferred_at"),
+  transferStatus: text("transfer_status").default('pending'), // 'pending', 'processing', 'completed', 'failed'
+  stripeTransferId: text("stripe_transfer_id"),
+  transferredAt: integer("transferred_at", { mode: 'timestamp' }),
   
   // Error handling
   failureReason: text("failure_reason"),
   retryCount: integer("retry_count").default(0),
   
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("payment_splits_payment_idx").on(table.paymentId),
   index("payment_splits_from_idx").on(table.fromOrganizationId),
@@ -1518,31 +1446,31 @@ export const paymentSplits = pgTable("payment_splits", {
 ]);
 
 // Unified Subscriptions - Single table for all subscription types
-export const unifiedSubscriptions = pgTable("unified_subscriptions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const unifiedSubscriptions = sqliteTable("unified_subscriptions", {
+  id: text("id").primaryKey(),
   
   // References
-  organizationId: varchar("organization_id").notNull(), // Subscriber organization
-  planId: varchar("plan_id").notNull(), // Unified billing plan
-  parentSubscriptionId: varchar("parent_subscription_id"), // For nested subscriptions
+  organizationId: text("organization_id").notNull(), // Subscriber organization
+  planId: text("plan_id").notNull(), // Unified billing plan
+  parentSubscriptionId: text("parent_subscription_id"), // For nested subscriptions
   
   // Subscription details
-  status: varchar("status").notNull().default("active"), // 'active', 'trialing', 'past_due', 'canceled', 'paused'
+  status: text("status").notNull().default("active"), // 'active', 'trialing', 'past_due', 'canceled', 'paused'
   
   // Billing periods
-  currentPeriodStart: timestamp("current_period_start").notNull(),
-  currentPeriodEnd: timestamp("current_period_end").notNull(),
-  trialEnd: timestamp("trial_end"),
-  cancelAt: timestamp("cancel_at"),
-  canceledAt: timestamp("canceled_at"),
-  pausedAt: timestamp("paused_at"),
+  currentPeriodStart: integer("current_period_start", { mode: 'timestamp' }).notNull(),
+  currentPeriodEnd: integer("current_period_end", { mode: 'timestamp' }).notNull(),
+  trialEnd: integer("trial_end", { mode: 'timestamp' }),
+  cancelAt: integer("cancel_at", { mode: 'timestamp' }),
+  canceledAt: integer("canceled_at", { mode: 'timestamp' }),
+  pausedAt: integer("paused_at", { mode: 'timestamp' }),
   
   // Payment method
-  stripeSubscriptionId: varchar("stripe_subscription_id"),
-  paypalSubscriptionId: varchar("paypal_subscription_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  paypalSubscriptionId: text("paypal_subscription_id"),
   
   // Usage tracking
-  currentUsage: jsonb("current_usage").$type<{
+  currentUsage: text("current_usage", { mode: 'json' }).$type<{
     minutes?: number;
     calls?: number;
     agents?: number;
@@ -1551,13 +1479,13 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
   }>(),
   
   // Custom pricing overrides
-  customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
-  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }),
+  customPrice: real("custom_price"),
+  discountPercentage: real("discount_percentage"),
   
-  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  metadata: text("metadata", { mode: 'json' }).$type<Record<string, any>>(),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("unified_subs_org_idx").on(table.organizationId),
   index("unified_subs_plan_idx").on(table.planId),
@@ -1565,29 +1493,29 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
 ]);
 
 // Whitelabel configurations for agencies
-export const whitelabelConfigs = pgTable("whitelabel_configs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: varchar("organization_id").notNull().unique(),
+export const whitelabelConfigs = sqliteTable("whitelabel_configs", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().unique(),
   
   // Basic branding
-  appName: varchar("app_name").default("VoiceAI Dashboard"),
-  companyName: varchar("company_name"),
+  appName: text("app_name").default("VoiceAI Dashboard"),
+  companyName: text("company_name"),
   
   // Logo URLs (stored in cloud storage)
   logoUrl: text("logo_url"),
   faviconUrl: text("favicon_url"),
   
   // Simple toggles
-  removePlatformBranding: boolean("remove_platform_branding").default(false),
+  removePlatformBranding: integer("remove_platform_branding", { mode: 'boolean' }).default(false),
   
   // Support links (optional)
   supportUrl: text("support_url"),
   documentationUrl: text("documentation_url"),
   
   // Metadata
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 }, (table) => [
   index("whitelabel_org_idx").on(table.organizationId),
 ]);

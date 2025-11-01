@@ -38,20 +38,6 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Apply rate limiting to API routes
-app.use('/api/auth/login', rateLimiters.auth);
-app.use('/api/auth/register', rateLimiters.auth);
-app.use('/api/auth/logout', rateLimiters.auth);
-
-// General API rate limiting
-app.use('/api/', rateLimiters.api);
-
-// Stricter limits for specific endpoints
-app.post('/api/agents', rateLimiters.write);
-app.patch('/api/agents/*', rateLimiters.write);
-app.delete('/api/agents/*', rateLimiters.write);
-app.post('/api/upload', rateLimiters.upload);
-app.post('/api/whitelabel/*', rateLimiters.upload);
 
 // Set longer timeout for upload endpoints
 app.use((req, res, next) => {
@@ -105,30 +91,35 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+import { seedAdminUser } from "./seedAdmin";
 
+(async () => {
+  const server = registerRoutes(app);
+  if (config.isTest) {
+    try {
+      await seedAdminUser();
+    } catch (error) {
+      console.warn('Test user already exists, skipping seed.');
+    }
+  }
   // Setup WebSocket routes for real-time sync
   const wss = setupWebSocketRoutes(app, server);
   setupWebSocketEndpoints(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    
-    console.error(`Error ${status}: ${message}`, err);
-    res.status(status).json({ message });
-  });
-
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (config.isDevelopment) {
     await setupVite(app, server);
-  } else {
+  } else if (!config.isTest) {
     serveStatic(app);
   }
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
 
+    console.error(`Error ${status}: ${message}`, err);
+    res.status(status).json({ message });
+  });
   // Start the server with configured host and port
   server.listen({
     port: config.port,

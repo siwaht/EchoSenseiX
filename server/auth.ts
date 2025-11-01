@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
+import connectMemorystore from "memorystore";
 
 declare global {
   namespace Express {
@@ -41,16 +42,26 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  console.log("Setting up authentication...");
   const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
-    tableName: "sessions",
-  });
+  const MemoryStore = connectMemorystore(session);
+
+  let sessionStore: session.Store;
+  if (process.env.NODE_ENV === "test") {
+    sessionStore = new MemoryStore({ checkPeriod: 86400000 });
+  } else {
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
+      tableName: "sessions",
+    });
+  }
+
+  console.log("Session store configured.");
 
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
+    secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'test' ? 'test-session-secret' : 'dev-secret-change-in-production'),
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
@@ -64,8 +75,10 @@ export function setupAuth(app: Express) {
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
+  console.log("Session middleware configured.");
   app.use(passport.initialize());
   app.use(passport.session());
+  console.log("Passport configured.");
 
   passport.use(
     new LocalStrategy(
@@ -115,7 +128,7 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
     res.status(200).json(req.user);
   });
 
@@ -147,8 +160,15 @@ export function setupAuth(app: Express) {
   app.get("/api/logout", handleLogout);
   app.post("/api/logout", handleLogout);
 
-  app.get("/api/auth/user", (req, res) => {
+  app.get("/api/auth/me", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     res.json(req.user);
   });
+
+  app.get("/api/auth/session", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+    res.json({ session: req.session });
+  });
+
+  console.log("Authentication setup complete.");
 }
