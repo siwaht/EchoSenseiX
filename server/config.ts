@@ -38,9 +38,6 @@ interface Config {
       secretKey: string | null;
       webhookSecret: string | null;
     };
-    sendgrid: {
-      apiKey: string | null;
-    };
     google: {
       projectId: string | null;
       credentialsPath: string | null;
@@ -161,9 +158,6 @@ function loadConfig(): Config {
     stripe: {
       secretKey: process.env.STRIPE_SECRET_KEY || null,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
-    },
-    sendgrid: {
-      apiKey: process.env.SENDGRID_API_KEY || null,
     },
     google: {
       projectId: process.env.GOOGLE_CLOUD_PROJECT || null,
