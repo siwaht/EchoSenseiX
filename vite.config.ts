@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -15,13 +18,13 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@": path.resolve(__dirname, "client", "src"),
+      "@shared": path.resolve(__dirname, "shared"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
+  root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
@@ -40,59 +43,10 @@ export default defineConfig({
       },
     },
     rollupOptions: {
+      input: path.resolve(__dirname, "client/index.html"),
       output: {
-        // Improved chunk splitting strategy
-        manualChunks: (id) => {
-          // Core React dependencies
-          if (id.includes('react') || id.includes('react-dom')) {
-            return 'react-core';
-          }
-          // Router
-          if (id.includes('wouter')) {
-            return 'router';
-          }
-          // UI components library
-          if (id.includes('@radix-ui')) {
-            return 'ui-components';
-          }
-          // Data fetching
-          if (id.includes('@tanstack/react-query')) {
-            return 'data-fetching';
-          }
-          // Forms
-          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
-            return 'forms';
-          }
-          // Charts
-          if (id.includes('recharts') || id.includes('d3')) {
-            return 'charts';
-          }
-          // Icons
-          if (id.includes('lucide-react') || id.includes('react-icons')) {
-            return 'icons';
-          }
-          // Date utilities
-          if (id.includes('date-fns')) {
-            return 'date-utils';
-          }
-          // Payment
-          if (id.includes('stripe')) {
-            return 'payment';
-          }
-          // Large libraries
-          if (id.includes('framer-motion')) {
-            return 'animation';
-          }
-          // Node modules (vendor chunk)
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
-        },
         // Optimize chunk names for caching
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
-          return `js/[name]-${facadeModuleId}-[hash].js`;
-        },
+        chunkFileNames: 'js/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
           if (!assetInfo.name) return `assets/[name]-[hash][extname]`;
           const info = assetInfo.name.split('.');
@@ -105,12 +59,6 @@ export default defineConfig({
             return `assets/[name]-[hash][extname]`;
           }
         },
-      },
-      // Optimize tree shaking
-      treeshake: {
-        moduleSideEffects: false,
-        propertyReadSideEffects: false,
-        tryCatchDeoptimization: false,
       },
     },
     chunkSizeWarningLimit: 500, // Reduced to encourage smaller chunks
