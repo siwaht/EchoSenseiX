@@ -79,9 +79,13 @@ export function createCacheMiddleware(options: CacheOptions = {}) {
           { ttl }
         );
         
-        res.setHeader('X-Cache', 'HIT-STALE');
-        res.setHeader('X-Cache-TTL', ttl.toString());
-        return res.json(data);
+        // Only set headers if response hasn't been sent yet
+        if (!res.headersSent) {
+          res.setHeader('X-Cache', 'HIT-STALE');
+          res.setHeader('X-Cache-TTL', ttl.toString());
+          return res.json(data);
+        }
+        return;
       } catch (error) {
         // Fall through to normal handling
       }

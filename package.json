@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
+    "@babel/plugin-transform-react-jsx": "^7.27.1",
     "@elevenlabs/elevenlabs-js": "^2.18.0",
     "@google-cloud/storage": "^7.17.0",
     "@hookform/resolvers": "^3.10.0",
