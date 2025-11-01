@@ -376,12 +376,9 @@ export class ElevenLabsRealtimeSync {
         } else {
           allConversations.push(...conversations);
           page++;
-          
-          // Limit to prevent infinite loops
-          if (page > 50) {
-            console.warn(`[REALTIME-SYNC] Reached page limit (50), stopping pagination`);
-            break;
-          }
+
+          // Add a small delay to avoid rate-limiting issues on large datasets
+          await new Promise(resolve => setTimeout(resolve, 250));
         }
       } catch (error) {
         console.error(`[REALTIME-SYNC] Pagination error on page ${page}:`, error);
@@ -389,7 +386,7 @@ export class ElevenLabsRealtimeSync {
       }
     }
 
-    console.log(`[REALTIME-SYNC] Retrieved ${allConversations.length} total conversations`);
+    console.log(`[REALTIME-SYNC] Pagination complete, found ${allConversations.length} conversations.`);
     return allConversations;
   }
 

@@ -28,7 +28,6 @@ export class AppError extends Error {
     this.details = details;
 
     // Maintains proper stack trace for where error was thrown
-    Object.setPrototypeOf(this, AppError.prototype);
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -39,7 +38,6 @@ export class AppError extends Error {
 export class ValidationError extends AppError {
   constructor(message: string, fields?: Record<string, string>) {
     super(400, message, true, 'VALIDATION_ERROR', { fields });
-    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
@@ -49,7 +47,6 @@ export class ValidationError extends AppError {
 export class AuthenticationError extends AppError {
   constructor(message = 'Authentication required') {
     super(401, message, true, 'AUTH_ERROR');
-    Object.setPrototypeOf(this, AuthenticationError.prototype);
   }
 }
 
@@ -59,7 +56,6 @@ export class AuthenticationError extends AppError {
 export class AuthorizationError extends AppError {
   constructor(message = 'Insufficient permissions') {
     super(403, message, true, 'AUTHORIZATION_ERROR');
-    Object.setPrototypeOf(this, AuthorizationError.prototype);
   }
 }
 
@@ -72,7 +68,6 @@ export class NotFoundError extends AppError {
       ? `${resource} with identifier '${identifier}' not found`
       : `${resource} not found`;
     super(404, message, true, 'NOT_FOUND', { resource, identifier });
-    Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
@@ -82,7 +77,6 @@ export class NotFoundError extends AppError {
 export class ConflictError extends AppError {
   constructor(message: string, details?: Record<string, any>) {
     super(409, message, true, 'CONFLICT_ERROR', details);
-    Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }
 
@@ -92,7 +86,6 @@ export class ConflictError extends AppError {
 export class UnprocessableEntityError extends AppError {
   constructor(message: string, details?: Record<string, any>) {
     super(422, message, true, 'UNPROCESSABLE_ENTITY', details);
-    Object.setPrototypeOf(this, UnprocessableEntityError.prototype);
   }
 }
 
@@ -102,7 +95,6 @@ export class UnprocessableEntityError extends AppError {
 export class RateLimitError extends AppError {
   constructor(message = 'Too many requests, please try again later', retryAfter?: number) {
     super(429, message, true, 'RATE_LIMIT_ERROR', { retryAfter });
-    Object.setPrototypeOf(this, RateLimitError.prototype);
   }
 }
 
@@ -112,7 +104,6 @@ export class RateLimitError extends AppError {
 export class InternalServerError extends AppError {
   constructor(message = 'An unexpected error occurred', details?: Record<string, any>) {
     super(500, message, false, 'INTERNAL_ERROR', details);
-    Object.setPrototypeOf(this, InternalServerError.prototype);
   }
 }
 
@@ -125,7 +116,6 @@ export class ExternalServiceError extends AppError {
       service,
       ...details,
     });
-    Object.setPrototypeOf(this, ExternalServiceError.prototype);
   }
 }
 
@@ -135,7 +125,6 @@ export class ExternalServiceError extends AppError {
 export class ServiceUnavailableError extends AppError {
   constructor(message = 'Service temporarily unavailable', retryAfter?: number) {
     super(503, message, true, 'SERVICE_UNAVAILABLE', { retryAfter });
-    Object.setPrototypeOf(this, ServiceUnavailableError.prototype);
   }
 }
 
@@ -148,7 +137,6 @@ export class DatabaseError extends AppError {
       operation,
       ...details,
     });
-    Object.setPrototypeOf(this, DatabaseError.prototype);
   }
 }
 
@@ -158,7 +146,6 @@ export class DatabaseError extends AppError {
 export class ConfigurationError extends AppError {
   constructor(message: string, details?: Record<string, any>) {
     super(500, `Configuration error: ${message}`, false, 'CONFIG_ERROR', details);
-    Object.setPrototypeOf(this, ConfigurationError.prototype);
   }
 }
 

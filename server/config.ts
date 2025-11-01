@@ -1,13 +1,14 @@
 import { config as loadEnv } from 'dotenv';
 
 // Load environment variables from .env file
-loadEnv();
+loadEnv({ override: true });
 
 interface Config {
   // Environment
   nodeEnv: string;
   isDevelopment: boolean;
   isProduction: boolean;
+  isTest: boolean;
   
   // Server
   host: string;
@@ -37,9 +38,6 @@ interface Config {
     stripe: {
       secretKey: string | null;
       webhookSecret: string | null;
-    };
-    sendgrid: {
-      apiKey: string | null;
     };
     google: {
       projectId: string | null;
@@ -77,9 +75,11 @@ interface Config {
  * Validate and load application configuration from environment variables
  */
 function loadConfig(): Config {
+  console.log(`[CONFIG] Loading config. NODE_ENV is: ${process.env.NODE_ENV}`);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isDevelopment = nodeEnv === 'development';
   const isProduction = nodeEnv === 'production';
+  const isTest = nodeEnv === 'test';
 
   // Required secrets - must be provided (no defaults for security)
   const requiredSecrets = {
@@ -161,9 +161,6 @@ function loadConfig(): Config {
     stripe: {
       secretKey: process.env.STRIPE_SECRET_KEY || null,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
-    },
-    sendgrid: {
-      apiKey: process.env.SENDGRID_API_KEY || null,
     },
     google: {
       projectId: process.env.GOOGLE_CLOUD_PROJECT || null,
@@ -259,6 +256,7 @@ function loadConfig(): Config {
     nodeEnv,
     isDevelopment,
     isProduction,
+    isTest,
     host,
     port,
     publicUrl,

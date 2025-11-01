@@ -352,6 +352,13 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Add this logging middleware BEFORE any other routes
+  app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.path}`);
+    next();
+  });
+
+  console.log("Registering routes...");
   // Health check endpoint (no auth required for load balancers)
   app.get('/health', async (req, res) => {
     res.status(200).json({
@@ -361,14 +368,18 @@ export function registerRoutes(app: Express): Server {
       environment: process.env.NODE_ENV || 'development',
     });
   });
+  console.log("Health check route registered.");
 
   // Seed admin user on startup (with delay to ensure DB is ready)
   setTimeout(() => {
     seedAdminUser().catch(console.error);
   }, 1000);
-  
+  console.log("Admin user seeding scheduled.");
+
   // Auth middleware
+  console.log("Calling setupAuth...");
   setupAuth(app);
+  console.log("setupAuth call complete.");
 
   // API key change detection middleware (runs after auth)
   app.use('/api', detectApiKeyChange);
@@ -5124,7 +5135,7 @@ Generate the complete prompt now:`;
         },
         body: JSON.stringify({
           text: previewText,
-          model_id: "eleven_monolingual_v1",
+          model_id: "eleven_multilingual_v2",
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
@@ -6604,8 +6615,8 @@ Generate the complete prompt now:`;
           error: "No text provided",
           message: "Please provide 'text' parameter",
           example: "?text=Hello world&voice_id=21m00Tcm4TlvDq8ikWAM&model_id=eleven_v3",
-          available_models: ["eleven_v3", "eleven_flash_v2_5", "eleven_monolingual_v1"],
-          note: "eleven_v3 is the latest high-quality model (2025) supporting 70+ languages"
+          available_models: ["eleven_v3", "eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_turbo_v2_5"],
+          note: "eleven_v3 is the latest high-quality model (2025) supporting 70+ languages. Note: eleven_monolingual_v1 and eleven_multilingual_v1 are deprecated and will be removed Dec 15, 2025"
         });
       }
 
@@ -10004,6 +10015,14 @@ Generate the complete prompt now:`;
 
   // Register real-time sync routes
   registerRealtimeSyncRoutes(app);
+
+  app.get("/api/realtime-sync/status", isAuthenticated, async (req, res) => {
+    res.json({ status: "ok" });
+    });
+
+    app.post("/api/realtime-sync/trigger", isAuthenticated, async (req, res) => {
+        res.json({ status: "ok" });
+    });
 
   const httpServer = createServer(app);
   return httpServer;

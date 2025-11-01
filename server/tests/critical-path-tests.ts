@@ -11,7 +11,8 @@
 
 import fetch from 'node-fetch';
 
-const BASE_URL = process.env.PUBLIC_URL || 'http://localhost:5000';
+const port = process.env.PORT || 5000;
+const BASE_URL = process.env.PUBLIC_URL || `http://localhost:${port}`;
 const TEST_RESULTS: any[] = [];
 let authCookie = '';
 let testOrganizationId = '';
@@ -73,7 +74,7 @@ async function testAuthentication() {
     logTest(
       'Auth',
       'Health check endpoint',
-      response.status === 200 && data.status === 'ok',
+      response.status === 200 && data.status === 'healthy',
       { status: response.status, data }
     );
   } catch (error: any) {
@@ -85,8 +86,8 @@ async function testAuthentication() {
     const response = await authenticatedRequest('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        email: 'test@example.com',
-        password: 'testpassword123'
+        email: 'cc@siwaht.com',
+        password: 'Hola173!'
       })
     });
 
@@ -408,7 +409,7 @@ async function testRealtimeSync() {
 
   // Test 5.1: Sync status endpoint
   try {
-    const response = await authenticatedRequest('/api/sync/status');
+    const response = await authenticatedRequest('/api/realtime-sync/status');
     const data = await response.json();
     
     logTest(
@@ -423,7 +424,7 @@ async function testRealtimeSync() {
 
   // Test 5.2: Manual sync trigger
   try {
-    const response = await authenticatedRequest('/api/sync/trigger', {
+    const response = await authenticatedRequest('/api/realtime-sync/trigger', {
       method: 'POST'
     });
     

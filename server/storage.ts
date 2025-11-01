@@ -98,6 +98,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sum, avg, max, or, inArray, isNull } from "drizzle-orm";
+import memoize from "memoizee";
 
 export interface IStorage {
   // User operations
@@ -369,10 +370,17 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db().select().from(users).where(eq(users.id, id));
-    return user;
-  }
+  getUser = memoize(
+    async (id: string): Promise<User | undefined> => {
+      const [user] = await db().select().from(users).where(eq(users.id, id));
+      return user;
+    },
+    {
+      promise: true,
+      maxAge: 1000 * 60 * 5, // 5 minutes
+      preFetch: 0.25 // 25% of TTL
+    }
+  );
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db().select().from(users).where(eq(users.email, email));
@@ -632,10 +640,17 @@ export class DatabaseStorage implements IStorage {
     return org;
   }
 
-  async getOrganization(id: string): Promise<Organization | undefined> {
-    const [org] = await db().select().from(organizations).where(eq(organizations.id, id));
-    return org;
-  }
+  getOrganization = memoize(
+    async (id: string): Promise<Organization | undefined> => {
+      const [org] = await db().select().from(organizations).where(eq(organizations.id, id));
+      return org;
+    },
+    {
+      promise: true,
+      maxAge: 1000 * 60 * 5, // 5 minutes
+      preFetch: 0.25 // 25% of TTL
+    }
+  );
 
   async getOrganizationBySubdomain(subdomain: string): Promise<Organization | undefined> {
     const [org] = await db()
@@ -1168,51 +1183,45 @@ export class DatabaseStorage implements IStorage {
     // Get total counts
     const [userCount] = await db().select({ count: count(users.id) }).from(users);
     const [orgCount] = await db().select({ count: count(organizations.id) }).from(organizations);
-    const [callCount] = await db().select({ 
+    const [callStats] = await db().select({
       count: count(callLogs.id),
       totalCost: sum(callLogs.cost) 
     }).from(callLogs);
 
-    // Get organization-specific data
-    const orgs = await db().select().from(organizations);
-    const organizationsData = await Promise.all(
-      orgs.map(async (org: Organization) => {
-        const [userStats] = await db()
-          .select({ count: count(users.id) })
-          .from(users)
-          .where(eq(users.organizationId, org.id));
-
-        const [callStats] = await db()
-          .select({
-            totalCalls: count(callLogs.id),
-            totalMinutes: sum(callLogs.duration),
-            estimatedCost: sum(callLogs.cost),
-          })
-          .from(callLogs)
-          .where(eq(callLogs.organizationId, org.id));
-
-        return {
-          id: org.id,
-          name: org.name,
-          userCount: Number(userStats.count) || 0,
-          totalCalls: Number(callStats.totalCalls) || 0,
-          totalMinutes: Math.round(Number(callStats.totalMinutes) / 60) || 0,
-          estimatedCost: Number(callStats.estimatedCost) || 0,
-          billingPackage: org.billingPackage || 'starter',
-          perCallRate: Number(org.perCallRate) || 0.30,
-          perMinuteRate: Number(org.perMinuteRate) || 0.30,
-          monthlyCredits: org.monthlyCredits || 0,
-          usedCredits: org.usedCredits || 0,
-        };
+    // Get organization-specific data in a single query to avoid N+1 problem
+    const organizationsData = await db()
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        billingPackage: organizations.billingPackage,
+        perCallRate: organizations.perCallRate,
+        perMinuteRate: organizations.perMinuteRate,
+        monthlyCredits: organizations.monthlyCredits,
+        usedCredits: organizations.usedCredits,
+        userCount: count(users.id),
+        totalCalls: count(callLogs.id),
+        totalMinutes: sum(callLogs.duration),
+        estimatedCost: sum(callLogs.cost),
       })
-    );
+      .from(organizations)
+      .leftJoin(users, eq(organizations.id, users.organizationId))
+      .leftJoin(callLogs, eq(organizations.id, callLogs.organizationId))
+      .groupBy(organizations.id);
 
     return {
       totalUsers: Number(userCount.count) || 0,
       totalOrganizations: Number(orgCount.count) || 0,
-      totalCalls: Number(callCount.count) || 0,
-      totalRevenue: Number(callCount.totalCost) || 0,
-      organizationsData,
+      totalCalls: Number(callStats.count) || 0,
+      totalRevenue: Number(callStats.totalCost) || 0,
+      organizationsData: organizationsData.map(org => ({
+        ...org,
+        userCount: Number(org.userCount) || 0,
+        totalCalls: Number(org.totalCalls) || 0,
+        totalMinutes: Math.round(Number(org.totalMinutes) / 60) || 0,
+        estimatedCost: Number(org.estimatedCost) || 0,
+        perCallRate: Number(org.perCallRate) || 0.30,
+        perMinuteRate: Number(org.perMinuteRate) || 0.30,
+      })),
     };
   }
 

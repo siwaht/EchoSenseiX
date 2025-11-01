@@ -427,7 +427,7 @@ class ElevenLabsService {
     });
   }
 
-  // Agent Testing endpoints
+  // Agent Testing endpoints (Legacy)
   async getAgentTests(agentId: string) {
     return this.makeRequest<any>(`/v1/convai/tests?agent_id=${agentId}`);
   }
@@ -447,6 +447,61 @@ class ElevenLabsService {
 
   async getTestResults(testId: string) {
     return this.makeRequest<any>(`/v1/convai/tests/${testId}/results`);
+  }
+
+  // Agent Testing Framework endpoints (New - August 2025)
+  async createAgentTestFramework(testData: any) {
+    return this.makeRequest<any>("/v1/convai/agent-testing/create", {
+      method: "POST",
+      body: JSON.stringify(testData),
+    });
+  }
+
+  async getAgentTestFramework(testId: string) {
+    return this.makeRequest<any>(`/v1/convai/agent-testing/${testId}`);
+  }
+
+  async updateAgentTestFramework(testId: string, updates: any) {
+    return this.makeRequest<any>(`/v1/convai/agent-testing/${testId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteAgentTestFramework(testId: string) {
+    return this.makeRequest<any>(`/v1/convai/agent-testing/${testId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAgentTestSummaries(params?: {
+    agent_id?: string;
+    page_size?: number;
+    page?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.agent_id) queryParams.append("agent_id", params.agent_id);
+    if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
+    if (params?.page) queryParams.append("page", params.page.toString());
+
+    const endpoint = `/v1/convai/agent-testing/summaries${queryParams.toString() ? `?${queryParams}` : ""}`;
+    return this.makeRequest<any>(endpoint, {
+      method: "POST",
+    });
+  }
+
+  async getTestInvocations(params?: {
+    test_id?: string;
+    page_size?: number;
+    cursor?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.test_id) queryParams.append("test_id", params.test_id);
+    if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
+    if (params?.cursor) queryParams.append("cursor", params.cursor);
+
+    const endpoint = `/v1/convai/test-invocations${queryParams.toString() ? `?${queryParams}` : ""}`;
+    return this.makeRequest<any>(endpoint);
   }
 
   // Widget endpoints
@@ -662,6 +717,36 @@ class ElevenLabsService {
     return this.makeRequest<any>("/v1/convai/concurrency", {
       method: "PATCH",
       body: JSON.stringify(settings),
+    });
+  }
+
+  // Service Account endpoints (New - 2025)
+  async getServiceAccounts() {
+    return this.makeRequest<any>("/v1/service-accounts");
+  }
+
+  async updateServiceAccountApiKey(
+    serviceAccountUserId: string,
+    apiKeyId: string,
+    updates: any
+  ) {
+    return this.makeRequest<any>(
+      `/v1/service-accounts/${serviceAccountUserId}/api-keys/${apiKeyId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      }
+    );
+  }
+
+  // Conversation Token endpoint (New - 2025)
+  async createConversationToken(agentId: string, params?: any) {
+    return this.makeRequest<any>("/v1/convai/conversation/token", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: agentId,
+        ...params,
+      }),
     });
   }
 }
