@@ -24,7 +24,7 @@ async function initializeMongoDB() {
     console.log('[MongoDB Init] Connected to MongoDB successfully');
     
     // Get the database instance
-    const db = client.db('mediumx');
+    const db = client.db('EchoSenseiX');
     
     // Create some initial collections (optional)
     const collections = [
@@ -81,7 +81,7 @@ async function initializeMongoDB() {
       console.log('[MongoDB Init] Index creation info:', error.message);
     }
     
-    console.log('[MongoDB Init] Database "mediumx" initialized successfully!');
+    console.log('[MongoDB Init] Database "EchoSenseiX" initialized successfully!');
     console.log('[MongoDB Init] Collections created:', collections);
     
   } catch (error) {

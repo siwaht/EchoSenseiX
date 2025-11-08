@@ -31,7 +31,7 @@ function getMongoDBConnection() {
     });
 
     // Get the database instance
-    database = client.db('mediumx');
+    database = client.db('EchoSenseiX');
   }
   
   return database;

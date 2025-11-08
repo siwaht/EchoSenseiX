@@ -23,6 +23,7 @@ EchoSensei is a comprehensive voice AI agent management platform built on Eleven
 
 - Node.js 20+
 - PostgreSQL 15+
+- MongoDB Atlas (optional, for additional data storage)
 - Docker (optional but recommended)
 
 ### Local Development
@@ -40,6 +41,7 @@ cp .env.example .env
 
 # Configure your .env file with:
 # - DATABASE_URL (PostgreSQL connection string)
+# - MONGODB_URI (MongoDB Atlas connection string, optional)
 # - SESSION_SECRET (min 32 characters)
 # - ENCRYPTION_KEY (min 32 characters)
 # - ELEVENLABS_API_KEY (optional)
@@ -47,6 +49,9 @@ cp .env.example .env
 
 # Run database migrations
 npm run db:push
+
+# Initialize MongoDB (optional)
+npm run mongodb:init
 
 # Start development server
 npm run dev
@@ -120,6 +125,9 @@ All deployments use the same environment variables:
 # Database (Required)
 DATABASE_URL=postgresql://user:pass@host:port/db
 
+# MongoDB (Optional - for additional data storage)
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/?appName=yourapp
+
 # Security (Required)
 SESSION_SECRET=min-32-characters-random-string
 ENCRYPTION_KEY=min-32-characters-random-string
@@ -162,6 +170,7 @@ See [.env.example](./.env.example) for complete configuration options.
 - Node.js 20 + Express
 - TypeScript
 - Drizzle ORM + PostgreSQL
+- MongoDB (optional, for additional data storage)
 - Passport.js (authentication)
 - WebSocket (real-time updates)
 
@@ -262,6 +271,8 @@ npm run build        # Build for production
 npm run start        # Start production server
 npm run check        # TypeScript type checking
 npm run db:push      # Push database schema changes
+npm run mongodb:init # Initialize MongoDB collections
+npm run mongodb:test # Test MongoDB connection
 ```
 
 ### Adding New Storage Providers
