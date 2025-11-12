@@ -19,6 +19,7 @@ import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
 import KnowledgeBaseService from "./services/knowledge-base-service";
 import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
+import EmailService from "./services/email-service";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
 import { 
   handleConversationInitWebhook, 
@@ -1626,10 +1627,8 @@ export function registerRoutes(app: Express): Server {
   app.patch('/api/admin/tasks/:taskId', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const updates = req.body;
-      // TODO: Uncomment when database is updated
-      // const task = await storage.updateAdminTask(req.params.taskId, updates);
-      // res.json(task);
-      res.json({ message: "Task updated successfully" }); // Temporary response
+      const task = await storage.updateAdminTask(req.params.taskId, updates);
+      res.json(task);
     } catch (error) {
       console.error("Error updating admin task:", error);
       res.status(500).json({ message: "Failed to update admin task" });
@@ -2054,9 +2053,21 @@ export function registerRoutes(app: Express): Server {
         customMessage,
         status: 'pending',
       });
-      
-      // TODO: Send invitation email with the invitation code
-      
+
+      // Send invitation email with the invitation code
+      const publicUrl = process.env.PUBLIC_URL || 'http://localhost:5000';
+      const acceptUrl = `${publicUrl}/agency/invitations/accept?code=${invitation.invitationCode}`;
+
+      await EmailService.sendAgencyInvitation(email, {
+        inviteeName: name,
+        inviterName: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email,
+        inviterCompany: org.name,
+        invitationCode: invitation.invitationCode,
+        invitationType: 'agency',
+        customMessage,
+        acceptUrl
+      });
+
       res.json(invitation);
     } catch (error) {
       console.error("Error creating agency invitation:", error);
@@ -9298,10 +9309,23 @@ Generate the complete prompt now:`;
         status: "pending",
         expiresAt
       });
-      
-      // TODO: Send invitation email
+
+      // Send invitation email
+      const org = await storage.getOrganization(organizationId);
+      const publicUrl = process.env.PUBLIC_URL || 'http://localhost:5000';
+      const acceptUrl = `${publicUrl}/invitations/accept?code=${invitation.code}`;
+
+      await EmailService.sendUserInvitation(email, {
+        inviteeName: email.split('@')[0],
+        inviterName: currentUser?.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : currentUser?.email || 'Team',
+        inviterCompany: org?.name,
+        invitationCode: invitation.code,
+        invitationType: 'user',
+        acceptUrl
+      });
+
       console.log(`Invitation created for ${email} with code: ${invitation.code}`);
-      
+
       res.json(invitation);
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -9317,12 +9341,26 @@ Generate the complete prompt now:`;
       // Update expiry date
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
-      
+
       const invitation = await storage.updateInvitation(invitationId, { expiresAt });
-      
-      // TODO: Resend invitation email
+
+      // Resend invitation email
+      const currentUser = await storage.getUser(req.user.id);
+      const org = await storage.getOrganization(invitation.organizationId);
+      const publicUrl = process.env.PUBLIC_URL || 'http://localhost:5000';
+      const acceptUrl = `${publicUrl}/invitations/accept?code=${invitation.code}`;
+
+      await EmailService.sendUserInvitation(invitation.email, {
+        inviteeName: invitation.email.split('@')[0],
+        inviterName: currentUser?.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() : currentUser?.email || 'Team',
+        inviterCompany: org?.name,
+        invitationCode: invitation.code,
+        invitationType: 'user',
+        acceptUrl
+      });
+
       console.log(`Invitation resent for ${invitation.email} with code: ${invitation.code}`);
-      
+
       res.json(invitation);
     } catch (error) {
       console.error("Error resending invitation:", error);

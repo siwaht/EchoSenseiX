@@ -29,6 +29,8 @@ import {
   agencyBillingPlans,
   customerSubscriptions,
   customerPaymentMethods,
+  knowledgeBaseEntries,
+  documentProcessingStatus,
   type User,
   type UpsertUser,
   type Organization,
@@ -86,6 +88,10 @@ import {
   type InsertCustomerSubscription,
   type CustomerPaymentMethod,
   type InsertCustomerPaymentMethod,
+  type KnowledgeBaseEntry,
+  type InsertKnowledgeBaseEntry,
+  type DocumentProcessingStatus,
+  type InsertDocumentProcessingStatus,
   unifiedBillingPlans,
   paymentSplits,
   unifiedSubscriptions,
@@ -2511,12 +2517,118 @@ export class DatabaseStorage implements IStorage {
   async cancelUnifiedSubscription(id: string): Promise<void> {
     await db()
       .update(unifiedSubscriptions)
-      .set({ 
-        status: 'canceled', 
+      .set({
+        status: 'canceled',
         canceledAt: new Date(),
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
       .where(eq(unifiedSubscriptions.id, id));
+  }
+
+  // Knowledge Base methods
+  async createKnowledgeEntry(organizationId: string, entry: InsertKnowledgeBaseEntry): Promise<KnowledgeBaseEntry> {
+    const [created] = await db()
+      .insert(knowledgeBaseEntries)
+      .values({ ...entry, organizationId })
+      .returning();
+    return created;
+  }
+
+  async updateKnowledgeEntry(organizationId: string, entryId: string, updates: Partial<InsertKnowledgeBaseEntry>): Promise<KnowledgeBaseEntry | undefined> {
+    const [updated] = await db()
+      .update(knowledgeBaseEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(knowledgeBaseEntries.id, entryId),
+        eq(knowledgeBaseEntries.organizationId, organizationId)
+      ))
+      .returning();
+    return updated;
+  }
+
+  async getKnowledgeEntry(organizationId: string, entryId: string): Promise<KnowledgeBaseEntry | undefined> {
+    const [entry] = await db()
+      .select()
+      .from(knowledgeBaseEntries)
+      .where(and(
+        eq(knowledgeBaseEntries.id, entryId),
+        eq(knowledgeBaseEntries.organizationId, organizationId)
+      ))
+      .limit(1);
+    return entry;
+  }
+
+  async getKnowledgeEntries(organizationId: string, options?: {
+    category?: string;
+    tags?: string[];
+    search?: string;
+    limit?: number;
+  }): Promise<KnowledgeBaseEntry[]> {
+    let query = db()
+      .select()
+      .from(knowledgeBaseEntries)
+      .where(eq(knowledgeBaseEntries.organizationId, organizationId));
+
+    if (options?.category) {
+      query = query.where(eq(knowledgeBaseEntries.category, options.category));
+    }
+
+    const entries = await query
+      .orderBy(desc(knowledgeBaseEntries.updatedAt))
+      .limit(options?.limit || 100);
+
+    return entries;
+  }
+
+  async deleteKnowledgeEntry(organizationId: string, entryId: string): Promise<void> {
+    await db()
+      .delete(knowledgeBaseEntries)
+      .where(and(
+        eq(knowledgeBaseEntries.id, entryId),
+        eq(knowledgeBaseEntries.organizationId, organizationId)
+      ));
+  }
+
+  // Document Processing Status methods
+  async createDocumentProcessingStatus(status: InsertDocumentProcessingStatus): Promise<DocumentProcessingStatus> {
+    const [created] = await db()
+      .insert(documentProcessingStatus)
+      .values(status)
+      .returning();
+    return created;
+  }
+
+  async updateDocumentProcessingStatus(id: string, updates: Partial<InsertDocumentProcessingStatus>): Promise<DocumentProcessingStatus | undefined> {
+    const [updated] = await db()
+      .update(documentProcessingStatus)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentProcessingStatus.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getDocumentProcessingStatus(id: string): Promise<DocumentProcessingStatus | undefined> {
+    const [status] = await db()
+      .select()
+      .from(documentProcessingStatus)
+      .where(eq(documentProcessingStatus.id, id))
+      .limit(1);
+    return status;
+  }
+
+  async getDocumentProcessingStatusByOrganization(organizationId: string, limit?: number): Promise<DocumentProcessingStatus[]> {
+    return await db()
+      .select()
+      .from(documentProcessingStatus)
+      .where(eq(documentProcessingStatus.organizationId, organizationId))
+      .orderBy(desc(documentProcessingStatus.createdAt))
+      .limit(limit || 50);
+  }
+
+  async deleteDocumentProcessingStatus(id: string): Promise<void> {
+    await db()
+      .delete(documentProcessingStatus)
+      .where(eq(documentProcessingStatus.id, id));
   }
 }
 
