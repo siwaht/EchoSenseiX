@@ -93,12 +93,28 @@ export class DocumentProcessingService {
       const fileStats = fs.statSync(filePath);
       
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
+      const mimeType = this.getMimeType(originalName);
+
+      // Create document processing status in database
+      const processingStatus = await storage.createDocumentProcessingStatus({
+        organizationId,
+        documentName: originalName,
+        documentType: mimeType,
+        status: 'processing',
+        progress: 0,
+        metadata: {
+          uploadedBy,
+          filePath,
+          size: fileStats.size
+        }
+      });
+
       const document: DocumentUpload = {
-        id: documentId,
+        id: processingStatus.id,
         filename: filePath,
         originalName,
-        mimeType: this.getMimeType(originalName),
+        mimeType,
         size: fileStats.size,
         organizationId,
         uploadedBy,
@@ -109,7 +125,6 @@ export class DocumentProcessingService {
 
       // Extract text based on file type
       let extractedText = '';
-      const mimeType = document.mimeType;
 
       if (mimeType === 'application/pdf') {
         extractedText = await this.extractTextFromPDF(filePath);
@@ -124,9 +139,23 @@ export class DocumentProcessingService {
       document.extractedText = extractedText;
       document.status = 'completed';
 
+      // Update progress: text extraction complete (50%)
+      await storage.updateDocumentProcessingStatus(processingStatus.id, {
+        progress: 50,
+        metadata: {
+          ...processingStatus.metadata,
+          extractedTextLength: extractedText.length
+        }
+      });
+
       // Split text into knowledge base entries
       const knowledgeEntries = await this.splitTextIntoEntries(extractedText, originalName);
       document.knowledgeEntries = knowledgeEntries;
+
+      // Update progress: splitting complete (75%)
+      await storage.updateDocumentProcessingStatus(processingStatus.id, {
+        progress: 75
+      });
 
       // Add entries to knowledge base
       for (const entry of knowledgeEntries) {
@@ -138,12 +167,34 @@ export class DocumentProcessingService {
         });
       }
 
+      // Update status: completed (100%)
+      await storage.updateDocumentProcessingStatus(processingStatus.id, {
+        status: 'completed',
+        progress: 100,
+        processedPages: knowledgeEntries.length,
+        totalPages: knowledgeEntries.length
+      });
+
       console.log(`[DOCUMENT-PROCESSING] Processed ${knowledgeEntries.length} knowledge entries from ${originalName}`);
-      
+
       return document;
 
     } catch (error: any) {
       console.error(`[DOCUMENT-PROCESSING] Failed to process document:`, error);
+
+      // Update status to failed if we have a processing status ID
+      try {
+        const existingStatus = await storage.getDocumentProcessingStatusByOrganization(organizationId, 1);
+        if (existingStatus.length > 0) {
+          await storage.updateDocumentProcessingStatus(existingStatus[0].id, {
+            status: 'failed',
+            errorMessage: error.message
+          });
+        }
+      } catch (updateError) {
+        console.error(`[DOCUMENT-PROCESSING] Failed to update error status:`, updateError);
+      }
+
       throw new Error(`Document processing failed: ${error.message}`);
     }
   }
@@ -340,9 +391,27 @@ export class DocumentProcessingService {
    */
   static async getProcessingStatus(documentId: string): Promise<DocumentUpload | null> {
     try {
-      // TODO: Implement database storage for document processing status
-      // For now, return a mock status
-      return null;
+      const status = await storage.getDocumentProcessingStatus(documentId);
+
+      if (!status) {
+        return null;
+      }
+
+      // Convert database status to DocumentUpload format
+      const documentUpload: DocumentUpload = {
+        id: status.id,
+        filename: status.metadata?.filePath || '',
+        originalName: status.documentName,
+        mimeType: status.documentType || '',
+        size: status.metadata?.size || 0,
+        organizationId: status.organizationId,
+        uploadedBy: status.metadata?.uploadedBy || '',
+        status: status.status as 'uploading' | 'processing' | 'completed' | 'failed',
+        createdAt: status.createdAt,
+        updatedAt: status.updatedAt
+      };
+
+      return documentUpload;
     } catch (error) {
       console.error(`[DOCUMENT-PROCESSING] Failed to get status:`, error);
       return null;

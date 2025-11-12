@@ -102,17 +102,9 @@ Please provide a comprehensive answer based on the available information. If you
     try {
       console.log(`[KNOWLEDGE-BASE] Adding entry: "${entry.title}"`);
       
-      // Store in database (you'll need to add this to your schema)
-      const newEntry: KnowledgeBaseEntry = {
-        id: `kb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        ...entry,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      // Store in database
+      const newEntry = await storage.createKnowledgeEntry(organizationId, entry);
 
-      // TODO: Implement database storage
-      // await storage.createKnowledgeEntry(organizationId, newEntry);
-      
       console.log(`[KNOWLEDGE-BASE] Entry added with ID: ${newEntry.id}`);
       return newEntry;
       
@@ -132,13 +124,16 @@ Please provide a comprehensive answer based on the available information. If you
   ): Promise<KnowledgeBaseEntry> {
     try {
       console.log(`[KNOWLEDGE-BASE] Updating entry: ${entryId}`);
-      
-      // TODO: Implement database update
-      // const updatedEntry = await storage.updateKnowledgeEntry(organizationId, entryId, updates);
-      
+
+      const updatedEntry = await storage.updateKnowledgeEntry(organizationId, entryId, updates);
+
+      if (!updatedEntry) {
+        throw new Error(`Knowledge entry ${entryId} not found`);
+      }
+
       console.log(`[KNOWLEDGE-BASE] Entry updated: ${entryId}`);
       return updatedEntry;
-      
+
     } catch (error: any) {
       console.error(`[KNOWLEDGE-BASE] Failed to update entry:`, error);
       throw new Error(`Failed to update knowledge entry: ${error.message}`);
@@ -153,27 +148,25 @@ Please provide a comprehensive answer based on the available information. If you
     query: KnowledgeBaseQuery
   ): Promise<string> {
     try {
-      // TODO: Implement database query to get relevant entries
-      // const entries = await storage.getKnowledgeEntries(organizationId, {
-      //   category: query.category,
-      //   tags: query.tags,
-      //   search: query.query
-      // });
+      const entries = await storage.getKnowledgeEntries(organizationId, {
+        category: query.category,
+        tags: query.tags,
+        search: query.query,
+        limit: query.maxResults || 10
+      });
 
-      // For now, return a placeholder
-      return `
-Sample Knowledge Base Entry 1:
-Title: "Voice Agent Best Practices"
-Content: "When creating voice agents, ensure you use clear, concise prompts and test with various user scenarios."
-Category: "Best Practices"
-Tags: ["voice", "agents", "prompts"]
+      if (entries.length === 0) {
+        return "No knowledge base entries available.";
+      }
 
-Sample Knowledge Base Entry 2:
-Title: "ElevenLabs API Integration"
-Content: "The ElevenLabs API supports multiple voice models including Eleven v3, Multilingual v2, and Flash v2.5."
-Category: "Technical"
-Tags: ["api", "integration", "models"]
-      `;
+      // Format entries for the AI prompt
+      return entries.map((entry, index) => `
+Knowledge Base Entry ${index + 1}:
+Title: "${entry.title}"
+Content: "${entry.content}"
+Category: "${entry.category || 'General'}"
+Tags: ${JSON.stringify(entry.tags || [])}
+      `).join('\n');
     } catch (error) {
       console.error(`[KNOWLEDGE-BASE] Failed to get entries:`, error);
       return "No knowledge base entries available.";

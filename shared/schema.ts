@@ -455,6 +455,43 @@ export const userAgents = pgTable("user_agents", {
   agentIdIdx: index("user_agents_agent_id_idx").on(table.agentId),
 }));
 
+// Knowledge Base table for storing knowledge entries
+export const knowledgeBaseEntries = pgTable("knowledge_base_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  content: text("content").notNull(),
+  category: varchar("category", { length: 100 }),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  // Index for faster organization lookups
+  organizationIdIdx: index("knowledge_base_org_id_idx").on(table.organizationId),
+  // Index for category filtering
+  categoryIdx: index("knowledge_base_category_idx").on(table.category),
+}));
+
+// Document Processing Status table
+export const documentProcessingStatus = pgTable("document_processing_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull(),
+  documentName: varchar("document_name", { length: 500 }).notNull(),
+  documentType: varchar("document_type", { length: 100 }),
+  status: varchar("status", { length: 50 }).notNull().default("processing"), // processing, completed, failed
+  progress: integer("progress").default(0), // 0-100
+  totalPages: integer("total_pages"),
+  processedPages: integer("processed_pages").default(0),
+  errorMessage: text("error_message"),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  organizationIdIdx: index("doc_processing_org_id_idx").on(table.organizationId),
+  statusIdx: index("doc_processing_status_idx").on(table.status),
+}));
+
 // Summary metadata interface
 export interface SummaryMetadata {
   provider?: string;
@@ -905,6 +942,18 @@ export const insertAgentSchema = createInsertSchema(agents).omit({
 export const insertUserAgentSchema = createInsertSchema(userAgents).omit({
   id: true,
   assignedAt: true,
+});
+
+export const insertKnowledgeBaseEntrySchema = createInsertSchema(knowledgeBaseEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDocumentProcessingStatusSchema = createInsertSchema(documentProcessingStatus).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertCallLogSchema = createInsertSchema(callLogs).omit({
@@ -1892,3 +1941,7 @@ export type CustomerSubscription = typeof customerSubscriptions.$inferSelect;
 export type InsertCustomerSubscription = z.infer<typeof insertCustomerSubscriptionSchema>;
 export type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect;
 export type InsertCustomerPaymentMethod = z.infer<typeof insertCustomerPaymentMethodSchema>;
+export type KnowledgeBaseEntry = typeof knowledgeBaseEntries.$inferSelect;
+export type InsertKnowledgeBaseEntry = z.infer<typeof insertKnowledgeBaseEntrySchema>;
+export type DocumentProcessingStatus = typeof documentProcessingStatus.$inferSelect;
+export type InsertDocumentProcessingStatus = z.infer<typeof insertDocumentProcessingStatusSchema>;
