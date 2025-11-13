@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,19 +12,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Upload, Sparkles, Wand2 } from "lucide-react";
+import { Bot, Upload, Sparkles, Wand2, Settings2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { getProvidersByCategory, getAllProviders } from "@shared/voice-ai-providers";
 
 const importAgentSchema = z.object({
-  elevenLabsAgentId: z.string().min(1, "Voice Agent ID is required"),
+  platform: z.string().min(1, "Platform is required"),
+  externalAgentId: z.string().min(1, "Agent ID is required"),
   name: z.string().optional(),
+  // Provider selection
+  llmProvider: z.string().optional(),
+  ttsProvider: z.string().optional(),
+  sttProvider: z.string().optional(),
+  vadProvider: z.string().optional(),
+  telephonyProvider: z.string().optional(),
 });
 
 const createAgentSchema = z.object({
+  platform: z.string().min(1, "Platform is required"),
   name: z.string().min(1, "Agent name is required"),
   firstMessage: z.string().min(1, "First message is required"),
   systemPrompt: z.string().min(1, "System prompt is required"),
   language: z.string().default("en"),
   voiceId: z.string().optional(),
+  // Provider selection
+  llmProvider: z.string().optional(),
+  ttsProvider: z.string().optional(),
+  sttProvider: z.string().optional(),
+  vadProvider: z.string().optional(),
+  telephonyProvider: z.string().optional(),
 });
 
 type ImportAgentForm = z.infer<typeof importAgentSchema>;
@@ -38,28 +54,45 @@ interface AddAgentModalProps {
 export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
   const [isValidating, setIsValidating] = useState(false);
   const [validatedData, setValidatedData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("import");
+  const [activeTab, setActiveTab] = useState("create");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [promptDescription, setPromptDescription] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch configured integrations to show available providers
+  const { data: integrations = [] } = useQuery<any[]>({
+    queryKey: ["/api/integrations/all"],
+  });
+
   const importForm = useForm<ImportAgentForm>({
     resolver: zodResolver(importAgentSchema),
     defaultValues: {
-      elevenLabsAgentId: "",
+      platform: "elevenlabs",
+      externalAgentId: "",
       name: "",
+      llmProvider: "",
+      ttsProvider: "",
+      sttProvider: "",
+      vadProvider: "",
+      telephonyProvider: "",
     },
   });
 
   const createForm = useForm<CreateAgentForm>({
     resolver: zodResolver(createAgentSchema),
     defaultValues: {
+      platform: "elevenlabs",
       name: "",
       firstMessage: "Hello! How can I assist you today?",
       systemPrompt: "You are a helpful AI assistant.",
       language: "en",
       voiceId: "",
+      llmProvider: "",
+      ttsProvider: "",
+      sttProvider: "",
+      vadProvider: "",
+      telephonyProvider: "",
     },
   });
 
@@ -92,9 +125,19 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
   const importAgentMutation = useMutation({
     mutationFn: async (data: ImportAgentForm) => {
       await apiRequest("POST", "/api/agents", {
-        elevenLabsAgentId: data.elevenLabsAgentId,
+        platform: data.platform,
+        externalAgentId: data.externalAgentId,
+        // Backward compatibility for ElevenLabs
+        elevenLabsAgentId: data.platform === 'elevenlabs' ? data.externalAgentId : undefined,
         name: data.name || validatedData?.name || "Unnamed Agent",
         description: validatedData?.description,
+        providers: {
+          llm: data.llmProvider || undefined,
+          tts: data.ttsProvider || undefined,
+          stt: data.sttProvider || undefined,
+          vad: data.vadProvider || undefined,
+          telephony: data.telephonyProvider || undefined,
+        },
       });
     },
     onSuccess: () => {
@@ -116,7 +159,16 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
 
   const createAgentMutation = useMutation({
     mutationFn: async (data: CreateAgentForm) => {
-      const response = await apiRequest("POST", "/api/agents/create", data);
+      const response = await apiRequest("POST", "/api/agents/create", {
+        ...data,
+        providers: {
+          llm: data.llmProvider || undefined,
+          tts: data.ttsProvider || undefined,
+          stt: data.sttProvider || undefined,
+          vad: data.vadProvider || undefined,
+          telephony: data.telephonyProvider || undefined,
+        },
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -177,23 +229,33 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
     importForm.reset();
     createForm.reset();
     setValidatedData(null);
-    setActiveTab("import");
+    setActiveTab("create");
     setPromptDescription("");
     setIsGeneratingPrompt(false);
     onOpenChange(false);
   };
 
   const onValidate = () => {
-    const elevenLabsAgentId = importForm.getValues("elevenLabsAgentId");
-    if (!elevenLabsAgentId) {
+    const platform = importForm.getValues("platform");
+    const externalAgentId = importForm.getValues("externalAgentId");
+    if (!externalAgentId) {
       toast({
         title: "Error",
-        description: "Please enter a Voice Agent ID",
+        description: "Please enter an Agent ID",
         variant: "destructive",
       });
       return;
     }
-    validateAgentMutation.mutate({ elevenLabsAgentId });
+    // Only validate for ElevenLabs (other platforms would need their own validation)
+    if (platform === 'elevenlabs') {
+      validateAgentMutation.mutate({ elevenLabsAgentId: externalAgentId });
+    } else {
+      toast({
+        title: "Validation Skipped",
+        description: `Validation is only available for ElevenLabs. Proceeding with ${platform} agent import.`,
+      });
+      setValidatedData({ name: importForm.getValues("name") || "Imported Agent" });
+    }
   };
 
   const onImportSubmit = (data: ImportAgentForm) => {
@@ -236,15 +298,46 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
               <form onSubmit={importForm.handleSubmit(onImportSubmit)} className="space-y-4">
                 <FormField
                   control={importForm.control}
-                  name="elevenLabsAgentId"
+                  name="platform"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Voice Agent ID</FormLabel>
+                      <FormLabel>Platform</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select platform" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                          <SelectItem value="livekit">LiveKit</SelectItem>
+                          <SelectItem value="vapi">Vapi</SelectItem>
+                          <SelectItem value="retell">Retell AI</SelectItem>
+                          <SelectItem value="bland">Bland AI</SelectItem>
+                          <SelectItem value="vocode">Vocode</SelectItem>
+                          <SelectItem value="deepgram">Deepgram</SelectItem>
+                          <SelectItem value="custom">Custom Platform</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Choose which platform hosts this agent
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={importForm.control}
+                  name="externalAgentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Agent ID</FormLabel>
                       <FormControl>
                         <div className="flex space-x-2">
                           <Input
                             {...field}
-                            placeholder="Enter Voice Agent ID"
+                            placeholder="Enter Agent ID from platform"
                             disabled={isValidating || importAgentMutation.isPending}
                             data-testid="input-agent-id"
                           />
@@ -260,7 +353,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        You can find this in your voice service dashboard
+                        You can find this in your {importForm.watch('platform') || 'platform'} dashboard
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -301,7 +394,53 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                     </FormItem>
                   )}
                 />
-            
+
+                {/* Provider Configuration Section */}
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Settings2 className="w-4 h-4" />
+                    <h4 className="font-medium text-sm">Provider Configuration (Optional)</h4>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Select specific providers for each service. Leave blank to use platform defaults.
+                  </p>
+
+                  {['llmProvider', 'ttsProvider', 'sttProvider', 'vadProvider', 'telephonyProvider'].map((providerField) => {
+                    const category = providerField.replace('Provider', '');
+                    const providers = getProvidersByCategory(category as any);
+                    const label = category === 'llm' ? 'LLM' : category === 'tts' ? 'TTS' : category === 'stt' ? 'STT' : category === 'vad' ? 'VAD' : 'Telephony';
+
+                    return (
+                      <FormField
+                        key={providerField}
+                        control={importForm.control}
+                        name={providerField as any}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">{label} Provider</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder={`Select ${label} provider`} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Platform Default</SelectItem>
+                                {providers.map((provider) => (
+                                  <SelectItem key={provider.id} value={provider.id}>
+                                    {provider.displayName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+
                 <div className="flex space-x-3 pt-4">
                   <Button
                     type="submit"
@@ -445,6 +584,37 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                 
                 <FormField
                   control={createForm.control}
+                  name="platform"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Platform</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select platform" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                          <SelectItem value="livekit">LiveKit</SelectItem>
+                          <SelectItem value="vapi">Vapi</SelectItem>
+                          <SelectItem value="retell">Retell AI</SelectItem>
+                          <SelectItem value="bland">Bland AI</SelectItem>
+                          <SelectItem value="vocode">Vocode</SelectItem>
+                          <SelectItem value="deepgram">Deepgram</SelectItem>
+                          <SelectItem value="custom">Custom Platform</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Choose which platform will host this agent
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createForm.control}
                   name="language"
                   render={({ field }) => (
                     <FormItem>
@@ -476,7 +646,53 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                     </FormItem>
                   )}
                 />
-                
+
+                {/* Provider Configuration Section */}
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Settings2 className="w-4 h-4" />
+                    <h4 className="font-medium text-sm">Provider Configuration (Optional)</h4>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Select specific providers for each service. Leave blank to use platform defaults.
+                  </p>
+
+                  {['llmProvider', 'ttsProvider', 'sttProvider', 'vadProvider', 'telephonyProvider'].map((providerField) => {
+                    const category = providerField.replace('Provider', '');
+                    const providers = getProvidersByCategory(category as any);
+                    const label = category === 'llm' ? 'LLM' : category === 'tts' ? 'TTS' : category === 'stt' ? 'STT' : category === 'vad' ? 'VAD' : 'Telephony';
+
+                    return (
+                      <FormField
+                        key={providerField}
+                        control={createForm.control}
+                        name={providerField as any}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">{label} Provider</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder={`Select ${label} provider`} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Platform Default</SelectItem>
+                                {providers.map((provider) => (
+                                  <SelectItem key={provider.id} value={provider.id}>
+                                    {provider.displayName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+
                 <div className="flex space-x-3 pt-4">
                   <Button
                     type="submit"
