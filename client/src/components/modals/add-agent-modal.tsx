@@ -283,17 +283,19 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="import" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Import Existing
+            <TabsTrigger value="import" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Import Existing</span>
+              <span className="sm:hidden">Import</span>
             </TabsTrigger>
-            <TabsTrigger value="create" className="flex items-center gap-2">
-              <Bot className="w-4 h-4" />
-              Create New
+            <TabsTrigger value="create" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Create New</span>
+              <span className="sm:hidden">Create</span>
             </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="import" className="space-y-4 overflow-y-auto max-h-[calc(85vh-200px)] px-1 pb-4">
+
+          <TabsContent value="import" className="space-y-3 sm:space-y-4 overflow-y-auto max-h-[calc(85vh-200px)] px-1 pb-4">
             <Form {...importForm}>
               <form onSubmit={importForm.handleSubmit(onImportSubmit)} className="space-y-4">
                 <FormField
@@ -441,10 +443,10 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                   })}
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button
                     type="submit"
-                    className="flex-1"
+                    className="flex-1 w-full"
                     disabled={isValidating || importAgentMutation.isPending || !validatedData}
                     data-testid="button-import-agent"
                   >
@@ -453,7 +455,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 w-full"
                     onClick={handleClose}
                     disabled={isValidating || importAgentMutation.isPending}
                     data-testid="button-cancel"
@@ -465,7 +467,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
             </Form>
           </TabsContent>
           
-          <TabsContent value="create" className="space-y-4 overflow-y-auto max-h-[calc(85vh-200px)] px-1 pb-4">
+          <TabsContent value="create" className="space-y-3 sm:space-y-4 overflow-y-auto max-h-[calc(85vh-200px)] px-1 pb-4">
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
                 <FormField
@@ -693,10 +695,10 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                   })}
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button
                     type="submit"
-                    className="flex-1"
+                    className="flex-1 w-full"
                     disabled={createAgentMutation.isPending}
                     data-testid="button-create-agent"
                   >
@@ -705,7 +707,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 w-full"
                     onClick={handleClose}
                     disabled={createAgentMutation.isPending}
                     data-testid="button-cancel-create"

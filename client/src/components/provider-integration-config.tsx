@@ -241,99 +241,107 @@ export default function ProviderIntegrationConfig() {
     return (
       <Card
         key={provider.id}
-        className="p-4 hover:shadow-lg transition-all duration-200 border-2"
+        className="p-3 sm:p-4 hover:shadow-lg transition-all duration-200 border-2"
       >
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-lg">{provider.displayName}</h3>
-              {isConfigured && (
-                <Badge
-                  variant={status === "ACTIVE" ? "default" : "destructive"}
-                  className="text-xs"
-                >
-                  {status === "ACTIVE" ? (
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                  ) : (
-                    <XCircle className="w-3 h-3 mr-1" />
-                  )}
-                  {status}
-                </Badge>
-              )}
-              <Badge variant="outline" className="text-xs">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
+                <h3 className="font-semibold text-base sm:text-lg truncate">{provider.displayName}</h3>
+                {isConfigured && (
+                  <Badge
+                    variant={status === "ACTIVE" ? "default" : "destructive"}
+                    className="text-xs flex-shrink-0"
+                  >
+                    {status === "ACTIVE" ? (
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                    ) : (
+                      <XCircle className="w-3 h-3 mr-1" />
+                    )}
+                    {status}
+                  </Badge>
+                )}
+              </div>
+              <Badge variant="outline" className="text-xs mb-2 inline-block">
                 {provider.tier}
               </Badge>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
+                {provider.description}
+              </p>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {provider.subcategories.map((cat) => (
+                  <Badge key={cat} variant="secondary" className="text-xs">
+                    {cat.toUpperCase()}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <strong>Pricing:</strong> {provider.pricing.details}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground mb-2">
-              {provider.description}
-            </p>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {provider.subcategories.map((cat) => (
-                <Badge key={cat} variant="secondary" className="text-xs">
-                  {cat.toUpperCase()}
-                </Badge>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <strong>Pricing:</strong> {provider.pricing.details}
-            </p>
           </div>
-        </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant={isConfigured ? "outline" : "default"}
-            size="sm"
-            onClick={() => handleConfigureProvider(provider)}
-            className="flex-1"
-          >
-            {isConfigured ? (
-              <>
-                <Settings className="w-4 h-4 mr-1" />
-                Reconfigure
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </>
-            )}
-          </Button>
-
-          {isConfigured && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => testMutation.mutate(provider.id)}
-                disabled={testMutation.isPending}
-              >
-                {testMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Test"
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteProvider(provider.id)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-
-          {provider.docsUrl && (
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button
-              variant="ghost"
+              variant={isConfigured ? "outline" : "default"}
               size="sm"
-              onClick={() => window.open(provider.docsUrl, "_blank")}
+              onClick={() => handleConfigureProvider(provider)}
+              className="flex-1 w-full sm:w-auto"
             >
-              <ExternalLink className="w-4 h-4" />
+              {isConfigured ? (
+                <>
+                  <Settings className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Reconfigure</span>
+                  <span className="sm:hidden">Edit</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </>
+              )}
             </Button>
-          )}
+
+            {isConfigured && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => testMutation.mutate(provider.id)}
+                  disabled={testMutation.isPending}
+                  className="flex-1 sm:flex-initial"
+                >
+                  {testMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">Test</span>
+                      <span className="sm:hidden">Test</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteProvider(provider.id)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {provider.docsUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(provider.docsUrl, "_blank")}
+                className="sm:w-auto"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
     );
@@ -343,8 +351,8 @@ export default function ProviderIntegrationConfig() {
     const providers = getProvidersByCategory(category);
 
     return (
-      <TabsContent value={category} className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <TabsContent value={category} className="space-y-4 mt-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((provider) => renderProviderCard(provider))}
         </div>
       </TabsContent>
@@ -369,11 +377,11 @@ export default function ProviderIntegrationConfig() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-8 w-64 bg-muted rounded animate-pulse" />
-        <div className="h-4 w-96 bg-muted rounded animate-pulse" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+        <div className="h-8 w-full sm:w-64 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-full sm:w-96 bg-muted rounded animate-pulse" />
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="p-4">
+            <Card key={i} className="p-3 sm:p-4">
               <div className="space-y-3">
                 <div className="h-6 w-32 bg-muted rounded animate-pulse" />
                 <div className="h-4 w-full bg-muted rounded animate-pulse" />
@@ -398,13 +406,13 @@ export default function ProviderIntegrationConfig() {
         </div>
 
         <Tabs defaultValue="all-in-one" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="all-in-one">All-in-One</TabsTrigger>
-            <TabsTrigger value="llm">LLM</TabsTrigger>
-            <TabsTrigger value="tts">TTS</TabsTrigger>
-            <TabsTrigger value="stt">STT</TabsTrigger>
-            <TabsTrigger value="vad">VAD</TabsTrigger>
-            <TabsTrigger value="telephony">Phone</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1">
+            <TabsTrigger value="all-in-one" className="text-xs sm:text-sm">All-in-One</TabsTrigger>
+            <TabsTrigger value="llm" className="text-xs sm:text-sm">LLM</TabsTrigger>
+            <TabsTrigger value="tts" className="text-xs sm:text-sm">TTS</TabsTrigger>
+            <TabsTrigger value="stt" className="text-xs sm:text-sm">STT</TabsTrigger>
+            <TabsTrigger value="vad" className="text-xs sm:text-sm">VAD</TabsTrigger>
+            <TabsTrigger value="telephony" className="text-xs sm:text-sm">Phone</TabsTrigger>
           </TabsList>
 
           {renderCategoryTab("all-in-one", "All-in-One Platforms")}
@@ -418,7 +426,7 @@ export default function ProviderIntegrationConfig() {
 
       {/* Configuration Dialog */}
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Configure {selectedProvider?.displayName}
