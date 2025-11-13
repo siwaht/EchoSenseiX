@@ -8,11 +8,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Copy, ExternalLink, HelpCircle, ArrowRight } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Copy, ExternalLink, HelpCircle, ArrowRight, CreditCard, Mic } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import PaymentProviderConfig from "@/components/payment-provider-config";
+import { useAuth } from "@/hooks/useAuth";
 
 // Helper function to sanitize API key by removing non-ASCII characters
 const sanitizeApiKey = (apiKey: string): string => {
@@ -40,6 +43,7 @@ export default function Integrations() {
   const [showApiKey, setShowApiKey] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: integration, isLoading } = useQuery({
     queryKey: ["/api/integrations"],
@@ -165,15 +169,30 @@ export default function Integrations() {
 
   return (
     <TooltipProvider>
-    <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
-      <div className="text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2" data-testid="text-page-title">
-          API Configuration
+    <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent" data-testid="text-page-title">
+          Integrations
         </h2>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400" data-testid="text-page-description">
-          Connect your voice AI service to manage voice agents
+        <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-page-description">
+          Connect your voice AI service and configure payment providers
         </p>
       </div>
+
+      <Tabs defaultValue="voice-ai" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+          <TabsTrigger value="voice-ai" className="flex items-center gap-2">
+            <Mic className="w-4 h-4" />
+            <span>Voice AI</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            <span>Payment Providers</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="voice-ai" className="mt-6 space-y-6">
+          <div className="max-w-2xl mx-auto space-y-6">{/* Voice AI Configuration Section */}
       
       {/* Pending Approval Alert */}
       {(integration as any)?.status === "PENDING_APPROVAL" && (
@@ -450,6 +469,24 @@ export default function Integrations() {
           </div>
         </div>
       </Card>
+          </div>
+        </TabsContent>
+
+        {/* Payment Providers Tab */}
+        <TabsContent value="payments" className="mt-6">
+          {user?.role === 'agency' ? (
+            <PaymentProviderConfig organizationId={user.organizationId} />
+          ) : (
+            <Card className="p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Agency Access Required</h3>
+              <p className="text-muted-foreground">
+                Payment provider configuration is only available for agency accounts.
+              </p>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
     </TooltipProvider>
   );
