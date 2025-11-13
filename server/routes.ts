@@ -4590,6 +4590,32 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Delete document
+  app.delete("/api/documents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const documentId = req.params.id;
+
+      console.log(`[DOCUMENT-DELETE] User ${user.id} attempting to delete document ${documentId}`);
+
+      await DocumentProcessingService.deleteDocument(user.organizationId, documentId);
+
+      res.json({
+        success: true,
+        message: "Document deleted successfully",
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[DOCUMENT-DELETE] Delete error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Multilingual API endpoints
   app.get("/api/multilingual/languages", isAuthenticated, async (req: any, res) => {
     try {

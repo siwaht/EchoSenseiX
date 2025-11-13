@@ -417,6 +417,67 @@ export class DocumentProcessingService {
       return null;
     }
   }
+
+  /**
+   * Delete a document and its associated knowledge base entries
+   */
+  static async deleteDocument(
+    organizationId: string,
+    documentId: string
+  ): Promise<void> {
+    try {
+      console.log(`[DOCUMENT-PROCESSING] Deleting document: ${documentId}`);
+
+      // Get document processing status to find file path and original name
+      const status = await storage.getDocumentProcessingStatus(documentId);
+
+      if (!status) {
+        throw new Error('Document not found');
+      }
+
+      // Verify organization access
+      if (status.organizationId !== organizationId) {
+        throw new Error('Access denied');
+      }
+
+      const filePath = status.metadata?.filePath;
+      const originalName = status.documentName;
+
+      // Delete the physical file if it exists
+      if (filePath && fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`[DOCUMENT-PROCESSING] Deleted file: ${filePath}`);
+        } catch (error) {
+          console.error(`[DOCUMENT-PROCESSING] Failed to delete file:`, error);
+          // Continue with database cleanup even if file deletion fails
+        }
+      }
+
+      // Delete associated knowledge base entries
+      // Find entries by the document tag (filename without extension)
+      const documentTag = originalName.replace(/\.[^/.]+$/, "");
+      const knowledgeEntries = await storage.getKnowledgeBaseEntries(organizationId);
+
+      for (const entry of knowledgeEntries) {
+        if (entry.tags?.includes(documentTag) || entry.tags?.includes('document-upload')) {
+          // Check if this entry is specifically from this document
+          if (entry.category === 'Uploaded Documents' && entry.tags?.includes(documentTag)) {
+            await storage.deleteKnowledgeEntry(organizationId, entry.id);
+            console.log(`[DOCUMENT-PROCESSING] Deleted knowledge entry: ${entry.id}`);
+          }
+        }
+      }
+
+      // Delete document processing status record
+      await storage.deleteDocumentProcessingStatus(documentId);
+      console.log(`[DOCUMENT-PROCESSING] Deleted document processing status: ${documentId}`);
+
+    } catch (error: any) {
+      console.error(`[DOCUMENT-PROCESSING] Failed to delete document:`, error);
+      throw new Error(`Document deletion failed: ${error.message}`);
+    }
+  }
 }
 
 export default DocumentProcessingService;
