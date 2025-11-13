@@ -64,8 +64,10 @@ export default function ProviderIntegrationConfig() {
   const [deleteProvider, setDeleteProvider] = useState<string | null>(null);
 
   // Fetch existing integrations
-  const { data: integrations = [], refetch } = useQuery<ProviderIntegration[]>({
+  const { data: integrations = [], refetch, isLoading, isError, error } = useQuery<ProviderIntegration[]>({
     queryKey: ["/api/integrations/all"],
+    retry: 1,
+    staleTime: 30000,
   });
 
   // Save provider mutation
@@ -348,6 +350,41 @@ export default function ProviderIntegrationConfig() {
       </TabsContent>
     );
   };
+
+  // Error state
+  if (isError) {
+    return (
+      <Card className="p-8 text-center">
+        <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Failed to Load Integrations</h3>
+        <p className="text-muted-foreground mb-4">
+          {error instanceof Error ? error.message : "An error occurred while loading your integrations."}
+        </p>
+        <Button onClick={() => refetch()}>Try Again</Button>
+      </Card>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-64 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-96 bg-muted rounded animate-pulse" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="p-4">
+              <div className="space-y-3">
+                <div className="h-6 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-4 w-full bg-muted rounded animate-pulse" />
+                <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
