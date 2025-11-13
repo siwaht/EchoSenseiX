@@ -558,26 +558,122 @@ export const agencySubscriptionStatusEnum = pgEnum("agency_subscription_status",
 export const agencyPaymentConfig = pgTable("agency_payment_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull().unique(), // Agency organization ID
-  
+
   // Stripe configuration
   stripeSecretKey: text("stripe_secret_key"), // Encrypted
   stripePublishableKey: varchar("stripe_publishable_key"),
   stripeWebhookSecret: text("stripe_webhook_secret"), // Encrypted
-  
+
   // PayPal configuration
   paypalClientId: varchar("paypal_client_id"),
   paypalClientSecret: text("paypal_client_secret"), // Encrypted
   paypalWebhookId: varchar("paypal_webhook_id"),
-  
+
+  // Additional provider configurations (stored as encrypted JSON)
+  additionalProviders: jsonb("additional_providers").$type<{
+    // Square
+    square?: {
+      accessToken?: string;      // Encrypted
+      applicationId?: string;
+      locationId?: string;
+      webhookSignatureKey?: string; // Encrypted
+    };
+
+    // Razorpay
+    razorpay?: {
+      keyId?: string;
+      keySecret?: string;        // Encrypted
+      webhookSecret?: string;    // Encrypted
+    };
+
+    // Authorize.Net
+    authorize_net?: {
+      apiLoginId?: string;
+      transactionKey?: string;   // Encrypted
+      signatureKey?: string;     // Encrypted
+    };
+
+    // Braintree
+    braintree?: {
+      merchantId?: string;
+      publicKey?: string;
+      privateKey?: string;       // Encrypted
+    };
+
+    // Adyen
+    adyen?: {
+      apiKey?: string;           // Encrypted
+      merchantAccount?: string;
+      clientKey?: string;
+      hmacKey?: string;          // Encrypted
+    };
+
+    // Paytm
+    paytm?: {
+      merchantId?: string;
+      merchantKey?: string;      // Encrypted
+      websiteName?: string;
+    };
+
+    // Flutterwave
+    flutterwave?: {
+      publicKey?: string;
+      secretKey?: string;        // Encrypted
+      encryptionKey?: string;    // Encrypted
+    };
+
+    // Mercado Pago
+    mercado_pago?: {
+      accessToken?: string;      // Encrypted
+      publicKey?: string;
+    };
+
+    // Klarna
+    klarna?: {
+      username?: string;
+      password?: string;         // Encrypted
+      region?: "eu" | "us" | "oc";
+    };
+
+    // Afterpay
+    afterpay?: {
+      merchantId?: string;
+      secretKey?: string;        // Encrypted
+      region?: "us" | "uk" | "au" | "nz" | "ca";
+    };
+
+    // Affirm
+    affirm?: {
+      publicApiKey?: string;
+      privateApiKey?: string;    // Encrypted
+    };
+
+    // Coinbase Commerce
+    coinbase_commerce?: {
+      apiKey?: string;           // Encrypted
+      webhookSecret?: string;    // Encrypted
+    };
+
+    // BitPay
+    bitpay?: {
+      apiToken?: string;         // Encrypted
+      notificationEmail?: string;
+    };
+
+    // Additional providers can be added dynamically
+    [key: string]: any;
+  }>(),
+
   // General settings
-  defaultGateway: varchar("default_gateway"), // 'stripe' or 'paypal'
+  defaultGateway: paymentProviderEnum("default_gateway").default("stripe"),
+  enabledProviders: jsonb("enabled_providers").$type<string[]>().default(sql`'["stripe"]'`),
   currency: varchar("currency").default('usd'),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('0'),
-  
+
   // Status
   isConfigured: boolean("is_configured").default(false),
   lastVerifiedAt: timestamp("last_verified_at"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -697,6 +793,41 @@ export const agencyTransactions = pgTable("agency_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Payment provider enum - all supported payment providers
+export const paymentProviderEnum = pgEnum("payment_provider", [
+  // Traditional Payment Gateways
+  "stripe",
+  "paypal",
+  "square",
+  "authorize_net",
+  "braintree",
+  "adyen",
+
+  // Regional Payment Providers
+  "razorpay",        // India
+  "paytm",           // India
+  "flutterwave",     // Africa
+  "mercado_pago",    // Latin America
+
+  // Digital Wallets
+  "apple_pay",
+  "google_pay",
+  "amazon_pay",
+  "venmo",
+  "cash_app",
+
+  // Buy Now Pay Later (BNPL)
+  "klarna",
+  "afterpay",
+  "affirm",
+  "sezzle",
+
+  // Cryptocurrency
+  "coinbase_commerce",
+  "bitpay",
+  "crypto_com_pay",
+]);
+
 // Payment processor status enum
 export const paymentProcessorStatusEnum = pgEnum("payment_processor_status", ["pending_validation", "active", "invalid", "disabled"]);
 
@@ -704,27 +835,50 @@ export const paymentProcessorStatusEnum = pgEnum("payment_processor_status", ["p
 export const agencyPaymentProcessors = pgTable("agency_payment_processors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(), // Agency organization ID
-  provider: varchar("provider").notNull(), // 'stripe' or 'paypal'
-  
+  provider: paymentProviderEnum("provider").notNull(), // Payment provider type
+
   // Encrypted credentials (AES-256-GCM)
   encryptedCredentials: text("encrypted_credentials").notNull(), // JSON with encrypted keys
-  
+
   // Validation status
   status: paymentProcessorStatusEnum("status").notNull().default("pending_validation"),
   lastValidatedAt: timestamp("last_validated_at"),
   validationError: text("validation_error"),
-  
+
   // Configuration
   isDefault: boolean("is_default").default(false),
   webhookEndpoint: varchar("webhook_endpoint"), // Agency-specific webhook URL
-  
-  // Metadata
+
+  // Metadata - provider-specific public configuration
   metadata: jsonb("metadata").$type<{
-    publicKey?: string; // Stripe publishable key (safe to expose)
-    webhookId?: string; // PayPal webhook ID
-    mode?: "sandbox" | "production";
+    // Common fields
+    publicKey?: string;
+    mode?: "sandbox" | "production" | "test" | "live";
+
+    // Stripe
+    stripePublishableKey?: string;
+
+    // PayPal
+    paypalClientId?: string;
+    webhookId?: string;
+
+    // Square
+    squareApplicationId?: string;
+    squareLocationId?: string;
+
+    // Razorpay
+    razorpayKeyId?: string;
+
+    // Flutterwave
+    flutterwavePublicKey?: string;
+
+    // Coinbase Commerce
+    coinbaseCommerceCheckoutId?: string;
+
+    // Additional provider-specific settings
+    [key: string]: any;
   }>(),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -1515,7 +1669,56 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
     supportLevel?: string;
   }>().notNull(),
   
-  // Stripe/PayPal integration
+  // Payment provider integration - plan/product IDs from various providers
+  providerPlanIds: jsonb("provider_plan_ids").$type<{
+    stripe?: {
+      productId?: string;
+      priceId?: string;
+    };
+    paypal?: {
+      planId?: string;
+      productId?: string;
+    };
+    square?: {
+      catalogObjectId?: string;
+      variationId?: string;
+    };
+    razorpay?: {
+      planId?: string;
+      subscriptionId?: string;
+    };
+    braintree?: {
+      planId?: string;
+    };
+    authorize_net?: {
+      subscriptionId?: string;
+    };
+    adyen?: {
+      recurringDetailReference?: string;
+    };
+    paytm?: {
+      subscriptionId?: string;
+    };
+    flutterwave?: {
+      planId?: string;
+    };
+    mercado_pago?: {
+      preapprovalPlanId?: string;
+    };
+    klarna?: {
+      sessionId?: string;
+    };
+    afterpay?: {
+      checkoutId?: string;
+    };
+    affirm?: {
+      checkoutId?: string;
+    };
+    // Additional provider plan IDs
+    [key: string]: any;
+  }>(),
+
+  // Legacy fields (deprecated, use providerPlanIds instead)
   stripeProductId: varchar("stripe_product_id"),
   stripePriceId: varchar("stripe_price_id"),
   paypalPlanId: varchar("paypal_plan_id"),
@@ -1586,7 +1789,28 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
   canceledAt: timestamp("canceled_at"),
   pausedAt: timestamp("paused_at"),
   
-  // Payment method
+  // Payment provider subscription IDs
+  providerSubscriptionIds: jsonb("provider_subscription_ids").$type<{
+    stripe?: string;
+    paypal?: string;
+    square?: string;
+    razorpay?: string;
+    braintree?: string;
+    authorize_net?: string;
+    adyen?: string;
+    paytm?: string;
+    flutterwave?: string;
+    mercado_pago?: string;
+    klarna?: string;
+    afterpay?: string;
+    affirm?: string;
+    [key: string]: string | undefined;
+  }>(),
+
+  // Active payment provider for this subscription
+  activeProvider: paymentProviderEnum("active_provider").default("stripe"),
+
+  // Legacy fields (deprecated, use providerSubscriptionIds instead)
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   paypalSubscriptionId: varchar("paypal_subscription_id"),
   
