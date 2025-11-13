@@ -112,33 +112,34 @@ export default function Landing() {
   };
 
   return (
-    <main className="min-h-screen bg-background flex flex-col" role="main">
+    <main className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col" role="main">
       {/* Navigation */}
-      <header className="bg-card/80 backdrop-blur-sm border-b border-border" role="banner">
+      <header className="bg-card/90 backdrop-blur-md border-b border-border/50 shadow-sm" role="banner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               {whitelabelConfig?.logoUrl ? (
-                <img 
-                  src={whitelabelConfig.logoUrl} 
-                  alt="Logo" 
-                  className="w-8 h-8 object-contain rounded" 
+                <img
+                  src={whitelabelConfig.logoUrl}
+                  alt="Logo"
+                  className="w-9 h-9 object-contain rounded-lg shadow-sm"
                 />
               ) : (
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Mic className="w-4 h-4 text-primary-foreground" />
+                <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                  <Mic className="w-5 h-5 text-primary-foreground" />
                 </div>
               )}
-              <span className="text-xl font-bold text-card-foreground">
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 {whitelabelConfig?.appName || "EchoSensei"}
               </span>
             </div>
             <div className="flex items-center">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 data-testid="button-theme-toggle"
+                className="hover:bg-primary/10 transition-colors"
               >
                 {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
@@ -149,24 +150,24 @@ export default function Landing() {
 
       {/* Login Section */}
       <section className="flex-1 overflow-y-auto p-4" aria-labelledby="login-heading">
-        <div className="w-full max-w-md mx-auto mt-8">
-          <Card className="p-6 sm:p-8 bg-card/95 backdrop-blur-sm border-border shadow-2xl">
-            <div className="text-center mb-6">
+        <div className="w-full max-w-md mx-auto mt-12">
+          <Card className="p-6 sm:p-8 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+            <div className="text-center mb-8">
               {whitelabelConfig?.logoUrl ? (
-                <img 
-                  src={whitelabelConfig.logoUrl} 
-                  alt="Logo" 
-                  className="w-14 h-14 object-contain rounded-2xl mx-auto mb-3" 
+                <img
+                  src={whitelabelConfig.logoUrl}
+                  alt="Logo"
+                  className="w-16 h-16 object-contain rounded-2xl mx-auto mb-4 shadow-lg"
                 />
               ) : (
-                <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Mic className="w-7 h-7 text-primary-foreground" />
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <Mic className="w-8 h-8 text-primary-foreground" />
                 </div>
               )}
-              <h1 id="login-heading" className="text-2xl font-bold text-card-foreground mb-1">Welcome Back</h1>
+              <h1 id="login-heading" className="text-3xl font-bold text-card-foreground mb-2">Welcome Back</h1>
               <p className="text-sm text-muted-foreground">
-                {whitelabelConfig?.companyName 
-                  ? `Sign in to access ${whitelabelConfig.companyName}` 
+                {whitelabelConfig?.companyName
+                  ? `Sign in to access ${whitelabelConfig.companyName}`
                   : "Sign in to access your EchoSensei"}
               </p>
             </div>
@@ -177,16 +178,16 @@ export default function Landing() {
               aria-label="Login form"
             >
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label htmlFor="email" className="text-sm font-medium text-card-foreground">
                   Email
                 </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="Enter your email"
-                    className="pl-10 h-11"
+                    className="pl-10 h-12 border-border/50 focus:border-primary/50 transition-all"
                     data-testid="input-email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -196,16 +197,16 @@ export default function Landing() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">
+                <Label htmlFor="password" className="text-sm font-medium text-card-foreground">
                   Password
                 </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="Enter your password"
-                    className="pl-10 h-11"
+                    className="pl-10 h-12 border-border/50 focus:border-primary/50 transition-all"
                     data-testid="input-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -214,15 +215,18 @@ export default function Landing() {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 type="submit"
-                className="w-full h-11 mt-6 bg-primary text-primary-foreground hover:bg-primary/90" 
-                size="lg" 
+                className="w-full h-12 mt-8 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                size="lg"
                 data-testid="button-login"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? (
-                  "Signing in..."
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Signing in...</span>
+                  </div>
                 ) : (
                   <>
                     <LogIn className="w-5 h-5 mr-2" />
@@ -234,14 +238,14 @@ export default function Landing() {
           </Card>
 
           {/* Info Section */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             {!whitelabelConfig?.removePlatformBranding && (
               <>
-                <h3 className="text-lg font-semibold text-card-foreground mb-4">
+                <h3 className="text-lg font-semibold text-card-foreground mb-3">
                   What is {whitelabelConfig?.appName || "EchoSensei"}?
                 </h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto" data-testid="text-info-description">
-                  A comprehensive monitoring platform for voice AI agents with enterprise-grade security, 
+                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed" data-testid="text-info-description">
+                  A comprehensive monitoring platform for voice AI agents with enterprise-grade security,
                   real-time analytics, and multi-tenant support.
                 </p>
               </>
@@ -249,23 +253,26 @@ export default function Landing() {
 
             {/* Feature Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-              <div className="text-center">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <Shield className="w-5 h-5 text-primary" />
+              <div className="text-center group">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+                  <Shield className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Secure BYOK</p>
+                <p className="text-sm font-medium text-card-foreground">Secure BYOK</p>
+                <p className="text-xs text-muted-foreground mt-1">Bring your own keys</p>
               </div>
-              <div className="text-center">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
+              <div className="text-center group">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+                  <TrendingUp className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Real-time Analytics</p>
+                <p className="text-sm font-medium text-card-foreground">Real-time Analytics</p>
+                <p className="text-xs text-muted-foreground mt-1">Live insights & metrics</p>
               </div>
-              <div className="text-center">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <Users className="w-5 h-5 text-primary" />
+              <div className="text-center group">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+                  <Users className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Multi-tenant</p>
+                <p className="text-sm font-medium text-card-foreground">Multi-tenant</p>
+                <p className="text-xs text-muted-foreground mt-1">Agencies & organizations</p>
               </div>
             </div>
           </div>
