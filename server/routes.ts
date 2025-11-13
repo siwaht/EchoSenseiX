@@ -2969,6 +2969,64 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get all provider integrations for the organization
+  app.get("/api/integrations/all", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get all integrations for this organization
+      const allIntegrations = await storage.getAllIntegrations();
+      const orgIntegrations = allIntegrations.filter(i => i.organizationId === user.organizationId);
+
+      // Never return actual credentials, mask them
+      const safeIntegrations = orgIntegrations.map(integration => ({
+        id: integration.id,
+        provider: integration.provider,
+        providerCategory: integration.providerCategory,
+        status: integration.status,
+        lastTested: integration.lastTested,
+        createdAt: integration.createdAt,
+        updatedAt: integration.updatedAt,
+        apiKeyLast4: integration.apiKeyLast4,
+        // Return masked credentials (show that they exist but not the values)
+        credentials: integration.credentials
+          ? Object.keys(integration.credentials).reduce((acc, key) => ({
+              ...acc,
+              [key]: '***'
+            }), {})
+          : {},
+      }));
+
+      res.json(safeIntegrations);
+    } catch (error) {
+      console.error("Error fetching all integrations:", error);
+      res.status(500).json({ message: "Failed to fetch integrations" });
+    }
+  });
+
+  // Delete a provider integration
+  app.delete("/api/integrations/:provider", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const provider = req.params.provider;
+      await storage.deleteIntegration(user.organizationId, provider);
+
+      res.json({ message: "Integration deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting integration:", error);
+      res.status(500).json({ message: "Failed to delete integration" });
+    }
+  });
+
   // Agent routes
   app.post("/api/agents/validate", isAuthenticated, checkPermission('manage_agents'), async (req: any, res) => {
     try {

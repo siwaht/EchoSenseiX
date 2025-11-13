@@ -122,7 +122,7 @@ export const organizations = pgTable("organizations", {
 export const integrationStatusEnum = pgEnum("integration_status", ["ACTIVE", "INACTIVE", "ERROR", "PENDING_APPROVAL"]);
 
 // Provider category enum for multi-provider support
-export const providerCategoryEnum = pgEnum("provider_category", ["llm", "tts", "stt", "telephony", "all-in-one"]);
+export const providerCategoryEnum = pgEnum("provider_category", ["llm", "tts", "stt", "telephony", "vad", "all-in-one"]);
 
 // Phone number provider enum
 export const phoneProviderEnum = pgEnum("phone_provider", ["twilio", "sip_trunk"]);
@@ -445,6 +445,7 @@ export const agents = pgTable("agents", {
     llm?: string;
     tts?: string;
     stt?: string;
+    vad?: string;
     telephony?: string;
   }>(),
   isActive: boolean("is_active").notNull().default(true),

@@ -3,7 +3,7 @@
  * Comprehensive definitions for all supported AI providers
  */
 
-export type ProviderCategory = 'llm' | 'tts' | 'stt' | 'telephony' | 'all-in-one';
+export type ProviderCategory = 'llm' | 'tts' | 'stt' | 'telephony' | 'vad' | 'all-in-one';
 
 export interface ProviderCapability {
   streaming?: boolean;
@@ -28,7 +28,7 @@ export interface VoiceAIProviderMetadata {
   name: string;
   displayName: string;
   category: ProviderCategory;
-  subcategories: Array<'llm' | 'tts' | 'stt' | 'telephony'>;
+  subcategories: Array<'llm' | 'tts' | 'stt' | 'telephony' | 'vad'>;
   description: string;
   capabilities: ProviderCapability;
   supportedLanguages?: string[];
@@ -200,6 +200,186 @@ export const LLM_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
     status: 'production',
     tier: 'professional',
     docsUrl: 'https://ai.google.dev/docs',
+  },
+  'groq': {
+    id: 'groq',
+    name: 'groq',
+    displayName: 'Groq',
+    category: 'llm',
+    subcategories: ['llm'],
+    description: 'Ultra-fast LLM inference - Llama 3, Mixtral, Gemma',
+    capabilities: {
+      streaming: true,
+      customModels: false,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'zh'],
+    pricing: {
+      model: 'Token-based',
+      details: 'Llama 3: $0.05/$0.10 per MTok | Mixtral: $0.24/$0.24 | Ultra-fast inference',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'gsk_...',
+        description: 'Your Groq API key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      testEndpoint: '/models',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://console.groq.com/docs',
+  },
+  'cohere': {
+    id: 'cohere',
+    name: 'cohere',
+    displayName: 'Cohere',
+    category: 'llm',
+    subcategories: ['llm'],
+    description: 'Command R+, Command - Enterprise-grade language models',
+    capabilities: {
+      streaming: true,
+      customModels: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ar'],
+    pricing: {
+      model: 'Token-based',
+      details: 'Command R+: $3/$15 per MTok | Command R: $0.50/$1.50 | Command: $1/$2',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-cohere-api-key',
+        description: 'Your Cohere API key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.cohere.ai',
+      testEndpoint: '/v1/models',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.cohere.com',
+  },
+  'together-ai': {
+    id: 'together-ai',
+    name: 'together-ai',
+    displayName: 'Together AI',
+    category: 'llm',
+    subcategories: ['llm'],
+    description: 'Open-source models at scale - Llama, Mixtral, and more',
+    capabilities: {
+      streaming: true,
+      customModels: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'],
+    pricing: {
+      model: 'Token-based',
+      details: 'Llama 3 70B: $0.90/$0.90 per MTok | Mixtral 8x7B: $0.60/$0.60',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-together-api-key',
+        description: 'Your Together AI API key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.together.xyz',
+      testEndpoint: '/v1/models',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.together.ai',
+  },
+  'perplexity': {
+    id: 'perplexity',
+    name: 'perplexity',
+    displayName: 'Perplexity AI',
+    category: 'llm',
+    subcategories: ['llm'],
+    description: 'Online LLMs with real-time search capabilities',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'],
+    pricing: {
+      model: 'Token-based',
+      details: 'Sonar: $1/$1 per MTok | Sonar Pro: $3/$15 per MTok | Real-time search',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'pplx-...',
+        description: 'Your Perplexity API key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.perplexity.ai',
+      testEndpoint: '/models',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.perplexity.ai',
+  },
+  'replicate': {
+    id: 'replicate',
+    name: 'replicate',
+    displayName: 'Replicate',
+    category: 'llm',
+    subcategories: ['llm'],
+    description: 'Run open-source models - Llama, Mistral, SDXL',
+    capabilities: {
+      streaming: true,
+      customModels: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'],
+    pricing: {
+      model: 'Usage-based',
+      details: 'Pay per second of compute time | Llama 3 70B: ~$0.65 per MTok',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Token',
+        type: 'password',
+        required: true,
+        placeholder: 'r8_...',
+        description: 'Your Replicate API token',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.replicate.com',
+      testEndpoint: '/v1/models',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://replicate.com/docs',
   },
 };
 
@@ -445,6 +625,192 @@ export const TTS_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
     tier: 'enterprise',
     docsUrl: 'https://docs.aws.amazon.com/polly/',
   },
+  'playht': {
+    id: 'playht',
+    name: 'playht',
+    displayName: 'Play.ht',
+    category: 'tts',
+    subcategories: ['tts'],
+    description: 'Ultra-realistic AI voice generation with voice cloning',
+    capabilities: {
+      streaming: true,
+      customVoices: true,
+      emotionDetection: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ar', 'hi', 'nl'],
+    pricing: {
+      model: 'Character-based',
+      details: 'Creator: $31.20/mo (2M chars) | Pro: $79/mo (10M) | Ultra-realistic voices',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-playht-api-key',
+      },
+      {
+        key: 'userId',
+        label: 'User ID',
+        type: 'text',
+        required: true,
+        placeholder: 'your-user-id',
+      },
+    ],
+    integration: {
+      apiVersion: 'v2',
+      baseUrl: 'https://api.play.ht',
+      testEndpoint: '/api/v2/voices',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.play.ht',
+  },
+  'resemble-ai': {
+    id: 'resemble-ai',
+    name: 'resemble-ai',
+    displayName: 'Resemble AI',
+    category: 'tts',
+    subcategories: ['tts'],
+    description: 'Real-time voice cloning and generation',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      customVoices: true,
+      emotionDetection: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'zh'],
+    pricing: {
+      model: 'Character-based',
+      details: 'Basic: $0.006 per second | Pro voice cloning available',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-resemble-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v2',
+      baseUrl: 'https://app.resemble.ai',
+      testEndpoint: '/api/v2/projects',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.resemble.ai',
+  },
+  'murf-ai': {
+    id: 'murf-ai',
+    name: 'murf-ai',
+    displayName: 'Murf AI',
+    category: 'tts',
+    subcategories: ['tts'],
+    description: 'Studio-quality AI voices for professionals',
+    capabilities: {
+      streaming: false,
+      customVoices: true,
+      emotionDetection: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ar', 'hi', 'ru'],
+    pricing: {
+      model: 'Subscription',
+      details: 'Basic: $19/mo | Pro: $26/mo | Enterprise: Custom',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-murf-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.murf.ai',
+      testEndpoint: '/v1/speech/generate',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://murf.ai/resources/api-documentation',
+  },
+  'wellsaid': {
+    id: 'wellsaid',
+    name: 'wellsaid',
+    displayName: 'WellSaid Labs',
+    category: 'tts',
+    subcategories: ['tts'],
+    description: 'Professional AI voices for content creation',
+    capabilities: {
+      streaming: false,
+      customVoices: true,
+      multiLanguage: false,
+    },
+    supportedLanguages: ['en'],
+    pricing: {
+      model: 'Subscription',
+      details: 'Creator: $49/mo | Team: Custom | High-quality professional voices',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-wellsaid-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.wellsaidlabs.com',
+      testEndpoint: '/v1/speakers',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.wellsaidlabs.com',
+  },
+  'speechify': {
+    id: 'speechify',
+    name: 'speechify',
+    displayName: 'Speechify',
+    category: 'tts',
+    subcategories: ['tts'],
+    description: 'Natural-sounding text-to-speech for accessibility',
+    capabilities: {
+      streaming: true,
+      customVoices: false,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ar'],
+    pricing: {
+      model: 'Subscription',
+      details: 'Premium: $139/year | API access via enterprise plan',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-speechify-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.speechify.com',
+      testEndpoint: '/v1/audio/speech',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.speechify.com',
+  },
 };
 
 // STT Providers
@@ -640,6 +1006,211 @@ export const STT_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
     status: 'production',
     tier: 'enterprise',
     docsUrl: 'https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/',
+  },
+  'rev-ai': {
+    id: 'rev-ai',
+    name: 'rev-ai',
+    displayName: 'Rev AI',
+    category: 'stt',
+    subcategories: ['stt'],
+    description: 'High-accuracy speech-to-text with human-level transcription',
+    capabilities: {
+      streaming: true,
+      realtime: false,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt'],
+    pricing: {
+      model: 'Per-minute',
+      details: 'Async: $0.02/min | Human: $1.50/min | High accuracy',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'Access Token',
+        type: 'password',
+        required: true,
+        placeholder: 'your-rev-access-token',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.rev.ai/speechtotext',
+      testEndpoint: '/v1/jobs',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.rev.ai',
+  },
+  'gladia': {
+    id: 'gladia',
+    name: 'gladia',
+    displayName: 'Gladia',
+    category: 'stt',
+    subcategories: ['stt'],
+    description: 'AI-powered transcription with speaker diarization',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ar'],
+    pricing: {
+      model: 'Per-hour',
+      details: 'Starter: $0.612/hour | Pro features with speaker diarization',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-gladia-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v2',
+      baseUrl: 'https://api.gladia.io',
+      testEndpoint: '/v2/pre-recorded',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.gladia.io',
+  },
+};
+
+// VAD (Voice Activity Detection / Turn Detection) Providers
+export const VAD_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
+  'silero-vad': {
+    id: 'silero-vad',
+    name: 'silero-vad',
+    displayName: 'Silero VAD',
+    category: 'vad',
+    subcategories: ['vad'],
+    description: 'Open-source voice activity detection - Fast and accurate',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: false,
+    },
+    supportedLanguages: ['*'],
+    pricing: {
+      model: 'Open Source',
+      details: 'Free - Self-hosted ONNX model',
+    },
+    credentials: [
+      {
+        key: 'modelUrl',
+        label: 'Model URL (Optional)',
+        type: 'url',
+        required: false,
+        placeholder: 'https://your-model-url',
+        description: 'URL to hosted ONNX model (optional for local)',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'local',
+    },
+    status: 'production',
+    tier: 'free',
+    docsUrl: 'https://github.com/snakers4/silero-vad',
+  },
+  'webrtc-vad': {
+    id: 'webrtc-vad',
+    name: 'webrtc-vad',
+    displayName: 'WebRTC VAD',
+    category: 'vad',
+    subcategories: ['vad'],
+    description: 'WebRTC voice activity detection - Lightweight and fast',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: false,
+    },
+    supportedLanguages: ['*'],
+    pricing: {
+      model: 'Open Source',
+      details: 'Free - Built into WebRTC',
+    },
+    credentials: [],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'local',
+    },
+    status: 'production',
+    tier: 'free',
+    docsUrl: 'https://webrtc.org',
+  },
+  'picovoice-cobra': {
+    id: 'picovoice-cobra',
+    name: 'picovoice-cobra',
+    displayName: 'Picovoice Cobra',
+    category: 'vad',
+    subcategories: ['vad'],
+    description: 'On-device voice activity detection with probability scoring',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: false,
+    },
+    supportedLanguages: ['*'],
+    pricing: {
+      model: 'Usage-based',
+      details: 'Free tier: 30K requests/mo | Starter: $0.04 per 1K requests',
+    },
+    credentials: [
+      {
+        key: 'accessKey',
+        label: 'Access Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-picovoice-access-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.picovoice.ai',
+      testEndpoint: '/v1/cobra',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://picovoice.ai/docs/cobra',
+  },
+  'deepgram-vad': {
+    id: 'deepgram-vad',
+    name: 'deepgram-vad',
+    displayName: 'Deepgram Endpointing',
+    category: 'vad',
+    subcategories: ['vad'],
+    description: 'Advanced endpointing and turn detection built into Deepgram STT',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'],
+    pricing: {
+      model: 'Included with STT',
+      details: 'No additional cost - Included with Deepgram STT subscription',
+    },
+    credentials: [
+      {
+        key: 'apiKey',
+        label: 'Deepgram API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-deepgram-api-key',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.deepgram.com',
+      testEndpoint: '/v1/listen',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://developers.deepgram.com/docs/endpointing',
   },
 };
 
@@ -1083,6 +1654,7 @@ export const VOICE_AI_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
   ...LLM_PROVIDERS,
   ...TTS_PROVIDERS,
   ...STT_PROVIDERS,
+  ...VAD_PROVIDERS,
   ...TELEPHONY_PROVIDERS,
 };
 
