@@ -2849,6 +2849,45 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get all provider integrations for the organization (must come before :provider route)
+  app.get("/api/integrations/all", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get all integrations for this organization
+      const allIntegrations = await storage.getAllIntegrations();
+      const orgIntegrations = allIntegrations.filter(i => i.organizationId === user.organizationId);
+
+      // Never return actual credentials, mask them
+      const safeIntegrations = orgIntegrations.map(integration => ({
+        id: integration.id,
+        provider: integration.provider,
+        providerCategory: integration.providerCategory,
+        status: integration.status,
+        lastTested: integration.lastTested,
+        createdAt: integration.createdAt,
+        updatedAt: integration.updatedAt,
+        apiKeyLast4: integration.apiKeyLast4,
+        // Return masked credentials (show that they exist but not the values)
+        credentials: integration.credentials
+          ? Object.keys(integration.credentials).reduce((acc, key) => ({
+              ...acc,
+              [key]: '***'
+            }), {})
+          : {},
+      }));
+
+      res.json(safeIntegrations);
+    } catch (error) {
+      console.error("Error fetching all integrations:", error);
+      res.status(500).json({ message: "Failed to fetch integrations" });
+    }
+  });
+
   // Get integration by provider
   app.get("/api/integrations/:provider", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
     try {
@@ -2966,45 +3005,6 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error fetching integration:", error);
       res.status(500).json({ message: "Failed to fetch integration" });
-    }
-  });
-
-  // Get all provider integrations for the organization
-  app.get("/api/integrations/all", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
-    try {
-      const userId = req.user.id;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Get all integrations for this organization
-      const allIntegrations = await storage.getAllIntegrations();
-      const orgIntegrations = allIntegrations.filter(i => i.organizationId === user.organizationId);
-
-      // Never return actual credentials, mask them
-      const safeIntegrations = orgIntegrations.map(integration => ({
-        id: integration.id,
-        provider: integration.provider,
-        providerCategory: integration.providerCategory,
-        status: integration.status,
-        lastTested: integration.lastTested,
-        createdAt: integration.createdAt,
-        updatedAt: integration.updatedAt,
-        apiKeyLast4: integration.apiKeyLast4,
-        // Return masked credentials (show that they exist but not the values)
-        credentials: integration.credentials
-          ? Object.keys(integration.credentials).reduce((acc, key) => ({
-              ...acc,
-              [key]: '***'
-            }), {})
-          : {},
-      }));
-
-      res.json(safeIntegrations);
-    } catch (error) {
-      console.error("Error fetching all integrations:", error);
-      res.status(500).json({ message: "Failed to fetch integrations" });
     }
   });
 
