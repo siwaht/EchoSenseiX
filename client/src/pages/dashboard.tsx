@@ -950,68 +950,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-      
-      {/* Setup Guide */}
-      {!(stats as any)?.lastSync && !lastSyncTime && (
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                <Activity className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div className="flex-1 space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                  Welcome to EchoSensei! 🎉
-                </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                  To start monitoring your voice agents, you'll need to configure your ElevenLabs integration first.
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                  <span className="text-blue-800 dark:text-blue-200">
-                    <strong>Step 1:</strong> Get your ElevenLabs API key from your account dashboard
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                  <span className="text-blue-800 dark:text-blue-200">
-                    <strong>Step 2:</strong> Go to Integrations and add your API key
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                  <span className="text-blue-800 dark:text-blue-200">
-                    <strong>Step 3:</strong> Click "Sync Data" to fetch your agents and call logs
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex gap-3 pt-2">
-                <Button 
-                  onClick={() => window.location.href = '/integrations'}
-                  className="btn-brand-premium"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Go to Integrations
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => window.open('https://elevenlabs.io/app/settings/api-keys', '_blank')}
-                >
-                  <HelpCircle className="h-4 w-4 mr-2" />
-                  Get API Key
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-      
+
       {/* Pending Approvals Section */}
       {pendingApprovals.length > 0 && (
         <Card className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-800 overflow-hidden">
