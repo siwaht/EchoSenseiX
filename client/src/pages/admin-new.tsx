@@ -358,24 +358,24 @@ export default function AdminDashboard() {
 
       {/* Tabs for different admin sections */}
       <Tabs defaultValue="agencies" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto">
-          <TabsTrigger value="agencies" className="flex items-center justify-center gap-1 px-2 py-2">
+        <TabsList className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 h-auto gap-2">
+          <TabsTrigger value="agencies" className="flex items-center justify-center gap-1 px-3 py-2">
             <Briefcase className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Agencies</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="users" className="flex items-center justify-center gap-1 px-3 py-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="billing" className="flex items-center justify-center gap-1 px-3 py-2">
             <CreditCard className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Billing</span>
           </TabsTrigger>
-          <TabsTrigger value="organizations" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="organizations" className="flex items-center justify-center gap-1 px-3 py-2">
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Orgs</span>
           </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="payments" className="flex items-center justify-center gap-1 px-3 py-2">
             <Wallet className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Payments</span>
           </TabsTrigger>
