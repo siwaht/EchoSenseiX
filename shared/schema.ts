@@ -566,6 +566,44 @@ export const billingCycleEnum = pgEnum("billing_cycle", ["monthly", "quarterly",
 // Agency subscription status enum
 export const agencySubscriptionStatusEnum = pgEnum("agency_subscription_status", ["active", "past_due", "canceled", "trialing", "paused"]);
 
+// Payment provider enum - all supported payment providers
+export const paymentProviderEnum = pgEnum("payment_provider", [
+  // Traditional Payment Gateways
+  "stripe",
+  "paypal",
+  "square",
+  "authorize_net",
+  "braintree",
+  "adyen",
+
+  // Regional Payment Providers
+  "razorpay",        // India
+  "paytm",           // India
+  "flutterwave",     // Africa
+  "mercado_pago",    // Latin America
+
+  // Digital Wallets
+  "apple_pay",
+  "google_pay",
+  "amazon_pay",
+  "venmo",
+  "cash_app",
+
+  // Buy Now Pay Later (BNPL)
+  "klarna",
+  "afterpay",
+  "affirm",
+  "sezzle",
+
+  // Cryptocurrency
+  "coinbase_commerce",
+  "bitpay",
+  "crypto_com_pay",
+]);
+
+// Payment processor status enum
+export const paymentProcessorStatusEnum = pgEnum("payment_processor_status", ["pending_validation", "active", "invalid", "disabled"]);
+
 // Agency Payment Configuration table - stores payment gateway settings for agencies
 export const agencyPaymentConfig = pgTable("agency_payment_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -804,44 +842,6 @@ export const agencyTransactions = pgTable("agency_transactions", {
   refundedAt: timestamp("refunded_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-
-// Payment provider enum - all supported payment providers
-export const paymentProviderEnum = pgEnum("payment_provider", [
-  // Traditional Payment Gateways
-  "stripe",
-  "paypal",
-  "square",
-  "authorize_net",
-  "braintree",
-  "adyen",
-
-  // Regional Payment Providers
-  "razorpay",        // India
-  "paytm",           // India
-  "flutterwave",     // Africa
-  "mercado_pago",    // Latin America
-
-  // Digital Wallets
-  "apple_pay",
-  "google_pay",
-  "amazon_pay",
-  "venmo",
-  "cash_app",
-
-  // Buy Now Pay Later (BNPL)
-  "klarna",
-  "afterpay",
-  "affirm",
-  "sezzle",
-
-  // Cryptocurrency
-  "coinbase_commerce",
-  "bitpay",
-  "crypto_com_pay",
-]);
-
-// Payment processor status enum
-export const paymentProcessorStatusEnum = pgEnum("payment_processor_status", ["pending_validation", "active", "invalid", "disabled"]);
 
 // Agency Payment Processors table - stores encrypted payment gateway settings for agencies
 export const agencyPaymentProcessors = pgTable("agency_payment_processors", {
