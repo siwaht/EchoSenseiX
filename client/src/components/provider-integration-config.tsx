@@ -361,11 +361,12 @@ export default function ProviderIntegrationConfig() {
         </div>
 
         <Tabs defaultValue="all-in-one" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="all-in-one">All-in-One</TabsTrigger>
             <TabsTrigger value="llm">LLM</TabsTrigger>
             <TabsTrigger value="tts">TTS</TabsTrigger>
             <TabsTrigger value="stt">STT</TabsTrigger>
+            <TabsTrigger value="vad">VAD</TabsTrigger>
             <TabsTrigger value="telephony">Phone</TabsTrigger>
           </TabsList>
 
@@ -373,6 +374,7 @@ export default function ProviderIntegrationConfig() {
           {renderCategoryTab("llm", "Language Models")}
           {renderCategoryTab("tts", "Text-to-Speech")}
           {renderCategoryTab("stt", "Speech-to-Text")}
+          {renderCategoryTab("vad", "Turn Detection (VAD)")}
           {renderCategoryTab("telephony", "Telephony")}
         </Tabs>
       </div>
