@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PaymentProviderConfig from "@/components/payment-provider-config";
+import ProviderIntegrationConfig from "@/components/provider-integration-config";
 import { useAuth } from "@/hooks/useAuth";
 
 // Helper function to sanitize API key by removing non-ASCII characters
@@ -183,16 +184,19 @@ export default function Integrations() {
         <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
           <TabsTrigger value="voice-ai" className="flex items-center gap-2">
             <Mic className="w-4 h-4" />
-            <span>Voice AI</span>
+            <span>AI Providers</span>
           </TabsTrigger>
           <TabsTrigger value="payments" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
-            <span>Payment Providers</span>
+            <span>Payments</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="voice-ai" className="mt-6 space-y-6">
-          <div className="max-w-2xl mx-auto space-y-6">{/* Voice AI Configuration Section */}
+        <TabsContent value="voice-ai" className="mt-6">
+          <ProviderIntegrationConfig />
+
+          {/* Keep the old ElevenLabs integration for backward compatibility */}
+          <div className="max-w-2xl mx-auto space-y-6 mt-12 pt-12 border-t">{/* Legacy ElevenLabs Configuration */}
       
       {/* Pending Approval Alert */}
       {(integration as any)?.status === "PENDING_APPROVAL" && (

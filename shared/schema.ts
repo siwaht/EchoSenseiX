@@ -121,6 +121,9 @@ export const organizations = pgTable("organizations", {
 // Integration status enum
 export const integrationStatusEnum = pgEnum("integration_status", ["ACTIVE", "INACTIVE", "ERROR", "PENDING_APPROVAL"]);
 
+// Provider category enum for multi-provider support
+export const providerCategoryEnum = pgEnum("provider_category", ["llm", "tts", "stt", "telephony", "all-in-one"]);
+
 // Phone number provider enum
 export const phoneProviderEnum = pgEnum("phone_provider", ["twilio", "sip_trunk"]);
 
@@ -139,9 +142,12 @@ export const taskTypeEnum = pgEnum("task_type", ["integration_approval", "webhoo
 export const integrations = pgTable("integrations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(),
-  provider: varchar("provider").notNull(), // 'elevenlabs'
-  apiKey: varchar("api_key").notNull(), // encrypted
+  provider: varchar("provider").notNull(), // 'elevenlabs', 'openai', 'stripe', etc.
+  providerCategory: providerCategoryEnum("provider_category"), // llm, tts, stt, telephony, all-in-one (null for payment providers)
+  apiKey: varchar("api_key"), // DEPRECATED: kept for backward compatibility - use credentials instead
   apiKeyLast4: varchar("api_key_last4", { length: 4 }), // Last 4 chars for display
+  credentials: json("credentials").$type<Record<string, string>>(), // Encrypted provider-specific credentials
+  config: json("config").$type<Record<string, any>>(), // Provider-specific configuration (e.g., model, voice, etc.)
   status: integrationStatusEnum("status").notNull().default("PENDING_APPROVAL"),
   lastTested: timestamp("last_tested"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -435,6 +441,12 @@ export const agents = pgTable("agents", {
     name: string;
     content: string;
   }>>(),
+  providers: json("providers").$type<{
+    llm?: string;
+    tts?: string;
+    stt?: string;
+    telephony?: string;
+  }>(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
