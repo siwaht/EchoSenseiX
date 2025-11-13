@@ -250,7 +250,11 @@ export const quickActionButtons = pgTable("quick_action_buttons", {
 export const agents = pgTable("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(),
-  elevenLabsAgentId: varchar("eleven_labs_agent_id").notNull(),
+  // Provider information - determines which platform hosts this agent
+  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, livekit, vapi, retell, cartesian, deepgram, etc.
+  externalAgentId: varchar("external_agent_id"), // Provider's agent ID (e.g., ElevenLabs agent ID, Vapi agent ID)
+  // Legacy ElevenLabs support (deprecated, use externalAgentId + platform instead)
+  elevenLabsAgentId: varchar("eleven_labs_agent_id"),
   name: varchar("name").notNull(),
   description: text("description"),
   firstMessage: text("first_message"),
@@ -284,7 +288,7 @@ export const agents = pgTable("agents", {
     maxTokens?: number;
   }>(),
   tools: json("tools").$type<{
-    // ElevenLabs System Tools
+    // Platform-agnostic system tools (may have different implementations per provider)
     systemTools?: {
       endCall?: {
         enabled: boolean;
@@ -411,7 +415,7 @@ export const agents = pgTable("agents", {
         description: string;
       }>;
     }>;
-    // Tool IDs for ElevenLabs
+    // Tool IDs for platform-specific tools (e.g., ElevenLabs tool IDs, Vapi function IDs)
     toolIds?: string[];
     // Legacy MCP Servers (for backward compatibility)
     mcpServers?: Array<{
@@ -423,6 +427,10 @@ export const agents = pgTable("agents", {
       enabled: boolean;
     }>;
   }>(),
+  // Provider-specific configuration (for platform-specific features not covered by standard fields)
+  providerConfig: json("provider_config").$type<Record<string, any>>(),
+  // Knowledge base IDs associated with this agent (platform-agnostic)
+  knowledgeBaseIds: json("knowledge_base_ids").$type<string[]>(),
   dynamicVariables: json("dynamic_variables").$type<Record<string, string>>(),
   evaluationCriteria: json("evaluation_criteria").$type<{
     enabled?: boolean;
@@ -517,10 +525,15 @@ export interface SummaryMetadata {
 // Call logs table
 export const callLogs = pgTable("call_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  conversationId: varchar("conversation_id").notNull(), // Required ElevenLabs conversation ID
+  // Provider platform for this call
+  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, livekit, vapi, retell, etc.
+  // External conversation/call ID from the provider
+  externalCallId: varchar("external_call_id").notNull(), // Provider's call/conversation ID
+  // Legacy ElevenLabs support (deprecated, use externalCallId + platform instead)
+  conversationId: varchar("conversation_id"), // ElevenLabs conversation ID (for backward compatibility)
+  elevenLabsCallId: varchar("eleven_labs_call_id"),
   organizationId: varchar("organization_id").notNull(),
   agentId: varchar("agent_id"),
-  elevenLabsCallId: varchar("eleven_labs_call_id"),
   phoneNumber: varchar("phone_number"), // Caller's phone number for real calls
   duration: integer("duration"), // in seconds
   transcript: json("transcript"),
