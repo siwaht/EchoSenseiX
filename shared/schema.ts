@@ -151,6 +151,44 @@ export const integrations = pgTable("integrations", {
   uniqueOrgProvider: unique("unique_org_provider").on(table.organizationId, table.provider),
 }));
 
+// Provider type enum for multi-provider support
+export const providerTypeEnum = pgEnum("provider_type", ["TTS", "STT", "LLM", "DATABASE", "VOICE_PLATFORM"]);
+
+// Provider integrations table for platform-agnostic multi-provider support
+export const providerIntegrations = pgTable("provider_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull(),
+  providerType: providerTypeEnum("provider_type").notNull(), // TTS, STT, LLM, DATABASE, VOICE_PLATFORM
+  providerName: varchar("provider_name").notNull(), // elevenlabs, openai, deepgram, mongodb, etc
+  displayName: varchar("display_name").notNull(), // User-friendly name
+  status: integrationStatusEnum("status").notNull().default("INACTIVE"),
+  isPrimary: boolean("is_primary").default(false), // Primary provider for this type
+  credentials: jsonb("credentials").$type<Record<string, any>>(), // Encrypted credentials (API keys, connection strings, etc)
+  config: jsonb("config").$type<Record<string, any>>(), // Provider-specific configuration
+  metadata: jsonb("metadata").$type<Record<string, any>>(), // Additional metadata
+  lastTested: timestamp("last_tested"),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  // Unique constraint on organizationId, providerType, and providerName
+  uniqueOrgProviderType: unique("unique_org_provider_type").on(table.organizationId, table.providerType, table.providerName),
+}));
+
+// Provider usage tracking for analytics and billing
+export const providerUsage = pgTable("provider_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull(),
+  providerIntegrationId: varchar("provider_integration_id").notNull(),
+  usageType: varchar("usage_type").notNull(), // calls, tokens, minutes, storage_mb, requests, etc
+  quantity: decimal("quantity", { precision: 15, scale: 4 }).notNull(),
+  cost: decimal("cost", { precision: 10, scale: 4 }),
+  metadata: jsonb("metadata").$type<Record<string, any>>(), // Additional usage details
+  relatedEntityId: varchar("related_entity_id"), // Call ID, agent ID, etc
+  relatedEntityType: varchar("related_entity_type"), // call, agent, document, etc
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Admin tasks table for tracking approvals
 export const adminTasks = pgTable("admin_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -931,6 +969,17 @@ export const insertIntegrationSchema = createInsertSchema(integrations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertProviderIntegrationSchema = createInsertSchema(providerIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProviderUsageSchema = createInsertSchema(providerUsage).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertAgentSchema = createInsertSchema(agents).omit({
@@ -1860,6 +1909,10 @@ export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Integration = typeof integrations.$inferSelect;
 export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
+export type ProviderIntegration = typeof providerIntegrations.$inferSelect;
+export type InsertProviderIntegration = z.infer<typeof insertProviderIntegrationSchema>;
+export type ProviderUsage = typeof providerUsage.$inferSelect;
+export type InsertProviderUsage = z.infer<typeof insertProviderUsageSchema>;
 export type Agent = typeof agents.$inferSelect;
 export type InsertAgent = z.infer<typeof insertAgentSchema>;
 export type CustomTool = NonNullable<NonNullable<Agent['tools']>['customTools']>[number];

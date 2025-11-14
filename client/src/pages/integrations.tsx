@@ -165,24 +165,24 @@ export default function Integrations() {
 
   return (
     <TooltipProvider>
-    <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
-      <div className="text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2" data-testid="text-page-title">
+    <div className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-6 md:space-y-8 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+      <div className="text-center space-y-2">
+        <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white" data-testid="text-page-title">
           API Configuration
         </h2>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400" data-testid="text-page-description">
+        <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto" data-testid="text-page-description">
           Connect your voice AI service to manage voice agents
         </p>
       </div>
       
       {/* Pending Approval Alert */}
       {(integration as any)?.status === "PENDING_APPROVAL" && (
-        <Card className="p-4 sm:p-6 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
-          <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            Integration Pending Approval
+        <Card className="p-3 sm:p-4 md:p-6 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+          <h3 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span>Integration Pending Approval</span>
           </h3>
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
             Your voice AI integration has been submitted and is waiting for administrator approval.
           </p>
           <div className="text-sm text-muted-foreground space-y-2">

@@ -4414,6 +4414,66 @@ Generate the complete prompt now:`;
   // Knowledge Base API endpoints
 
   // Search knowledge base
+  // Get knowledge base statistics
+  app.get("/api/knowledge-base/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+
+      // Get knowledge entries count
+      const entries = await storage.getKnowledgeEntries(user.organizationId, { limit: 1000 });
+      const documents = await storage.getDocumentProcessingStatusByOrganization(user.organizationId, 1000);
+
+      // Count unique categories as "supported languages" (this is a placeholder)
+      const categories = new Set(entries.map(e => e.category));
+
+      // Get agents count (simplified)
+      const agents = await storage.getAgentsForOrganization(user.organizationId);
+
+      res.json({
+        totalEntries: entries.length,
+        totalDocuments: documents.filter(d => d.status === 'completed').length,
+        supportedLanguages: categories.size,
+        activeAgents: agents.length,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[KNOWLEDGE-BASE] Stats error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch knowledge base stats",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Get knowledge base entries
+  app.get("/api/knowledge-base/entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { category, limit } = req.query;
+
+      const entries = await storage.getKnowledgeEntries(user.organizationId, {
+        category: category as string,
+        limit: limit ? parseInt(limit as string) : 100
+      });
+
+      res.json({
+        success: true,
+        data: entries,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[KNOWLEDGE-BASE] Get entries error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   app.post("/api/knowledge-base/search", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
