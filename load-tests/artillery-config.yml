@@ -1,0 +1,149 @@
+# Artillery Load Testing Configuration
+# Test concurrent users and API performance
+#
+# Usage:
+#   npm install -g artillery
+#   artillery run load-tests/artillery-config.yml
+#   artillery run --target http://localhost:5000 load-tests/artillery-config.yml
+
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Warmup phase - gradual ramp up
+    - duration: 60
+      arrivalRate: 5
+      name: "Warmup"
+
+    # Ramp up phase - increase load
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up to 50 users/sec"
+
+    # Sustained load - maintain high traffic
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load (50 users/sec for 5 min)"
+
+    # Spike test - sudden traffic surge
+    - duration: 60
+      arrivalRate: 100
+      name: "Spike test (100 users/sec)"
+
+    # Cool down
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool down"
+
+  defaults:
+    headers:
+      User-Agent: "Artillery Load Test"
+
+  # Performance targets
+  ensure:
+    p95: 200  # 95th percentile response time < 200ms
+    p99: 500  # 99th percentile response time < 500ms
+    maxErrorRate: 1  # Error rate < 1%
+
+  # HTTP settings
+  http:
+    timeout: 10
+    pool: 50  # Connection pool size
+
+  # Plugins for extended functionality
+  plugins:
+    expect: {}
+    metrics-by-endpoint: {}
+
+  # Custom variables
+  variables:
+    testUser:
+      - "test1@example.com"
+      - "test2@example.com"
+      - "test3@example.com"
+
+scenarios:
+  # Scenario 1: User authentication flow
+  - name: "Authentication Flow"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ testUser }}"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "/api/user/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 2: Dashboard data loading
+  - name: "Dashboard Load"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "/api/analytics/overview"
+          expect:
+            - statusCode: [200, 401]  # May be unauthorized
+
+      - get:
+          url: "/api/call-logs?page=1&limit=50"
+          expect:
+            - statusCode: [200, 401]
+
+  # Scenario 3: Agent management
+  - name: "Agent Operations"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/agents"
+          expect:
+            - statusCode: [200, 401]
+
+      - get:
+          url: "/api/agents/{{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+
+  # Scenario 4: Knowledge base queries
+  - name: "Knowledge Base"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/knowledge-base/stats"
+          expect:
+            - statusCode: [200, 401]
+
+      - post:
+          url: "/api/knowledge-base/search"
+          json:
+            query: "test query"
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Scenario 5: Provider integrations
+  - name: "Provider Integrations"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/integrations"
+          expect:
+            - statusCode: [200, 401, 403]
+
+      - get:
+          url: "/api/providers"
+          expect:
+            - statusCode: [200, 401, 404]

@@ -65,8 +65,56 @@ async function addPerformanceIndexes() {
       // Full-text search indexes for transcript search
       "CREATE INDEX IF NOT EXISTS idx_call_logs_transcript_gin ON call_logs USING gin(to_tsvector('english', transcript))",
       "CREATE INDEX IF NOT EXISTS idx_knowledge_base_content_gin ON knowledge_base_entries USING gin(to_tsvector('english', content))",
+
+      // Provider integrations indexes (new platform-agnostic tables)
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_organization_id ON provider_integrations(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_provider_type ON provider_integrations(provider_type)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_status ON provider_integrations(status)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_is_primary ON provider_integrations(is_primary)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_org_type ON provider_integrations(organization_id, provider_type)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_integrations_org_type_primary ON provider_integrations(organization_id, provider_type, is_primary)",
+
+      // Provider usage indexes for analytics and billing
+      "CREATE INDEX IF NOT EXISTS idx_provider_usage_organization_id ON provider_usage(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_usage_provider_integration_id ON provider_usage(provider_integration_id)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_usage_created_at ON provider_usage(created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_usage_org_created ON provider_usage(organization_id, created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_provider_usage_usage_type ON provider_usage(usage_type)",
+
+      // Organizations indexes (critical for multi-tenant performance)
+      "CREATE INDEX IF NOT EXISTS idx_organizations_parent_organization_id ON organizations(parent_organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_organizations_organization_type ON organizations(organization_type)",
+      "CREATE INDEX IF NOT EXISTS idx_organizations_billing_status ON organizations(billing_status)",
+      "CREATE INDEX IF NOT EXISTS idx_organizations_subdomain ON organizations(subdomain)",
+      "CREATE INDEX IF NOT EXISTS idx_organizations_custom_domain ON organizations(custom_domain)",
+
+      // Document processing indexes
+      "CREATE INDEX IF NOT EXISTS idx_document_processing_status_organization_id ON document_processing_status(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_document_processing_status_status ON document_processing_status(status)",
+      "CREATE INDEX IF NOT EXISTS idx_document_processing_status_created_at ON document_processing_status(created_at DESC)",
+
+      // User agents (many-to-many) indexes
+      "CREATE INDEX IF NOT EXISTS idx_user_agents_user_id ON user_agents(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_user_agents_agent_id ON user_agents(agent_id)",
+
+      // Admin tasks indexes
+      "CREATE INDEX IF NOT EXISTS idx_admin_tasks_status ON admin_tasks(status)",
+      "CREATE INDEX IF NOT EXISTS idx_admin_tasks_type ON admin_tasks(type)",
+      "CREATE INDEX IF NOT EXISTS idx_admin_tasks_organization_id ON admin_tasks(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_admin_tasks_created_at ON admin_tasks(created_at DESC)",
+
+      // Session indexes for fast lookup
+      "CREATE INDEX IF NOT EXISTS idx_sessions_expire ON sessions(expire)",
+
+      // Billing and payments indexes
+      "CREATE INDEX IF NOT EXISTS idx_payments_organization_id ON payments(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)",
+      "CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_credit_transactions_organization_id ON credit_transactions(organization_id)",
+      "CREATE INDEX IF NOT EXISTS idx_credit_transactions_type ON credit_transactions(type)",
+      "CREATE INDEX IF NOT EXISTS idx_credit_transactions_created_at ON credit_transactions(created_at DESC)",
     ];
-    
+
     // Execute each index creation
     for (const indexSql of indexes) {
       try {
@@ -84,8 +132,11 @@ async function addPerformanceIndexes() {
     // Analyze tables for query planner optimization
     const tables = [
       'users', 'agents', 'call_logs', 'knowledge_base_entries',
-      'integrations', 'phone_numbers', 'billing_plans', 'payment_history',
-      'whitelabel_configs', 'analytics'
+      'integrations', 'provider_integrations', 'provider_usage',
+      'phone_numbers', 'billing_plans', 'payment_history',
+      'whitelabel_configs', 'analytics', 'organizations',
+      'document_processing_status', 'user_agents', 'admin_tasks',
+      'sessions', 'payments', 'credit_transactions'
     ];
     
     for (const table of tables) {
