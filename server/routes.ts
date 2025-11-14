@@ -21,11 +21,12 @@ import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
 import EmailService from "./services/email-service";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
-import { 
-  handleConversationInitWebhook, 
-  handlePostCallWebhook, 
-  handleEventsWebhook 
+import {
+  handleConversationInitWebhook,
+  handlePostCallWebhook,
+  handleEventsWebhook
 } from "./webhooks/elevenlabs-webhooks";
+import { ProviderService } from "./services/provider-service";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -3342,172 +3343,34 @@ Generate the complete prompt now:`;
         return res.status(404).json({ message: "User not found" });
       }
 
-      const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-      if (!integration || integration.status !== "ACTIVE") {
-        return res.status(400).json({ message: "Active ElevenLabs integration required" });
-      }
-
-      const { name, firstMessage, systemPrompt, language, voiceId } = req.body;
+      const { name, firstMessage, systemPrompt, language, voiceId, providerId } = req.body;
       
       if (!name || !firstMessage || !systemPrompt) {
         return res.status(400).json({ message: "Name, first message, and system prompt are required" });
       }
 
-      const apiKey = decryptApiKey(integration.apiKey);
-      
-      // Create agent on ElevenLabs with complete configuration override
-      const agentPayload: any = {
-        name,
-        conversation_config: {
-          agent: {
-            prompt: {
-              prompt: systemPrompt,
-              first_message: firstMessage,
-              language: language || "en"
-            },
-            first_message: firstMessage,
-            language: language || "en",
-            // Add default system tools - all enabled by default
-            tools: [
-              {
-                type: 'system',
-                name: 'end_call',
-                description: 'Allows agent to end the call'
-              },
-              {
-                type: 'system',
-                name: 'language_detection',
-                description: 'Automatically detect and switch languages',
-                config: {
-                  supported_languages: []
-                }
-              },
-              {
-                type: 'system',
-                name: 'skip_turn',
-                description: 'Skip agent turn when user needs a moment'
-              },
-              {
-                type: 'system',
-                name: 'transfer_to_agent',
-                description: 'Transfer to another AI agent',
-                config: {
-                  target_agent_id: ""
-                }
-              },
-              {
-                type: 'system',
-                name: 'transfer_to_number',
-                description: 'Transfer to human operator',
-                config: {
-                  phone_numbers: []
-                }
-              },
-              {
-                type: 'system',
-                name: 'play_dtmf',
-                description: 'Play keypad touch tones'
-              },
-              {
-                type: 'system',
-                name: 'voicemail_detection',
-                description: 'Detect voicemail systems',
-                config: {
-                  leave_message: false,
-                  message_content: ""
-                }
-              }
-            ]
-          },
-          tts: {
-            voice_id: voiceId || "21m00Tcm4TlvDq8ikWAM", // Default to Rachel voice if not specified
-            agent_output_audio_format: "pcm_16000",
-            optimize_streaming_latency: 3,
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0,
-            use_speaker_boost: true
-          },
-          turn: {
-            mode: "turn",
-            threshold: 0.5
-          },
-          asr: {
-            quality: "high",
-            provider: "elevenlabs"
-          }
-        },
-        platform_settings: {
-          auth: {
-            mode: "open" // Allow all calls without authentication
-          },
-          conversation_initiation_client_data_webhook: {
-            enabled: false,
-            url: ""
-          },
-          post_call_webhook: {
-            enabled: true,
-            url: `${process.env.PUBLIC_URL || 'http://localhost:5000'}/api/webhooks/elevenlabs/post-call`
-          }
-        },
-        client_config_override: {
-          agent: {
-            language: {},
-            prompt: {
-              prompt: {},
-              first_message: {}
-            },
-            first_message: {},
-            tools: {}
-          },
-          tts: {
-            voice_id: {},
-            stability: {},
-            similarity_boost: {},
-            style: {},
-            use_speaker_boost: {},
-            optimize_streaming_latency: {},
-            agent_output_audio_format: {}
-          },
-          conversation: {
-            text_only: {}
-          },
-          turn: {
-            mode: {},
-            threshold: {}
-          },
-          asr: {
-            quality: {},
-            provider: {}
-          },
-          llm: {
-            model: {},
-            temperature: {},
-            max_tokens: {}
-          },
-          platform_settings: {
-            conversation_initiation_client_data_webhook: {},
-            post_call_webhook: {}
-          }
-        }
-      };
+      // Use provider service to create agent on the selected platform
+      // Provider service automatically falls back to legacy integration if needed
+      const providerService = new ProviderService(storage);
 
-      
-      const elevenLabsResponse = await callElevenLabsAPI(
-        apiKey,
-        "/v1/convai/agents/create",
-        "POST",
-        agentPayload,
-        integration.id
+      const voiceAgentResponse = await providerService.createVoiceAgent(
+        user.organizationId,
+        {
+          name,
+          firstMessage,
+          systemPrompt,
+          language: language || "en",
+          voiceId
+        },
+        providerId // Optional: use specific provider or default to primary
       );
-
 
       // Save agent to our database with default tools configuration
       const agentData = insertAgentSchema.parse({
         organizationId: user.organizationId,
-        elevenLabsAgentId: elevenLabsResponse.agent_id,
+        elevenLabsAgentId: voiceAgentResponse.agentId,
         name: name,
-        description: `Created via EchoSensei`,
+        description: `Created via EchoSensei using ${voiceAgentResponse.provider}`,
         firstMessage: firstMessage,
         systemPrompt: systemPrompt,
         language: language || "en",
@@ -3523,9 +3386,6 @@ Generate the complete prompt now:`;
       });
 
       const newAgent = await storage.createAgent(agentData);
-      
-      // Update integration status to active
-      await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
 
       res.json({
         ...newAgent,
