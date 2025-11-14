@@ -366,8 +366,10 @@ export function registerRoutes(app: Express): Server {
   // Seed admin user on startup (with delay to ensure DB is ready)
   setTimeout(() => {
     seedAdminUser().catch(console.error);
+    // Run migration to add manage_integrations permission to existing users
+    storage.migrateAddIntegrationsPermission().catch(console.error);
   }, 1000);
-  
+
   // Auth middleware
   setupAuth(app);
 

@@ -392,6 +392,7 @@ export class DatabaseStorage implements IStorage {
       'manage_branding',
       'manage_voices',
       'manage_agents',
+      'manage_integrations',
       'access_playground',
       'view_call_history',
       'manage_phone_numbers'
@@ -427,6 +428,7 @@ export class DatabaseStorage implements IStorage {
       'manage_branding',
       'manage_voices',
       'manage_agents',
+      'manage_integrations',
       'access_playground',
       'view_call_history',
       'manage_phone_numbers'
@@ -457,6 +459,38 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  // Migration: Add manage_integrations permission to existing users
+  async migrateAddIntegrationsPermission(): Promise<void> {
+    try {
+      console.log('[Migration] Adding manage_integrations permission to users...');
+
+      const allUsers = await db().select().from(users);
+      let updatedCount = 0;
+
+      for (const user of allUsers) {
+        const currentPermissions = user.permissions || [];
+
+        if (!currentPermissions.includes('manage_integrations')) {
+          const updatedPermissions = [...currentPermissions, 'manage_integrations'];
+
+          await db()
+            .update(users)
+            .set({
+              permissions: updatedPermissions,
+              updatedAt: new Date()
+            })
+            .where(eq(users.id, user.id));
+
+          updatedCount++;
+        }
+      }
+
+      console.log(`[Migration] Updated ${updatedCount} users with manage_integrations permission`);
+    } catch (error) {
+      console.error('[Migration] Error adding integrations permission:', error);
+    }
   }
 
   // Agency user management operations
