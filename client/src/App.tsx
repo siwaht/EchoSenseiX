@@ -24,6 +24,7 @@ const Agents = lazy(() => import("@/pages/agents"));
 const Voices = lazy(() => import("@/pages/voices"));
 const History = lazy(() => import("@/pages/history"));
 const Integrations = lazy(() => import("@/pages/integrations"));
+const Providers = lazy(() => import("@/pages/providers"));
 const Billing = lazy(() => import("@/pages/billing"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Admin = lazy(() => import("@/pages/admin-new"));
@@ -128,6 +129,9 @@ function AgencyRouter() {
           <Route path="/agency/:subdomain/integrations">
             <PermissionGuard><Integrations /></PermissionGuard>
           </Route>
+          <Route path="/agency/:subdomain/providers">
+            <PermissionGuard><Providers /></PermissionGuard>
+          </Route>
           <Route path="/agency/:subdomain/billing">
             <PermissionGuard><Billing /></PermissionGuard>
           </Route>
@@ -224,6 +228,9 @@ function Router() {
           </Route>
           <Route path="/integrations">
             <PermissionGuard><Integrations /></PermissionGuard>
+          </Route>
+          <Route path="/providers">
+            <PermissionGuard><Providers /></PermissionGuard>
           </Route>
           <Route path="/billing">
             <PermissionGuard><Billing /></PermissionGuard>

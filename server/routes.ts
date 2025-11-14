@@ -366,8 +366,10 @@ export function registerRoutes(app: Express): Server {
   // Seed admin user on startup (with delay to ensure DB is ready)
   setTimeout(() => {
     seedAdminUser().catch(console.error);
+    // Run migration to add manage_integrations permission to existing users
+    storage.migrateAddIntegrationsPermission().catch(console.error);
   }, 1000);
-  
+
   // Auth middleware
   setupAuth(app);
 
@@ -2969,6 +2971,223 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Provider Integrations API (platform-agnostic multi-provider system)
+  app.get("/api/providers", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { type } = req.query;
+      const providers = await storage.getProviderIntegrations(user.organizationId, type as string);
+
+      // Don't return actual credentials
+      const sanitizedProviders = providers.map(p => ({
+        id: p.id,
+        providerType: p.providerType,
+        providerName: p.providerName,
+        displayName: p.displayName,
+        status: p.status,
+        isPrimary: p.isPrimary,
+        config: p.config, // Config is safe to return
+        lastTested: p.lastTested,
+        lastUsed: p.lastUsed,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+
+      res.json({
+        success: true,
+        data: sanitizedProviders,
+        count: sanitizedProviders.length
+      });
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+      res.status(500).json({ message: "Failed to fetch providers" });
+    }
+  });
+
+  app.get("/api/providers/:id", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const provider = await storage.getProviderIntegration(req.params.id, user.organizationId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      // Don't return actual credentials
+      res.json({
+        success: true,
+        data: {
+          id: provider.id,
+          providerType: provider.providerType,
+          providerName: provider.providerName,
+          displayName: provider.displayName,
+          status: provider.status,
+          isPrimary: provider.isPrimary,
+          config: provider.config,
+          lastTested: provider.lastTested,
+          lastUsed: provider.lastUsed,
+          createdAt: provider.createdAt,
+          updatedAt: provider.updatedAt,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching provider:", error);
+      res.status(500).json({ message: "Failed to fetch provider" });
+    }
+  });
+
+  app.post("/api/providers", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { providerType, providerName, displayName, credentials, config, isPrimary } = req.body;
+
+      if (!providerType || !providerName || !displayName) {
+        return res.status(400).json({ message: "Provider type, name, and display name are required" });
+      }
+
+      const provider = await storage.createProviderIntegration({
+        organizationId: user.organizationId,
+        providerType,
+        providerName,
+        displayName,
+        status: "INACTIVE",
+        isPrimary: isPrimary || false,
+        credentials: credentials || {},
+        config: config || {},
+      });
+
+      res.json({
+        success: true,
+        data: {
+          id: provider.id,
+          providerType: provider.providerType,
+          providerName: provider.providerName,
+          displayName: provider.displayName,
+          status: provider.status,
+          isPrimary: provider.isPrimary,
+        },
+        message: "Provider integration created successfully"
+      });
+    } catch (error) {
+      console.error("Error creating provider:", error);
+      res.status(500).json({ message: "Failed to create provider integration" });
+    }
+  });
+
+  app.put("/api/providers/:id", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { displayName, credentials, config, status, isPrimary } = req.body;
+
+      const updates: any = {};
+      if (displayName) updates.displayName = displayName;
+      if (credentials) updates.credentials = credentials;
+      if (config) updates.config = config;
+      if (status) updates.status = status;
+      if (typeof isPrimary === 'boolean') updates.isPrimary = isPrimary;
+
+      const provider = await storage.updateProviderIntegration(req.params.id, user.organizationId, updates);
+
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: provider.id,
+          providerType: provider.providerType,
+          providerName: provider.providerName,
+          displayName: provider.displayName,
+          status: provider.status,
+          isPrimary: provider.isPrimary,
+        },
+        message: "Provider integration updated successfully"
+      });
+    } catch (error) {
+      console.error("Error updating provider:", error);
+      res.status(500).json({ message: "Failed to update provider integration" });
+    }
+  });
+
+  app.delete("/api/providers/:id", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.deleteProviderIntegration(req.params.id, user.organizationId);
+
+      res.json({
+        success: true,
+        message: "Provider integration deleted successfully"
+      });
+    } catch (error) {
+      console.error("Error deleting provider:", error);
+      res.status(500).json({ message: "Failed to delete provider integration" });
+    }
+  });
+
+  app.post("/api/providers/:id/set-primary", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const provider = await storage.getProviderIntegration(req.params.id, user.organizationId);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+
+      await storage.setPrimaryProvider(req.params.id, user.organizationId, provider.providerType);
+
+      res.json({
+        success: true,
+        message: "Primary provider set successfully"
+      });
+    } catch (error) {
+      console.error("Error setting primary provider:", error);
+      res.status(500).json({ message: "Failed to set primary provider" });
+    }
+  });
+
+  app.get("/api/providers/:id/usage", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const usage = await storage.getProviderUsage(user.organizationId, req.params.id);
+
+      res.json({
+        success: true,
+        data: usage,
+        count: usage.length
+      });
+    } catch (error) {
+      console.error("Error fetching provider usage:", error);
+      res.status(500).json({ message: "Failed to fetch provider usage" });
+    }
+  });
+
   // Agent routes
   app.post("/api/agents/validate", isAuthenticated, checkPermission('manage_agents'), async (req: any, res) => {
     try {
@@ -4412,6 +4631,66 @@ Generate the complete prompt now:`;
   // Knowledge Base API endpoints
 
   // Search knowledge base
+  // Get knowledge base statistics
+  app.get("/api/knowledge-base/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+
+      // Get knowledge entries count
+      const entries = await storage.getKnowledgeEntries(user.organizationId, { limit: 1000 });
+      const documents = await storage.getDocumentProcessingStatusByOrganization(user.organizationId, 1000);
+
+      // Count unique categories as "supported languages" (this is a placeholder)
+      const categories = new Set(entries.map(e => e.category));
+
+      // Get agents count (simplified)
+      const agents = await storage.getAgentsForOrganization(user.organizationId);
+
+      res.json({
+        totalEntries: entries.length,
+        totalDocuments: documents.filter(d => d.status === 'completed').length,
+        supportedLanguages: categories.size,
+        activeAgents: agents.length,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[KNOWLEDGE-BASE] Stats error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch knowledge base stats",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Get knowledge base entries
+  app.get("/api/knowledge-base/entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { category, limit } = req.query;
+
+      const entries = await storage.getKnowledgeEntries(user.organizationId, {
+        category: category as string,
+        limit: limit ? parseInt(limit as string) : 100
+      });
+
+      res.json({
+        success: true,
+        data: entries,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[KNOWLEDGE-BASE] Get entries error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   app.post("/api/knowledge-base/search", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
