@@ -2,12 +2,14 @@ import { drizzle as drizzleBetterSqlite } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import Database from 'better-sqlite3';
+import { MongoClient, Db } from 'mongodb';
 import ws from 'ws';
 import * as schema from "@shared/schema";
 import { config } from "./config";
 
 let database: any = null;
 let connection: any = null;
+let mongoDb: Db | null = null;
 
 function getDatabaseConnection() {
   if (database) {
@@ -60,6 +62,40 @@ function getDatabaseConnection() {
         break;
       }
 
+      case 'mongodb': {
+        // Use native MongoDB driver
+        // MongoDB uses a different pattern - create a promise-based connection
+        const client = new MongoClient(process.env.DATABASE_URL, {
+          maxPoolSize: 50,
+          minPoolSize: 10,
+          serverSelectionTimeoutMS: 5000,
+        });
+
+        // Store the promise for async connection
+        connection = client.connect().then(() => {
+          const dbName = process.env.DATABASE_URL.split('/').pop()?.split('?')[0] || 'echosensei';
+          mongoDb = client.db(dbName);
+          console.log(`[DB] MongoDB connected to database: ${dbName}`);
+          return client;
+        }).catch((err: Error) => {
+          console.error('[DB] MongoDB connection error:', err);
+          throw err;
+        });
+
+        // For MongoDB, return a wrapper that provides MongoDB-specific methods
+        database = {
+          _isMongoDB: true,
+          _getDb: async () => {
+            await connection; // Wait for connection
+            return mongoDb;
+          },
+          _getClient: async () => {
+            return await connection;
+          }
+        };
+        break;
+      }
+
       default:
         throw new Error("Unsupported database provider: " + provider);
     }
@@ -82,6 +118,9 @@ export const closeDatabase = async () => {
         await connection.end();
       } else if (config.database.provider === 'sqlite') {
         connection.close();
+      } else if (config.database.provider === 'mongodb') {
+        const client = await connection;
+        await client.close();
       }
       console.log('[DB] Database connection closed');
     } catch (error) {
@@ -89,7 +128,17 @@ export const closeDatabase = async () => {
     }
     connection = null;
     database = null;
+    mongoDb = null;
   }
+};
+
+// Helper to get MongoDB database instance
+export const getMongoDb = async (): Promise<Db | null> => {
+  const db = getDatabaseConnection();
+  if (db && db._isMongoDB) {
+    return await db._getDb();
+  }
+  return null;
 };
 
 // Handle process termination
