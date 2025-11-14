@@ -3,6 +3,34 @@ import { config as loadEnv } from 'dotenv';
 // Load environment variables from .env file
 loadEnv();
 
+// Terminal color utilities (works in both light and dark mode)
+const colors = {
+  reset: '\x1b[0m',
+  bright: '\x1b[1m',
+  dim: '\x1b[2m',
+
+  // Colors that work well in both modes
+  cyan: '\x1b[36m',      // Cyan - excellent visibility
+  green: '\x1b[32m',     // Green - success
+  yellow: '\x1b[33m',    // Yellow - warning
+  red: '\x1b[31m',       // Red - error
+  blue: '\x1b[34m',      // Blue - info
+  magenta: '\x1b[35m',   // Magenta - highlight
+  gray: '\x1b[90m',      // Gray - subtle
+
+  // Bright variants for better visibility
+  brightCyan: '\x1b[96m',
+  brightGreen: '\x1b[92m',
+  brightYellow: '\x1b[93m',
+  brightBlue: '\x1b[94m',
+  brightMagenta: '\x1b[95m',
+};
+
+// Helper to colorize text
+const colorize = (text: string, color: string) => {
+  return process.stdout.isTTY ? `${color}${text}${colors.reset}` : text;
+};
+
 interface Config {
   // Environment
   nodeEnv: string;
@@ -330,20 +358,40 @@ function loadConfig(): Config {
   }
 
   // Log configuration status (without sensitive values)
-  console.log('[CONFIG] Environment:', nodeEnv);
-  console.log('[CONFIG] Server:', `${host}:${port}`);
-  console.log('[CONFIG] Public URL:', publicUrl);
-  console.log('[CONFIG]');
-  console.log('[CONFIG] ╔══════════════════════════════════════════╗');
-  console.log('[CONFIG] ║   Platform-Agnostic Providers Status    ║');
-  console.log('[CONFIG] ╠══════════════════════════════════════════╣');
-  console.log(`[CONFIG] ║ Voice    : ${providers.voice.provider.padEnd(15)} ${providers.voice.apiKey ? '✓' : '✗'} ║`);
-  console.log(`[CONFIG] ║ Payment  : ${providers.payment.provider.padEnd(15)} ${providers.payment.secretKey ? '✓' : '✗'} ║`);
-  console.log(`[CONFIG] ║ LLM      : ${providers.llm.provider.padEnd(15)} ${providers.llm.apiKey ? '✓' : '✗'} ║`);
-  console.log(`[CONFIG] ║ Email    : ${providers.email.provider.padEnd(15)} ${providers.email.apiKey ? '✓' : '✗'} ║`);
-  console.log(`[CONFIG] ║ Database : ${databaseProvider.padEnd(15)} ✓ ║`);
-  console.log(`[CONFIG] ║ Storage  : ${storageProvider.padEnd(15)} ✓ ║`);
-  console.log('[CONFIG] ╚══════════════════════════════════════════╝');
+  const configPrefix = colorize('[CONFIG]', colors.gray);
+
+  console.log(`${configPrefix} ${colorize('Environment:', colors.cyan)} ${colorize(nodeEnv, isProduction ? colors.brightGreen : colors.brightYellow)}`);
+  console.log(`${configPrefix} ${colorize('Server:', colors.cyan)} ${colorize(`${host}:${port}`, colors.brightCyan)}`);
+  console.log(`${configPrefix} ${colorize('Public URL:', colors.cyan)} ${colorize(publicUrl, colors.brightBlue)}`);
+  console.log(`${configPrefix}`);
+
+  // Bordered table with colors
+  const border = colors.brightCyan;
+  const label = colors.cyan;
+  const success = colors.brightGreen;
+  const error = colors.red;
+  const title = colors.brightMagenta;
+
+  console.log(`${configPrefix} ${colorize('╔══════════════════════════════════════════════════╗', border)}`);
+  console.log(`${configPrefix} ${colorize('║', border)}   ${colorize('Platform-Agnostic Providers Status', title)}      ${colorize('║', border)}`);
+  console.log(`${configPrefix} ${colorize('╠══════════════════════════════════════════════════╣', border)}`);
+
+  // Helper to create status line
+  const statusLine = (labelText: string, provider: string, isConfigured: boolean) => {
+    const providerColored = colorize(provider.padEnd(15), colors.brightYellow);
+    const statusIcon = isConfigured ? colorize('✓', success) : colorize('✗', error);
+    const labelColored = colorize(labelText.padEnd(9), label);
+    return `${configPrefix} ${colorize('║', border)} ${labelColored}: ${providerColored} ${statusIcon} ${colorize('║', border)}`;
+  };
+
+  console.log(statusLine('Voice', providers.voice.provider, !!providers.voice.apiKey));
+  console.log(statusLine('Payment', providers.payment.provider, !!providers.payment.secretKey));
+  console.log(statusLine('LLM', providers.llm.provider, !!providers.llm.apiKey));
+  console.log(statusLine('Email', providers.email.provider, !!providers.email.apiKey));
+  console.log(statusLine('Database', databaseProvider, true));
+  console.log(statusLine('Storage', storageProvider, true));
+
+  console.log(`${configPrefix} ${colorize('╚══════════════════════════════════════════════════╝', border)}`);
 
   return {
     nodeEnv,
