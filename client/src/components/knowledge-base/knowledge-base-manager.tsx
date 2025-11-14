@@ -16,8 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload, Settings, Trash2 } from "lucide-react";
-import { DocumentUpload } from "./document-upload";
+import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Settings, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -192,10 +191,9 @@ export function KnowledgeBaseManager() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="search" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="search">Search</TabsTrigger>
               <TabsTrigger value="add">Add Entry</TabsTrigger>
-              <TabsTrigger value="upload">Upload Documents</TabsTrigger>
               <TabsTrigger value="integrate">Integrate with Agents</TabsTrigger>
             </TabsList>
             
@@ -372,10 +370,6 @@ export function KnowledgeBaseManager() {
                   </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="upload" className="space-y-4">
-              <DocumentUpload />
             </TabsContent>
 
             <TabsContent value="integrate" className="space-y-4">
