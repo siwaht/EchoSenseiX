@@ -3,6 +3,34 @@ import { config as loadEnv } from 'dotenv';
 // Load environment variables from .env file
 loadEnv();
 
+// Terminal color utilities (works in both light and dark mode)
+const colors = {
+  reset: '\x1b[0m',
+  bright: '\x1b[1m',
+  dim: '\x1b[2m',
+
+  // Colors that work well in both modes
+  cyan: '\x1b[36m',      // Cyan - excellent visibility
+  green: '\x1b[32m',     // Green - success
+  yellow: '\x1b[33m',    // Yellow - warning
+  red: '\x1b[31m',       // Red - error
+  blue: '\x1b[34m',      // Blue - info
+  magenta: '\x1b[35m',   // Magenta - highlight
+  gray: '\x1b[90m',      // Gray - subtle
+
+  // Bright variants for better visibility
+  brightCyan: '\x1b[96m',
+  brightGreen: '\x1b[92m',
+  brightYellow: '\x1b[93m',
+  brightBlue: '\x1b[94m',
+  brightMagenta: '\x1b[95m',
+};
+
+// Helper to colorize text
+const colorize = (text: string, color: string) => {
+  return process.stdout.isTTY ? `${color}${text}${colors.reset}` : text;
+};
+
 interface Config {
   // Environment
   nodeEnv: string;
@@ -17,9 +45,16 @@ interface Config {
   
   // Database
   database: {
+    provider: 'postgresql' | 'mongodb' | 'supabase' | 'mysql' | 'sqlite';
     url: string;
     ssl: boolean;
     maxConnections: number;
+    // Provider-specific options
+    host?: string;
+    port?: number;
+    name?: string;
+    username?: string;
+    password?: string;
   };
   
   // Security & Auth
@@ -28,8 +63,30 @@ interface Config {
     encryptionKey: string;
     trustProxy: boolean;
   };
-  
-  // External Services
+
+  // Platform-Agnostic Providers
+  providers: {
+    voice: {
+      provider: 'elevenlabs' | 'openai' | 'google' | 'azure' | 'aws-polly';
+      apiKey: string | null;
+    };
+    payment: {
+      provider: 'stripe' | 'paypal' | 'square';
+      secretKey: string | null;
+      webhookSecret: string | null;
+    };
+    llm: {
+      provider: 'openai' | 'anthropic' | 'mistral';
+      apiKey: string | null;
+      model: string | null;
+    };
+    email: {
+      provider: 'sendgrid' | 'mailgun' | 'smtp';
+      apiKey: string | null;
+    };
+  };
+
+  // Legacy External Services (backward compatibility)
   integrations: {
     elevenlabs: {
       apiKey: string | null;
@@ -136,14 +193,51 @@ function loadConfig(): Config {
 
   // Database configuration
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required');
+  if (!databaseUrl && !process.env.DATABASE_PROVIDER) {
+    throw new Error('DATABASE_URL or DATABASE_PROVIDER is required');
   }
 
-  const database = {
-    url: databaseUrl,
-    ssl: process.env.DATABASE_SSL === 'true' || isProduction,
+  // Detect database provider
+  const detectProvider = (): Config['database']['provider'] => {
+    const explicitProvider = process.env.DATABASE_PROVIDER?.toLowerCase();
+    if (explicitProvider) {
+      return explicitProvider as Config['database']['provider'];
+    }
+
+    if (databaseUrl) {
+      if (databaseUrl.startsWith('mongodb://') || databaseUrl.startsWith('mongodb+srv://')) {
+        return 'mongodb';
+      }
+      if (databaseUrl.startsWith('mysql://')) {
+        return 'mysql';
+      }
+      if (databaseUrl.includes('supabase.co')) {
+        return 'supabase';
+      }
+      // Default to PostgreSQL
+      return 'postgresql';
+    }
+
+    // Check for provider-specific env vars
+    if (process.env.MONGODB_HOST) return 'mongodb';
+    if (process.env.MYSQL_HOST) return 'mysql';
+    if (process.env.SUPABASE_URL) return 'supabase';
+
+    return 'postgresql'; // Default
+  };
+
+  const databaseProvider = detectProvider();
+
+  const database: Config['database'] = {
+    provider: databaseProvider,
+    url: databaseUrl || '',
+    ssl: process.env.DATABASE_SSL !== 'false',
     maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '20', 10),
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined,
+    name: process.env.DB_NAME,
+    username: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
   };
 
   // Security configuration
@@ -153,7 +247,29 @@ function loadConfig(): Config {
     trustProxy: process.env.TRUST_PROXY === 'true' || isProduction,
   };
 
-  // External integrations (optional, can be configured later)
+  // Platform-Agnostic Providers
+  const providers = {
+    voice: {
+      provider: (process.env.VOICE_PROVIDER || 'elevenlabs') as Config['providers']['voice']['provider'],
+      apiKey: process.env.ELEVENLABS_API_KEY || process.env.OPENAI_API_KEY || process.env.VOICE_API_KEY || null,
+    },
+    payment: {
+      provider: (process.env.PAYMENT_PROVIDER || 'stripe') as Config['providers']['payment']['provider'],
+      secretKey: process.env.STRIPE_SECRET_KEY || process.env.PAYMENT_SECRET_KEY || null,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || null,
+    },
+    llm: {
+      provider: (process.env.LLM_PROVIDER || 'openai') as Config['providers']['llm']['provider'],
+      apiKey: process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.LLM_API_KEY || null,
+      model: process.env.LLM_MODEL || 'gpt-4',
+    },
+    email: {
+      provider: (process.env.EMAIL_PROVIDER || 'sendgrid') as Config['providers']['email']['provider'],
+      apiKey: process.env.SENDGRID_API_KEY || process.env.MAILGUN_API_KEY || process.env.EMAIL_API_KEY || null,
+    },
+  };
+
+  // Legacy integrations (backward compatibility)
   const integrations = {
     elevenlabs: {
       apiKey: process.env.ELEVENLABS_API_KEY || null,
@@ -242,18 +358,40 @@ function loadConfig(): Config {
   }
 
   // Log configuration status (without sensitive values)
-  console.log('[CONFIG] Environment:', nodeEnv);
-  console.log('[CONFIG] Server:', `${host}:${port}`);
-  console.log('[CONFIG] Public URL:', publicUrl);
-  console.log('[CONFIG] Database:', databaseUrl.split('@')[1] || 'configured');
-  console.log('[CONFIG] Storage provider:', storageProvider);
-  
-  if (integrations.elevenlabs.apiKey) {
-    console.log('[CONFIG] ✓ ElevenLabs API key configured');
-  }
-  if (integrations.stripe.secretKey) {
-    console.log('[CONFIG] ✓ Stripe configured');
-  }
+  const configPrefix = colorize('[CONFIG]', colors.gray);
+
+  console.log(`${configPrefix} ${colorize('Environment:', colors.cyan)} ${colorize(nodeEnv, isProduction ? colors.brightGreen : colors.brightYellow)}`);
+  console.log(`${configPrefix} ${colorize('Server:', colors.cyan)} ${colorize(`${host}:${port}`, colors.brightCyan)}`);
+  console.log(`${configPrefix} ${colorize('Public URL:', colors.cyan)} ${colorize(publicUrl, colors.brightBlue)}`);
+  console.log(`${configPrefix}`);
+
+  // Bordered table with colors
+  const border = colors.brightCyan;
+  const label = colors.cyan;
+  const success = colors.brightGreen;
+  const error = colors.red;
+  const title = colors.brightMagenta;
+
+  console.log(`${configPrefix} ${colorize('╔══════════════════════════════════════════════════╗', border)}`);
+  console.log(`${configPrefix} ${colorize('║', border)}   ${colorize('Platform-Agnostic Providers Status', title)}      ${colorize('║', border)}`);
+  console.log(`${configPrefix} ${colorize('╠══════════════════════════════════════════════════╣', border)}`);
+
+  // Helper to create status line
+  const statusLine = (labelText: string, provider: string, isConfigured: boolean) => {
+    const providerColored = colorize(provider.padEnd(15), colors.brightYellow);
+    const statusIcon = isConfigured ? colorize('✓', success) : colorize('✗', error);
+    const labelColored = colorize(labelText.padEnd(9), label);
+    return `${configPrefix} ${colorize('║', border)} ${labelColored}: ${providerColored} ${statusIcon} ${colorize('║', border)}`;
+  };
+
+  console.log(statusLine('Voice', providers.voice.provider, !!providers.voice.apiKey));
+  console.log(statusLine('Payment', providers.payment.provider, !!providers.payment.secretKey));
+  console.log(statusLine('LLM', providers.llm.provider, !!providers.llm.apiKey));
+  console.log(statusLine('Email', providers.email.provider, !!providers.email.apiKey));
+  console.log(statusLine('Database', databaseProvider, true));
+  console.log(statusLine('Storage', storageProvider, true));
+
+  console.log(`${configPrefix} ${colorize('╚══════════════════════════════════════════════════╝', border)}`);
 
   return {
     nodeEnv,
@@ -265,7 +403,8 @@ function loadConfig(): Config {
     baseDomain,
     database,
     security,
-    integrations,
+    providers,
+    integrations, // Legacy support
     storage,
   };
 }
