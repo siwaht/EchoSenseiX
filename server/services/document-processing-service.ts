@@ -7,6 +7,7 @@
 
 import multer from 'multer';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import { storage } from '../storage';
 import { createElevenLabsClient } from './elevenlabs';
@@ -28,25 +29,47 @@ export interface DocumentUpload {
 }
 
 export class DocumentProcessingService {
-  private static uploadPath = path.resolve('./uploads/documents');
+  private static uploadPath = path.resolve(process.cwd(), 'uploads', 'documents');
+
+  /**
+   * Ensure upload directory exists (async, platform-independent)
+   */
+  private static async ensureUploadDirectory(): Promise<void> {
+    try {
+      await fsPromises.access(this.uploadPath);
+    } catch {
+      await fsPromises.mkdir(this.uploadPath, { recursive: true });
+    }
+  }
 
   /**
    * Configure multer for document uploads
+   * Platform-independent file upload handling
    */
   static getUploadMiddleware() {
-    // Ensure upload directory exists
-    if (!fs.existsSync(this.uploadPath)) {
-      fs.mkdirSync(this.uploadPath, { recursive: true });
-    }
+    // Ensure upload directory exists asynchronously
+    this.ensureUploadDirectory().catch(err => {
+      console.error('[DOCUMENT-PROCESSING] Failed to create upload directory:', err);
+    });
 
     return multer({
       storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-          cb(null, this.uploadPath);
+        destination: async (req, file, cb) => {
+          try {
+            // Ensure directory exists before each upload
+            await fsPromises.access(this.uploadPath);
+            cb(null, this.uploadPath);
+          } catch {
+            // Create directory if it doesn't exist
+            await fsPromises.mkdir(this.uploadPath, { recursive: true });
+            cb(null, this.uploadPath);
+          }
         },
         filename: (req, file, cb) => {
+          // Generate platform-independent filename
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, file.fieldname + '-' + uniqueSuffix + '-' + file.originalname);
+          const sanitizedFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+          cb(null, `${file.fieldname}-${uniqueSuffix}-${sanitizedFilename}`);
         }
       }),
       fileFilter: (req, file, cb) => {
@@ -59,7 +82,7 @@ export class DocumentProcessingService {
           'text/markdown',
           'application/rtf'
         ];
-        
+
         if (allowedTypes.includes(file.mimetype)) {
           cb(null, true);
         } else {
@@ -83,14 +106,16 @@ export class DocumentProcessingService {
   ): Promise<DocumentUpload> {
     try {
       console.log(`[DOCUMENT-PROCESSING] Processing document: ${originalName}`);
-      
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
+
+      // Check if file exists (async, platform-independent)
+      try {
+        await fsPromises.access(filePath);
+      } catch {
         throw new Error(`File not found: ${filePath}`);
       }
 
-      // Get file stats
-      const fileStats = fs.statSync(filePath);
+      // Get file stats (async)
+      const fileStats = await fsPromises.stat(filePath);
       
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -200,17 +225,18 @@ export class DocumentProcessingService {
   }
 
   /**
-   * Extract text from PDF files
+   * Extract text from PDF files (async, platform-independent)
    */
   private static async extractTextFromPDF(filePath: string): Promise<string> {
     try {
       // Using pdf-parse library for PDF text extraction
       const pdfParseModule = await import('pdf-parse');
       const pdfParse = pdfParseModule.default || pdfParseModule;
-      
-      const dataBuffer = fs.readFileSync(filePath);
+
+      // Use async file read
+      const dataBuffer = await fsPromises.readFile(filePath);
       const data = await pdfParse(dataBuffer);
-      
+
       return data.text || '';
     } catch (error: any) {
       console.error('[DOCUMENT-PROCESSING] PDF extraction failed:', error);
@@ -235,12 +261,12 @@ export class DocumentProcessingService {
   }
 
   /**
-   * Extract text from TXT/Markdown files
+   * Extract text from TXT/Markdown files (async, platform-independent)
    */
   private static async extractTextFromTXT(filePath: string): Promise<string> {
     try {
-      return fs.readFileSync(filePath, 'utf8');
-    } catch (error) {
+      return await fsPromises.readFile(filePath, 'utf8');
+    } catch (error: any) {
       console.error('[DOCUMENT-PROCESSING] TXT extraction failed:', error);
       throw new Error(`Failed to extract text from file: ${error.message}`);
     }
@@ -415,6 +441,67 @@ export class DocumentProcessingService {
     } catch (error) {
       console.error(`[DOCUMENT-PROCESSING] Failed to get status:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Delete a document and its associated knowledge base entries
+   */
+  static async deleteDocument(
+    organizationId: string,
+    documentId: string
+  ): Promise<void> {
+    try {
+      console.log(`[DOCUMENT-PROCESSING] Deleting document: ${documentId}`);
+
+      // Get document processing status to find file path and original name
+      const status = await storage.getDocumentProcessingStatus(documentId);
+
+      if (!status) {
+        throw new Error('Document not found');
+      }
+
+      // Verify organization access
+      if (status.organizationId !== organizationId) {
+        throw new Error('Access denied');
+      }
+
+      const filePath = status.metadata?.filePath;
+      const originalName = status.documentName;
+
+      // Delete the physical file if it exists
+      if (filePath && fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`[DOCUMENT-PROCESSING] Deleted file: ${filePath}`);
+        } catch (error) {
+          console.error(`[DOCUMENT-PROCESSING] Failed to delete file:`, error);
+          // Continue with database cleanup even if file deletion fails
+        }
+      }
+
+      // Delete associated knowledge base entries
+      // Find entries by the document tag (filename without extension)
+      const documentTag = originalName.replace(/\.[^/.]+$/, "");
+      const knowledgeEntries = await storage.getKnowledgeBaseEntries(organizationId);
+
+      for (const entry of knowledgeEntries) {
+        if (entry.tags?.includes(documentTag) || entry.tags?.includes('document-upload')) {
+          // Check if this entry is specifically from this document
+          if (entry.category === 'Uploaded Documents' && entry.tags?.includes(documentTag)) {
+            await storage.deleteKnowledgeEntry(organizationId, entry.id);
+            console.log(`[DOCUMENT-PROCESSING] Deleted knowledge entry: ${entry.id}`);
+          }
+        }
+      }
+
+      // Delete document processing status record
+      await storage.deleteDocumentProcessingStatus(documentId);
+      console.log(`[DOCUMENT-PROCESSING] Deleted document processing status: ${documentId}`);
+
+    } catch (error: any) {
+      console.error(`[DOCUMENT-PROCESSING] Failed to delete document:`, error);
+      throw new Error(`Document deletion failed: ${error.message}`);
     }
   }
 }

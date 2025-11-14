@@ -220,14 +220,21 @@ export default function Agents() {
                 <div className="w-12 h-12 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
                   <Bot className="w-6 h-6 text-white" />
                 </div>
-                <Badge className={cn(
-                  "shadow-sm",
-                  agent.isActive 
-                    ? "bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-700 dark:text-green-300 border-green-500/30" 
-                    : "bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
-                )} data-testid={`badge-status-${agent.id}`}>
-                  {getStatusText(agent.isActive)}
-                </Badge>
+                <div className="flex flex-col gap-2 items-end">
+                  {/* Platform Badge */}
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {agent.platform || 'elevenlabs'}
+                  </Badge>
+                  {/* Status Badge */}
+                  <Badge className={cn(
+                    "shadow-sm",
+                    agent.isActive
+                      ? "bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-700 dark:text-green-300 border-green-500/30"
+                      : "bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
+                  )} data-testid={`badge-status-${agent.id}`}>
+                    {getStatusText(agent.isActive)}
+                  </Badge>
+                </div>
               </div>
               
               <div className="flex-1">
@@ -242,13 +249,27 @@ export default function Agents() {
                 )}
                 
                 <div className="space-y-3 text-sm">
-                <div className="flex flex-col space-y-1 min-w-0">
-                  <span className="text-gray-600 dark:text-gray-400 text-xs">Agent ID:</span>
-                  <div className="font-medium font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded overflow-hidden" data-testid={`text-agent-id-${agent.id}`}>
-                    <span className="block truncate">{agent.elevenLabsAgentId}</span>
+                  <div className="flex flex-col space-y-1 min-w-0">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs">Agent ID:</span>
+                    <div className="font-medium font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded overflow-hidden" data-testid={`text-agent-id-${agent.id}`}>
+                      <span className="block truncate">{agent.externalAgentId || agent.elevenLabsAgentId}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-between items-center">
+                  {/* Show configured providers if any */}
+                  {agent.providers && Object.keys(agent.providers).length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {agent.providers.llm && (
+                        <Badge variant="secondary" className="text-xs">LLM: {agent.providers.llm}</Badge>
+                      )}
+                      {agent.providers.tts && (
+                        <Badge variant="secondary" className="text-xs">TTS: {agent.providers.tts}</Badge>
+                      )}
+                      {agent.providers.stt && (
+                        <Badge variant="secondary" className="text-xs">STT: {agent.providers.stt}</Badge>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Created:</span>
                   <span className="font-medium" data-testid={`text-agent-created-${agent.id}`}>
                     {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : "Unknown"}
