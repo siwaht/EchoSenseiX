@@ -1,0 +1,101 @@
+# Docker Compose for Horizontal Scaling
+# Deploys multiple EchoSenseiX instances with load balancer
+
+version: '3.8'
+
+services:
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  # EchoSenseiX Application (Scalable)
+  app:
+    build: .
+    environment:
+      # Disable clustering (Docker handles scaling)
+      - CLUSTER_ENABLED=false
+
+      # Database
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/echosenseix
+      - DATABASE_MAX_CONNECTIONS=50  # Per instance
+
+      # Redis
+      - CACHE_PROVIDER=redis
+      - QUEUE_PROVIDER=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SESSION_STORE=redis
+
+      # Providers
+      - VOICE_PROVIDER=elevenlabs
+      - PAYMENT_PROVIDER=stripe
+      - STORAGE_PROVIDER=local
+
+      # Security
+      - SESSION_SECRET=${SESSION_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      replicas: 3  # Scale to 3 instances
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=echosenseix
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_MAX_CONNECTIONS=200
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (Cache, Queue, Sessions)
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
