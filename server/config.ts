@@ -35,8 +35,30 @@ interface Config {
     encryptionKey: string;
     trustProxy: boolean;
   };
-  
-  // External Services
+
+  // Platform-Agnostic Providers
+  providers: {
+    voice: {
+      provider: 'elevenlabs' | 'openai' | 'google' | 'azure' | 'aws-polly';
+      apiKey: string | null;
+    };
+    payment: {
+      provider: 'stripe' | 'paypal' | 'square';
+      secretKey: string | null;
+      webhookSecret: string | null;
+    };
+    llm: {
+      provider: 'openai' | 'anthropic' | 'mistral';
+      apiKey: string | null;
+      model: string | null;
+    };
+    email: {
+      provider: 'sendgrid' | 'mailgun' | 'smtp';
+      apiKey: string | null;
+    };
+  };
+
+  // Legacy External Services (backward compatibility)
   integrations: {
     elevenlabs: {
       apiKey: string | null;
@@ -197,7 +219,29 @@ function loadConfig(): Config {
     trustProxy: process.env.TRUST_PROXY === 'true' || isProduction,
   };
 
-  // External integrations (optional, can be configured later)
+  // Platform-Agnostic Providers
+  const providers = {
+    voice: {
+      provider: (process.env.VOICE_PROVIDER || 'elevenlabs') as Config['providers']['voice']['provider'],
+      apiKey: process.env.ELEVENLABS_API_KEY || process.env.OPENAI_API_KEY || process.env.VOICE_API_KEY || null,
+    },
+    payment: {
+      provider: (process.env.PAYMENT_PROVIDER || 'stripe') as Config['providers']['payment']['provider'],
+      secretKey: process.env.STRIPE_SECRET_KEY || process.env.PAYMENT_SECRET_KEY || null,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || null,
+    },
+    llm: {
+      provider: (process.env.LLM_PROVIDER || 'openai') as Config['providers']['llm']['provider'],
+      apiKey: process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.LLM_API_KEY || null,
+      model: process.env.LLM_MODEL || 'gpt-4',
+    },
+    email: {
+      provider: (process.env.EMAIL_PROVIDER || 'sendgrid') as Config['providers']['email']['provider'],
+      apiKey: process.env.SENDGRID_API_KEY || process.env.MAILGUN_API_KEY || process.env.EMAIL_API_KEY || null,
+    },
+  };
+
+  // Legacy integrations (backward compatibility)
   const integrations = {
     elevenlabs: {
       apiKey: process.env.ELEVENLABS_API_KEY || null,
@@ -289,16 +333,15 @@ function loadConfig(): Config {
   console.log('[CONFIG] Environment:', nodeEnv);
   console.log('[CONFIG] Server:', `${host}:${port}`);
   console.log('[CONFIG] Public URL:', publicUrl);
-  console.log('[CONFIG] Database provider:', databaseProvider);
-  console.log('[CONFIG] Database:', databaseUrl ? (databaseUrl.split('@')[1] || 'configured') : 'configured via env vars');
-  console.log('[CONFIG] Storage provider:', storageProvider);
-  
-  if (integrations.elevenlabs.apiKey) {
-    console.log('[CONFIG] ✓ ElevenLabs API key configured');
-  }
-  if (integrations.stripe.secretKey) {
-    console.log('[CONFIG] ✓ Stripe configured');
-  }
+  console.log('[CONFIG] ');
+  console.log('[CONFIG] === Platform-Agnostic Providers ===');
+  console.log('[CONFIG] Voice:', providers.voice.provider, providers.voice.apiKey ? '✓' : '✗');
+  console.log('[CONFIG] Payment:', providers.payment.provider, providers.payment.secretKey ? '✓' : '✗');
+  console.log('[CONFIG] LLM:', providers.llm.provider, providers.llm.apiKey ? '✓' : '✗');
+  console.log('[CONFIG] Email:', providers.email.provider, providers.email.apiKey ? '✓' : '✗');
+  console.log('[CONFIG] Database:', databaseProvider, '✓');
+  console.log('[CONFIG] Storage:', storageProvider, '✓');
+  console.log('[CONFIG] ===================================');
 
   return {
     nodeEnv,
@@ -310,7 +353,8 @@ function loadConfig(): Config {
     baseDomain,
     database,
     security,
-    integrations,
+    providers,
+    integrations, // Legacy support
     storage,
   };
 }
