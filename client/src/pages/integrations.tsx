@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Copy, ExternalLink, HelpCircle, ArrowRight, CreditCard, Mic } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Copy, ExternalLink, HelpCircle, ArrowRight, CreditCard, Mic, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PaymentProviderConfig from "@/components/payment-provider-config";
 import ProviderIntegrationConfig from "@/components/provider-integration-config";
+import { DatabaseIntegrationConfig } from "@/components/database-integration-config";
 import { useAuth } from "@/hooks/useAuth";
 
 // Helper function to sanitize API key by removing non-ASCII characters
@@ -181,10 +182,14 @@ export default function Integrations() {
       </div>
 
       <Tabs defaultValue="voice-ai" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl mx-auto">
           <TabsTrigger value="voice-ai" className="flex items-center gap-2">
             <Mic className="w-4 h-4" />
             <span>AI Providers</span>
+          </TabsTrigger>
+          <TabsTrigger value="database" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            <span>Database</span>
           </TabsTrigger>
           <TabsTrigger value="payments" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
@@ -474,6 +479,11 @@ export default function Integrations() {
         </div>
       </Card>
           </div>
+        </TabsContent>
+
+        {/* Database Integration Tab */}
+        <TabsContent value="database" className="mt-6">
+          <DatabaseIntegrationConfig />
         </TabsContent>
 
         {/* Payment Providers Tab */}
