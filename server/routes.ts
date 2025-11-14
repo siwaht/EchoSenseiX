@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import { insertIntegrationSchema, insertAgentSchema, insertCallLogSchema, insertPhoneNumberSchema, insertBatchCallSchema, insertBatchCallRecipientSchema, type Integration, callLogs, agents } from "@shared/schema";
+import { insertIntegrationSchema, insertAgentSchema, insertCallLogSchema, insertPhoneNumberSchema, insertBatchCallSchema, insertBatchCallRecipientSchema, type Integration, callLogs, agents, users } from "@shared/schema";
 import { z } from "zod";
 import crypto from "crypto";
 import type { RequestHandler } from "express";
@@ -13,7 +13,7 @@ import * as unifiedPayment from "./unified-payment";
 import { cacheMiddleware } from "./middleware/cache-middleware";
 import Stripe from "stripe";
 import SyncService from "./services/sync-service";
-import { db } from "./db";
+import { db, validateSchema } from "./db";
 import { eq } from "drizzle-orm";
 import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
 import KnowledgeBaseService from "./services/knowledge-base-service";
@@ -356,19 +356,88 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
 export function registerRoutes(app: Express): Server {
   // Health check endpoint (no auth required for load balancers)
   app.get('/health', async (req, res) => {
-    res.status(200).json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-    });
+    try {
+      // Try to validate schema on health check if not already validated
+      if (process.env.DATABASE_PROVIDER === 'sqlite') {
+        try {
+          await db().select().from(users).limit(1);
+        } catch (error) {
+          // Schema might not exist yet - this is acceptable for health check
+          // Return degraded status instead of failing
+          return res.status(503).json({
+            status: 'degraded',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            environment: process.env.NODE_ENV || 'development',
+            message: 'Database schema not initialized. Run "npm run db:push" to initialize.',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }
+
+      res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'unhealthy',
+        message: 'Health check failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  // Database status endpoint (no auth required for diagnostics)
+  app.get('/api/database/status', async (req, res) => {
+    try {
+      const provider = process.env.DATABASE_PROVIDER || 'sqlite';
+
+      // Test database connection by attempting a simple query
+      try {
+        await db().select().from(users).limit(1);
+        res.status(200).json({
+          status: 'connected',
+          provider: provider,
+          timestamp: new Date().toISOString(),
+          message: 'Database connection is healthy',
+        });
+      } catch (dbError) {
+        console.error('[DB] Connection test failed:', dbError);
+        res.status(500).json({
+          status: 'disconnected',
+          provider: provider,
+          timestamp: new Date().toISOString(),
+          message: 'Unable to connect to database',
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        });
+      }
+    } catch (error) {
+      console.error('[DB] Status check error:', error);
+      res.status(500).json({
+        status: 'unknown',
+        timestamp: new Date().toISOString(),
+        message: 'Failed to check database status',
+      });
+    }
   });
 
   // Seed admin user on startup (with delay to ensure DB is ready)
   setTimeout(() => {
-    seedAdminUser().catch(console.error);
-    // Run migration to add manage_integrations permission to existing users
-    storage.migrateAddIntegrationsPermission().catch(console.error);
+    validateSchema()
+      .then(() => {
+        console.log('[DB] Schema validation completed, seeding admin user...');
+        return seedAdminUser();
+      })
+      .then(() => {
+        // Run migration to add manage_integrations permission to existing users
+        return storage.migrateAddIntegrationsPermission();
+      })
+      .catch((error) => {
+        console.error('[INIT] Error during startup initialization:', error);
+      });
   }, 1000);
 
   // Auth middleware

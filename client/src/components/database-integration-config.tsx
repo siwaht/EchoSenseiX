@@ -4,7 +4,8 @@
  * Allows users to view and configure database connections
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Database, CheckCircle, XCircle, AlertCircle, RefreshCw, Server } from "lucide-react";
 
 interface DatabaseConfig {
@@ -23,35 +25,58 @@ interface DatabaseConfig {
   database?: string;
 }
 
+interface DatabaseStatus {
+  status: 'connected' | 'disconnected' | 'unknown';
+  provider: string;
+  timestamp: string;
+  message: string;
+  error?: string;
+}
+
 export function DatabaseIntegrationConfig() {
   const { toast } = useToast();
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
-  // In a real implementation, this would come from the backend
-  const [dbConfig] = useState<DatabaseConfig>({
-    provider: (process.env.DATABASE_PROVIDER || 'mongodb') as any,
-    status: 'connected',
+  // Fetch database status from backend
+  const { data: dbStatus, isLoading, refetch } = useQuery<DatabaseStatus>({
+    queryKey: ["/api/database/status"],
+    retry: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const [dbConfig, setDbConfig] = useState<DatabaseConfig>({
+    provider: 'sqlite',
+    status: 'unknown',
     database: 'echosensei'
   });
 
+  // Update local config when status is fetched
+  useEffect(() => {
+    if (dbStatus) {
+      setDbConfig(prev => ({
+        ...prev,
+        provider: (dbStatus.provider || 'sqlite') as any,
+        status: dbStatus.status as any,
+      }));
+    }
+  }, [dbStatus]);
+
   const handleTestConnection = async () => {
-    setIsTestingConnection(true);
     try {
-      // In a real implementation, call the backend to test connection
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await refetch();
 
       toast({
-        title: "Connection Successful",
-        description: `Successfully connected to ${dbConfig.provider} database`,
+        title: "Connection Test Complete",
+        description: dbConfig.status === 'connected' ?
+          `Successfully connected to ${dbConfig.provider} database` :
+          "Unable to connect to database",
+        variant: dbConfig.status === 'connected' ? 'default' : 'destructive',
       });
     } catch (error) {
       toast({
-        title: "Connection Failed",
-        description: "Could not establish database connection",
+        title: "Connection Test Failed",
+        description: error instanceof Error ? error.message : "Could not test database connection",
         variant: "destructive",
       });
-    } finally {
-      setIsTestingConnection(false);
     }
   };
 
@@ -153,10 +178,10 @@ export function DatabaseIntegrationConfig() {
               </div>
               <Button
                 onClick={handleTestConnection}
-                disabled={isTestingConnection}
+                disabled={isLoading}
                 variant="outline"
               >
-                {isTestingConnection ? (
+                {isLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     Testing...

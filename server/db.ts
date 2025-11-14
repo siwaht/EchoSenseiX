@@ -107,8 +107,47 @@ function getDatabaseConnection() {
   return database;
 }
 
+// Check if database schema exists (for SQLite)
+async function validateDatabaseSchema(): Promise<void> {
+  if (config.database.provider !== 'sqlite') {
+    return; // Schema validation only needed for SQLite
+  }
+
+  try {
+    const db = getDatabaseConnection();
+    // Try to query the users table to verify schema exists
+    await db.select().from(schema.users).limit(1);
+    console.log('[DB] ✓ Schema validation passed');
+  } catch (error) {
+    console.error('[DB] ⚠ Schema validation failed:', error instanceof Error ? error.message : error);
+    console.error('[DB] ⚠ Database tables may not exist.');
+    console.error('[DB] ⚠ To fix this, run: npm run db:push');
+    throw new Error(
+      'Database schema not initialized. Please run "npm run db:push" to create tables.'
+    );
+  }
+}
+
 // Export a function that returns the database instance
 export const db = () => getDatabaseConnection();
+
+// Validate schema on first use
+let schemaValidated = false;
+let schemaValidationPromise: Promise<void> | null = null;
+
+export const validateSchema = async (): Promise<void> => {
+  if (schemaValidated) {
+    return;
+  }
+
+  if (!schemaValidationPromise) {
+    schemaValidationPromise = validateDatabaseSchema().then(() => {
+      schemaValidated = true;
+    });
+  }
+
+  await schemaValidationPromise;
+};
 
 // Cleanup function for graceful shutdown
 export const closeDatabase = async () => {
