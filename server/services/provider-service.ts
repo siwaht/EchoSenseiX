@@ -9,6 +9,7 @@ export interface VoiceAgentConfig {
   language: string;
   voiceId?: string;
   model?: string;
+  platform?: string;
 }
 
 export interface VoiceAgentResponse {
@@ -91,15 +92,25 @@ export class ProviderService {
   async createVoiceAgent(
     organizationId: string,
     config: VoiceAgentConfig,
-    providerId?: string
+    providerIdOrPlatform?: string
   ): Promise<VoiceAgentResponse> {
     let provider: ProviderIntegration | null;
 
-    if (providerId) {
-      // Use specified provider
-      provider = await this.storage.getProviderIntegration(providerId, organizationId);
+    if (providerIdOrPlatform) {
+      // First try to use as provider ID
+      provider = await this.storage.getProviderIntegration(providerIdOrPlatform, organizationId);
+
+      // If not found, try to find by platform name
+      if (!provider) {
+        const providers = await this.storage.getProviderIntegrations(organizationId, 'VOICE_PLATFORM');
+        provider = providers.find(p =>
+          p.providerName.toLowerCase() === providerIdOrPlatform.toLowerCase() &&
+          p.status === 'ACTIVE'
+        ) || null;
+      }
+
       if (!provider || provider.status !== 'ACTIVE') {
-        throw new Error('Specified provider not found or inactive');
+        throw new Error(`No active provider found for platform: ${providerIdOrPlatform}. Please configure the provider in integrations.`);
       }
     } else {
       // Use primary VOICE_PLATFORM provider
