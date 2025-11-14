@@ -2,6 +2,8 @@ import {
   users,
   organizations,
   integrations,
+  providerIntegrations,
+  providerUsage,
   agents,
   userAgents,
   callLogs,
@@ -37,6 +39,10 @@ import {
   type InsertOrganization,
   type Integration,
   type InsertIntegration,
+  type ProviderIntegration,
+  type InsertProviderIntegration,
+  type ProviderUsage,
+  type InsertProviderUsage,
   type Agent,
   type InsertAgent,
   type CallLog,
@@ -751,6 +757,125 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(integrations.id, id));
+  }
+
+  // Provider Integration operations (platform-agnostic)
+  async getProviderIntegrations(organizationId: string, providerType?: string): Promise<ProviderIntegration[]> {
+    if (providerType) {
+      return db()
+        .select()
+        .from(providerIntegrations)
+        .where(and(
+          eq(providerIntegrations.organizationId, organizationId),
+          eq(providerIntegrations.providerType, providerType as any)
+        ))
+        .orderBy(desc(providerIntegrations.createdAt));
+    }
+    return db()
+      .select()
+      .from(providerIntegrations)
+      .where(eq(providerIntegrations.organizationId, organizationId))
+      .orderBy(desc(providerIntegrations.createdAt));
+  }
+
+  async getProviderIntegration(id: string, organizationId: string): Promise<ProviderIntegration | undefined> {
+    const [provider] = await db()
+      .select()
+      .from(providerIntegrations)
+      .where(and(
+        eq(providerIntegrations.id, id),
+        eq(providerIntegrations.organizationId, organizationId)
+      ));
+    return provider;
+  }
+
+  async getPrimaryProvider(organizationId: string, providerType: string): Promise<ProviderIntegration | undefined> {
+    const [provider] = await db()
+      .select()
+      .from(providerIntegrations)
+      .where(and(
+        eq(providerIntegrations.organizationId, organizationId),
+        eq(providerIntegrations.providerType, providerType as any),
+        eq(providerIntegrations.isPrimary, true)
+      ));
+    return provider;
+  }
+
+  async createProviderIntegration(data: InsertProviderIntegration): Promise<ProviderIntegration> {
+    const [provider] = await db()
+      .insert(providerIntegrations)
+      .values(data)
+      .returning();
+    return provider;
+  }
+
+  async updateProviderIntegration(id: string, organizationId: string, data: Partial<ProviderIntegration>): Promise<ProviderIntegration | undefined> {
+    const [provider] = await db()
+      .update(providerIntegrations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(providerIntegrations.id, id),
+        eq(providerIntegrations.organizationId, organizationId)
+      ))
+      .returning();
+    return provider;
+  }
+
+  async deleteProviderIntegration(id: string, organizationId: string): Promise<void> {
+    await db()
+      .delete(providerIntegrations)
+      .where(and(
+        eq(providerIntegrations.id, id),
+        eq(providerIntegrations.organizationId, organizationId)
+      ));
+  }
+
+  async setPrimaryProvider(id: string, organizationId: string, providerType: string): Promise<void> {
+    // First, unset all primary flags for this provider type
+    await db()
+      .update(providerIntegrations)
+      .set({ isPrimary: false })
+      .where(and(
+        eq(providerIntegrations.organizationId, organizationId),
+        eq(providerIntegrations.providerType, providerType as any)
+      ));
+
+    // Then set the specified provider as primary
+    await db()
+      .update(providerIntegrations)
+      .set({ isPrimary: true, updatedAt: new Date() })
+      .where(and(
+        eq(providerIntegrations.id, id),
+        eq(providerIntegrations.organizationId, organizationId)
+      ));
+  }
+
+  async trackProviderUsage(data: InsertProviderUsage): Promise<ProviderUsage> {
+    const [usage] = await db()
+      .insert(providerUsage)
+      .values(data)
+      .returning();
+    return usage;
+  }
+
+  async getProviderUsage(organizationId: string, providerIntegrationId?: string, limit = 100): Promise<ProviderUsage[]> {
+    if (providerIntegrationId) {
+      return db()
+        .select()
+        .from(providerUsage)
+        .where(and(
+          eq(providerUsage.organizationId, organizationId),
+          eq(providerUsage.providerIntegrationId, providerIntegrationId)
+        ))
+        .orderBy(desc(providerUsage.createdAt))
+        .limit(limit);
+    }
+    return db()
+      .select()
+      .from(providerUsage)
+      .where(eq(providerUsage.organizationId, organizationId))
+      .orderBy(desc(providerUsage.createdAt))
+      .limit(limit);
   }
 
   // Agent operations
