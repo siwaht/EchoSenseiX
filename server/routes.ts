@@ -3343,8 +3343,8 @@ Generate the complete prompt now:`;
         return res.status(404).json({ message: "User not found" });
       }
 
-      const { name, firstMessage, systemPrompt, language, voiceId, providerId } = req.body;
-      
+      const { name, firstMessage, systemPrompt, language, voiceId, platform, providers } = req.body;
+
       if (!name || !firstMessage || !systemPrompt) {
         return res.status(400).json({ message: "Name, first message, and system prompt are required" });
       }
@@ -3360,22 +3360,28 @@ Generate the complete prompt now:`;
           firstMessage,
           systemPrompt,
           language: language || "en",
-          voiceId
+          voiceId,
+          platform: platform || "elevenlabs"
         },
-        providerId // Optional: use specific provider or default to primary
+        platform || "elevenlabs" // Use platform parameter instead of providerId
       );
 
       // Save agent to our database with default tools configuration
       const agentData = insertAgentSchema.parse({
         organizationId: user.organizationId,
-        elevenLabsAgentId: voiceAgentResponse.agentId,
+        platform: platform || "elevenlabs",
+        externalAgentId: voiceAgentResponse.agentId,
+        // Legacy support for ElevenLabs
+        elevenLabsAgentId: platform === "elevenlabs" || !platform ? voiceAgentResponse.agentId : undefined,
         name: name,
-        description: `Created via EchoSensei using ${voiceAgentResponse.provider}`,
+        description: `Created via EchoSensei using ${voiceAgentResponse.provider || platform || "elevenlabs"}`,
         firstMessage: firstMessage,
         systemPrompt: systemPrompt,
         language: language || "en",
         voiceId: voiceId,
         isActive: true,
+        // Save provider configuration if provided
+        providers: providers || undefined,
         // Save default tools configuration
         tools: {
           webhooks: [],

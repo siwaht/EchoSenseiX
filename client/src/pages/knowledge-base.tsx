@@ -20,7 +20,6 @@ import {
   Users
 } from "lucide-react";
 import { KnowledgeBaseManager } from "@/components/knowledge-base/knowledge-base-manager";
-import { DocumentUpload } from "@/components/knowledge-base/document-upload";
 import { MultilingualConfig } from "@/components/agents/multilingual-config";
 
 export default function KnowledgeBase() {
@@ -68,7 +67,7 @@ export default function KnowledgeBase() {
 
       {/* Statistics Cards */}
       {!statsLoading && stats && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Knowledge Base Statistics">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" aria-label="Knowledge Base Statistics">
           <Card className="card-hover" role="article" aria-label="Total Entries Statistics">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -83,24 +82,6 @@ export default function KnowledgeBase() {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Knowledge base entries
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="card-hover" role="article" aria-label="Documents Statistics">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></div>
-                Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400" aria-label={`${stats.totalDocuments || 0} uploaded documents`}>{stats.totalDocuments || 0}</p>
-                <Upload className="h-5 w-5 text-emerald-500" aria-hidden="true" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Uploaded documents
               </p>
             </CardContent>
           </Card>
@@ -145,7 +126,7 @@ export default function KnowledgeBase() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -153,10 +134,6 @@ export default function KnowledgeBase() {
           <TabsTrigger value="knowledge" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">Knowledge</span>
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Documents</span>
           </TabsTrigger>
           <TabsTrigger value="multilingual" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
@@ -179,22 +156,15 @@ export default function KnowledgeBase() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
+                <Button
+                  className="w-full justify-start btn-brand-premium"
                   onClick={() => setActiveTab("knowledge")}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Knowledge Entry
                 </Button>
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
-                  onClick={() => setActiveTab("documents")}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
+                <Button
+                  className="w-full justify-start btn-brand-premium"
                   onClick={() => setActiveTab("multilingual")}
                 >
                   <Globe className="h-4 w-4 mr-2" />
@@ -223,15 +193,6 @@ export default function KnowledgeBase() {
                     </div>
                     <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100 text-xs">
                       Just now
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                    <div className="flex items-center gap-2">
-                      <Upload className="h-4 w-4 text-emerald-500" />
-                      <span className="text-sm font-medium">Document uploaded</span>
-                    </div>
-                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100 text-xs">
-                      5 min ago
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg border border-purple-200 dark:border-purple-800">
@@ -283,24 +244,6 @@ export default function KnowledgeBase() {
         {/* Knowledge Management Tab */}
         <TabsContent value="knowledge" className="space-y-4">
           <KnowledgeBaseManager />
-        </TabsContent>
-
-        {/* Document Upload Tab */}
-        <TabsContent value="documents" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Document Upload
-              </CardTitle>
-              <CardDescription>
-                Upload documents to automatically extract knowledge and enhance your agents
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DocumentUpload />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Multilingual Configuration Tab */}
