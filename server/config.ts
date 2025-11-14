@@ -17,9 +17,16 @@ interface Config {
   
   // Database
   database: {
+    provider: 'postgresql' | 'mongodb' | 'supabase' | 'mysql' | 'sqlite';
     url: string;
     ssl: boolean;
     maxConnections: number;
+    // Provider-specific options
+    host?: string;
+    port?: number;
+    name?: string;
+    username?: string;
+    password?: string;
   };
   
   // Security & Auth
@@ -136,14 +143,51 @@ function loadConfig(): Config {
 
   // Database configuration
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required');
+  if (!databaseUrl && !process.env.DATABASE_PROVIDER) {
+    throw new Error('DATABASE_URL or DATABASE_PROVIDER is required');
   }
 
-  const database = {
-    url: databaseUrl,
-    ssl: process.env.DATABASE_SSL === 'true' || isProduction,
+  // Detect database provider
+  const detectProvider = (): Config['database']['provider'] => {
+    const explicitProvider = process.env.DATABASE_PROVIDER?.toLowerCase();
+    if (explicitProvider) {
+      return explicitProvider as Config['database']['provider'];
+    }
+
+    if (databaseUrl) {
+      if (databaseUrl.startsWith('mongodb://') || databaseUrl.startsWith('mongodb+srv://')) {
+        return 'mongodb';
+      }
+      if (databaseUrl.startsWith('mysql://')) {
+        return 'mysql';
+      }
+      if (databaseUrl.includes('supabase.co')) {
+        return 'supabase';
+      }
+      // Default to PostgreSQL
+      return 'postgresql';
+    }
+
+    // Check for provider-specific env vars
+    if (process.env.MONGODB_HOST) return 'mongodb';
+    if (process.env.MYSQL_HOST) return 'mysql';
+    if (process.env.SUPABASE_URL) return 'supabase';
+
+    return 'postgresql'; // Default
+  };
+
+  const databaseProvider = detectProvider();
+
+  const database: Config['database'] = {
+    provider: databaseProvider,
+    url: databaseUrl || '',
+    ssl: process.env.DATABASE_SSL !== 'false',
     maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '20', 10),
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined,
+    name: process.env.DB_NAME,
+    username: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
   };
 
   // Security configuration
@@ -245,7 +289,8 @@ function loadConfig(): Config {
   console.log('[CONFIG] Environment:', nodeEnv);
   console.log('[CONFIG] Server:', `${host}:${port}`);
   console.log('[CONFIG] Public URL:', publicUrl);
-  console.log('[CONFIG] Database:', databaseUrl.split('@')[1] || 'configured');
+  console.log('[CONFIG] Database provider:', databaseProvider);
+  console.log('[CONFIG] Database:', databaseUrl ? (databaseUrl.split('@')[1] || 'configured') : 'configured via env vars');
   console.log('[CONFIG] Storage provider:', storageProvider);
   
   if (integrations.elevenlabs.apiKey) {
