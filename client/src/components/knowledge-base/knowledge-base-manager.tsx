@@ -16,8 +16,18 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload, Settings } from "lucide-react";
+import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload, Settings, Trash2 } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface KnowledgeBaseEntry {
   id: string;
@@ -46,7 +56,8 @@ export function KnowledgeBaseManager() {
     tags: ""
   });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
+  const [entryToDelete, setEntryToDelete] = useState<KnowledgeBaseEntry | null>(null);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -95,11 +106,11 @@ export function KnowledgeBaseManager() {
           tags: entry.tags.split(",").map(tag => tag.trim()).filter(tag => tag)
         })
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to add entry");
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -110,6 +121,7 @@ export function KnowledgeBaseManager() {
       setIsAddDialogOpen(false);
       setNewEntry({ title: "", content: "", category: "General", tags: "" });
       queryClient.invalidateQueries({ queryKey: ["knowledge-base"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-base/stats"] });
     },
     onError: (error) => {
       toast({
@@ -117,6 +129,40 @@ export function KnowledgeBaseManager() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Delete knowledge base entry
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      const response = await fetch(`/api/knowledge-base/entries/${entryId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete entry");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry Deleted",
+        description: "Knowledge base entry deleted successfully",
+      });
+      setEntryToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["knowledge-base"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-base/stats"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setEntryToDelete(null);
     },
   });
 
@@ -205,9 +251,9 @@ export function KnowledgeBaseManager() {
                           {searchMutation.data.data.sources.map((source: KnowledgeBaseEntry) => (
                             <Card key={source.id} className="p-3">
                               <div className="flex items-start justify-between">
-                                <div>
+                                <div className="flex-1">
                                   <h5 className="font-medium">{source.title}</h5>
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                     {source.content.substring(0, 200)}...
                                   </p>
                                   <div className="flex gap-2 mt-2">
@@ -220,6 +266,14 @@ export function KnowledgeBaseManager() {
                                     ))}
                                   </div>
                                 </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEntryToDelete(source)}
+                                  className="ml-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </Card>
                           ))}
@@ -395,6 +449,29 @@ export function KnowledgeBaseManager() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Knowledge Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "<strong>{entryToDelete?.title}</strong>"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => entryToDelete && deleteEntryMutation.mutate(entryToDelete.id)}
+              disabled={deleteEntryMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteEntryMutation.isPending ? "Deleting..." : "Delete Entry"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

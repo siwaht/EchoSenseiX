@@ -4616,6 +4616,43 @@ Generate the complete prompt now:`;
     }
   });
 
+  // Delete knowledge base entry
+  app.delete("/api/knowledge-base/entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const entryId = req.params.id;
+
+      if (!entryId) {
+        return res.status(400).json({ message: "Entry ID is required" });
+      }
+
+      // Get the entry to verify ownership
+      const entries = await storage.getKnowledgeEntries(user.organizationId, { limit: 1000 });
+      const entry = entries.find(e => e.id === entryId);
+
+      if (!entry) {
+        return res.status(404).json({ message: "Knowledge base entry not found" });
+      }
+
+      // Delete the entry
+      await storage.deleteKnowledgeEntry(entryId);
+
+      res.json({
+        success: true,
+        message: "Knowledge base entry deleted successfully",
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error("[KNOWLEDGE-BASE] Delete entry error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Enhance agent with knowledge base
   app.post("/api/agents/:id/enhance-knowledge", isAuthenticated, async (req: any, res) => {
     try {
