@@ -239,12 +239,12 @@ export default function History() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-page-title">
+        <div className="space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent" data-testid="text-page-title">
             Call History
           </h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400" data-testid="text-page-description">
-            View and analyze past voice interactions
+          <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-page-description">
+            View and analyze past voice interactions with advanced playback controls
           </p>
         </div>
         <div className="flex flex-col gap-4">
@@ -253,7 +253,7 @@ export default function History() {
             <Button
               onClick={() => syncCallsMutation.mutate()}
               disabled={syncCallsMutation.isPending}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:shadow-lg hover:scale-[1.02] transition-all"
               data-testid="button-sync-calls"
             >
               <RefreshCw className={`w-4 h-4 ${syncCallsMutation.isPending ? 'animate-spin' : ''}`} />
@@ -263,7 +263,7 @@ export default function History() {
               onClick={() => generateSummariesMutation.mutate()}
               disabled={generateSummariesMutation.isPending}
               variant="outline"
-              className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto hover:bg-primary/10 hover:border-primary/50 transition-all"
               data-testid="button-generate-summaries"
             >
               <Bot className={`w-4 h-4 ${generateSummariesMutation.isPending ? 'animate-spin' : ''}`} />
@@ -273,7 +273,7 @@ export default function History() {
               onClick={() => fetchAudioMutation.mutate()}
               disabled={fetchAudioMutation.isPending}
               variant="outline"
-              className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto hover:bg-primary/10 hover:border-primary/50 transition-all"
               data-testid="button-fetch-audio"
             >
               <Download className={`w-4 h-4 ${fetchAudioMutation.isPending ? 'animate-spin' : ''}`} />

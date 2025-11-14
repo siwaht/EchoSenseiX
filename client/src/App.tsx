@@ -40,7 +40,6 @@ const WhitelabelSettings = lazy(() => import("@/pages/whitelabel-settings"));
 const AgencyUsers = lazy(() => import("@/pages/agency-users"));
 const AgencyBillingSettings = lazy(() => import("@/pages/agency-billing-settings"));
 // Removed AgencyCheckout - using unified-checkout component instead
-const VoiceConfiguration = lazy(() => import("@/pages/voice-configuration"));
 
 // Loading fallback component with elegant brand gradient ring
 function PageLoader() {

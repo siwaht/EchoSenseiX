@@ -11,7 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UploadedDocument {
   id: string;
@@ -24,6 +34,7 @@ interface UploadedDocument {
 export function DocumentUpload() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedDocument[]>([]);
+  const [fileToDelete, setFileToDelete] = useState<UploadedDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -59,6 +70,39 @@ export function DocumentUpload() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Delete failed' }));
+        throw new Error(error.message || 'Delete failed');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data, documentId) => {
+      toast({
+        title: "Document Deleted",
+        description: "Document and associated knowledge entries have been removed",
+      });
+
+      setUploadedFiles(prev => prev.filter(file => file.id !== documentId));
+      setFileToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setFileToDelete(null);
     },
   });
 
@@ -121,8 +165,10 @@ export function DocumentUpload() {
     uploadMutation.mutate(file);
   };
 
-  const removeUploadedFile = (id: string) => {
-    setUploadedFiles(prev => prev.filter(file => file.id !== id));
+  const handleDeleteConfirm = () => {
+    if (fileToDelete) {
+      deleteMutation.mutate(fileToDelete.id);
+    }
   };
 
   const getFileIcon = (filename: string) => {
@@ -241,9 +287,14 @@ export function DocumentUpload() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeUploadedFile(file.id)}
+                      onClick={() => setFileToDelete(file)}
+                      disabled={deleteMutation.isPending}
                     >
-                      <X className="w-4 h-4" />
+                      {deleteMutation.isPending && fileToDelete?.id === file.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -264,6 +315,36 @@ export function DocumentUpload() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{fileToDelete?.filename}"? This will permanently remove the document
+              and all associated knowledge base entries. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </div>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
