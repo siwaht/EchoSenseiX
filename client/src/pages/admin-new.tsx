@@ -15,13 +15,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Users, Building2, DollarSign, Phone, Edit, Trash2, Plus, Shield, 
   Activity, TrendingUp, Package, CreditCard, UserPlus, Settings,
-  Save, X, Eye, Wallet, CheckCircle, AlertCircle, RefreshCw, Briefcase
+  Save, X, Eye, Wallet, AlertCircle, Briefcase
 } from "lucide-react";
 import type { User, Organization, BillingPackage } from "@shared/schema";
 
 // Lazy load admin components to reduce initial bundle size
-const ApiSync = lazy(() => import("./admin/api-sync"));
-const ApprovalTasks = lazy(() => import("./admin/approval-tasks"));
 const UserManagementPage = lazy(() => import("./user-management").then(module => ({ default: module.UserManagementPage })));
 const PaymentAnalytics = lazy(() => import("@/components/admin/payment-analytics").then(module => ({ default: module.PaymentAnalytics })));
 const PaymentHistory = lazy(() => import("@/components/admin/payment-history").then(module => ({ default: module.PaymentHistory })));
@@ -360,34 +358,26 @@ export default function AdminDashboard() {
 
       {/* Tabs for different admin sections */}
       <Tabs defaultValue="agencies" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 h-auto">
-          <TabsTrigger value="agencies" className="flex items-center justify-center gap-1 px-2 py-2">
+        <TabsList className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 h-auto gap-2">
+          <TabsTrigger value="agencies" className="flex items-center justify-center gap-1 px-3 py-2">
             <Briefcase className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Agencies</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="users" className="flex items-center justify-center gap-1 px-3 py-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="billing" className="flex items-center justify-center gap-1 px-3 py-2">
             <CreditCard className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Billing</span>
           </TabsTrigger>
-          <TabsTrigger value="organizations" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="organizations" className="flex items-center justify-center gap-1 px-3 py-2">
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Orgs</span>
           </TabsTrigger>
-          <TabsTrigger value="payments" className="flex items-center justify-center gap-1 px-2 py-2">
+          <TabsTrigger value="payments" className="flex items-center justify-center gap-1 px-3 py-2">
             <Wallet className="w-4 h-4" />
             <span className="hidden sm:inline text-xs lg:text-sm">Payments</span>
-          </TabsTrigger>
-          <TabsTrigger value="approval-tasks" className="flex items-center justify-center gap-1 px-2 py-2">
-            <CheckCircle className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs lg:text-sm">Approvals</span>
-          </TabsTrigger>
-          <TabsTrigger value="api-sync" className="flex items-center justify-center gap-1 px-2 py-2">
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs lg:text-sm">API</span>
           </TabsTrigger>
         </TabsList>
 
@@ -897,20 +887,6 @@ export default function AdminDashboard() {
               </div>
             </Card>
           </div>
-        </TabsContent>
-
-        {/* Approval Tasks Tab */}
-        <TabsContent value="approval-tasks" className="space-y-4">
-          <Suspense fallback={<AdminSectionLoader />}>
-            <ApprovalTasks />
-          </Suspense>
-        </TabsContent>
-
-        {/* API Sync Tab */}
-        <TabsContent value="api-sync" className="space-y-4">
-          <Suspense fallback={<AdminSectionLoader />}>
-            <ApiSync />
-          </Suspense>
         </TabsContent>
       </Tabs>
 
