@@ -110,6 +110,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sum, avg, max, or, inArray, isNull } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export interface IStorage {
   // User operations
@@ -392,6 +393,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(userData: Partial<User>): Promise<User> {
+    const now = new Date();
+
     // Default permissions for all users
     const defaultPermissions = [
       'manage_users',
@@ -406,15 +409,22 @@ export class DatabaseStorage implements IStorage {
 
     // If no organization exists for this user, create one
     let organizationId = userData.organizationId;
-    
+
     if (!organizationId) {
+      const orgId = nanoid();
       const [org] = await db().insert(organizations).values({
-        name: userData.email?.split('@')[0] || 'Personal Organization'
+        id: orgId,
+        name: userData.email?.split('@')[0] || 'Personal Organization',
+        createdAt: now,
+        updatedAt: now,
       }).returning();
       organizationId = org.id;
     }
 
+    const userId = nanoid();
+    const permissions = userData.permissions || defaultPermissions;
     const [user] = await db().insert(users).values({
+      id: userId,
       email: userData.email!,
       password: userData.password,
       firstName: userData.firstName,
@@ -422,12 +432,16 @@ export class DatabaseStorage implements IStorage {
       profileImageUrl: userData.profileImageUrl,
       organizationId,
       isAdmin: userData.email === "cc@siwaht.com",
-      permissions: userData.permissions || defaultPermissions,
+      permissions: JSON.stringify(permissions) as any,
+      createdAt: now,
+      updatedAt: now,
     }).returning();
     return user;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    const now = new Date();
+
     // Default permissions for all users
     const defaultPermissions = [
       'manage_users',
@@ -451,16 +465,29 @@ export class DatabaseStorage implements IStorage {
     // Check if this is the admin user
     const isAdmin = userData.email === 'cc@siwaht.com';
 
+    // Generate ID if not provided
+    const userId = userData.id || nanoid();
+    const permissions = userData.permissions || defaultPermissions;
+
     const [user] = await db()
       .insert(users)
-      .values({ ...userData, organizationId, isAdmin, permissions: userData.permissions || defaultPermissions })
+      .values({
+        ...userData,
+        id: userId,
+        organizationId,
+        isAdmin,
+        permissions: JSON.stringify(permissions) as any,
+        createdAt: now,
+        updatedAt: now,
+      })
       .onConflictDoUpdate({
         target: users.id,
         set: {
           ...userData,
           organizationId,
           isAdmin,
-          updatedAt: new Date(),
+          permissions: JSON.stringify(userData.permissions || permissions) as any,
+          updatedAt: now,
         },
       })
       .returning();
@@ -674,7 +701,14 @@ export class DatabaseStorage implements IStorage {
 
   // Organization operations
   async createOrganization(orgData: InsertOrganization): Promise<Organization> {
-    const [org] = await db().insert(organizations).values(orgData).returning();
+    const now = new Date();
+    const orgId = orgData.id || nanoid();
+    const [org] = await db().insert(organizations).values({
+      ...orgData,
+      id: orgId,
+      createdAt: orgData.createdAt || now,
+      updatedAt: orgData.updatedAt || now,
+    }).returning();
     return org;
   }
 
