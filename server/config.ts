@@ -333,15 +333,17 @@ function loadConfig(): Config {
   console.log('[CONFIG] Environment:', nodeEnv);
   console.log('[CONFIG] Server:', `${host}:${port}`);
   console.log('[CONFIG] Public URL:', publicUrl);
-  console.log('[CONFIG] ');
-  console.log('[CONFIG] === Platform-Agnostic Providers ===');
-  console.log('[CONFIG] Voice:', providers.voice.provider, providers.voice.apiKey ? '✓' : '✗');
-  console.log('[CONFIG] Payment:', providers.payment.provider, providers.payment.secretKey ? '✓' : '✗');
-  console.log('[CONFIG] LLM:', providers.llm.provider, providers.llm.apiKey ? '✓' : '✗');
-  console.log('[CONFIG] Email:', providers.email.provider, providers.email.apiKey ? '✓' : '✗');
-  console.log('[CONFIG] Database:', databaseProvider, '✓');
-  console.log('[CONFIG] Storage:', storageProvider, '✓');
-  console.log('[CONFIG] ===================================');
+  console.log('[CONFIG]');
+  console.log('[CONFIG] ╔══════════════════════════════════════════╗');
+  console.log('[CONFIG] ║   Platform-Agnostic Providers Status    ║');
+  console.log('[CONFIG] ╠══════════════════════════════════════════╣');
+  console.log(`[CONFIG] ║ Voice    : ${providers.voice.provider.padEnd(15)} ${providers.voice.apiKey ? '✓' : '✗'} ║`);
+  console.log(`[CONFIG] ║ Payment  : ${providers.payment.provider.padEnd(15)} ${providers.payment.secretKey ? '✓' : '✗'} ║`);
+  console.log(`[CONFIG] ║ LLM      : ${providers.llm.provider.padEnd(15)} ${providers.llm.apiKey ? '✓' : '✗'} ║`);
+  console.log(`[CONFIG] ║ Email    : ${providers.email.provider.padEnd(15)} ${providers.email.apiKey ? '✓' : '✗'} ║`);
+  console.log(`[CONFIG] ║ Database : ${databaseProvider.padEnd(15)} ✓ ║`);
+  console.log(`[CONFIG] ║ Storage  : ${storageProvider.padEnd(15)} ✓ ║`);
+  console.log('[CONFIG] ╚══════════════════════════════════════════╝');
 
   return {
     nodeEnv,
