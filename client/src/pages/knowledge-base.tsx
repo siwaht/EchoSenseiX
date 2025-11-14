@@ -42,43 +42,44 @@ export default function KnowledgeBase() {
   });
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6" role="main" aria-label="Knowledge Base Management">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3 brand-gradient-text">
-            <BookOpen className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3 brand-gradient-text">
+            <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary" aria-hidden="true" />
             Knowledge Base
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
             Manage your AI agent's knowledge, documents, and multilingual capabilities
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/knowledge-base"] })}
           variant="outline"
           size="sm"
-          className="btn-brand-premium"
+          className="btn-brand-premium w-full sm:w-auto"
+          aria-label="Refresh knowledge base data"
         >
-          <RefreshCw className="h-4 w-4 mr-2" />
+          <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
           Refresh
         </Button>
-      </div>
+      </header>
 
       {/* Statistics Cards */}
       {!statsLoading && stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="card-hover">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Knowledge Base Statistics">
+          <Card className="card-hover" role="article" aria-label="Total Entries Statistics">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary"></div>
+                <div className="w-2 h-2 rounded-full bg-primary" aria-hidden="true"></div>
                 Total Entries
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold brand-gradient-text">{stats.totalEntries || 0}</p>
-                <FileText className="h-5 w-5 text-primary" />
+                <p className="text-2xl font-bold brand-gradient-text" aria-label={`${stats.totalEntries || 0} total entries`}>{stats.totalEntries || 0}</p>
+                <FileText className="h-5 w-5 text-primary" aria-hidden="true" />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Knowledge base entries
@@ -86,17 +87,17 @@ export default function KnowledgeBase() {
             </CardContent>
           </Card>
 
-          <Card className="card-hover">
+          <Card className="card-hover" role="article" aria-label="Documents Statistics">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <div className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true"></div>
                 Documents
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.totalDocuments || 0}</p>
-                <Upload className="h-5 w-5 text-emerald-500" />
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400" aria-label={`${stats.totalDocuments || 0} uploaded documents`}>{stats.totalDocuments || 0}</p>
+                <Upload className="h-5 w-5 text-emerald-500" aria-hidden="true" />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Uploaded documents
@@ -104,17 +105,17 @@ export default function KnowledgeBase() {
             </CardContent>
           </Card>
 
-          <Card className="card-hover">
+          <Card className="card-hover" role="article" aria-label="Languages Statistics">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-500" aria-hidden="true"></div>
                 Languages
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.supportedLanguages || 0}</p>
-                <Globe className="h-5 w-5 text-blue-500" />
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400" aria-label={`${stats.supportedLanguages || 0} supported languages`}>{stats.supportedLanguages || 0}</p>
+                <Globe className="h-5 w-5 text-blue-500" aria-hidden="true" />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Supported languages
@@ -122,24 +123,24 @@ export default function KnowledgeBase() {
             </CardContent>
           </Card>
 
-          <Card className="card-hover">
+          <Card className="card-hover" role="article" aria-label="Active Agents Statistics">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                <div className="w-2 h-2 rounded-full bg-purple-500" aria-hidden="true"></div>
                 Active Agents
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.activeAgents || 0}</p>
-                <Brain className="h-5 w-5 text-purple-500" />
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400" aria-label={`${stats.activeAgents || 0} active agents`}>{stats.activeAgents || 0}</p>
+                <Brain className="h-5 w-5 text-purple-500" aria-hidden="true" />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Enhanced with knowledge
               </p>
             </CardContent>
           </Card>
-        </div>
+        </section>
       )}
 
       {/* Main Content Tabs */}

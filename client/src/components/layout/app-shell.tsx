@@ -332,7 +332,7 @@ export default function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         {/* Header */}
         <header className={cn(
           "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between transition-all duration-300",
