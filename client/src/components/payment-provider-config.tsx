@@ -45,7 +45,7 @@ import {
   getProvidersByCategory,
   getPopularProviders,
   formatProviderName,
-} from "../../../shared/payment-providers";
+} from "@shared/payment-providers";
 
 interface PaymentProviderConfigProps {
   organizationId: string;
@@ -62,8 +62,18 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
   const [selectedCategory, setSelectedCategory] = useState<PaymentProviderCategory | "all">("all");
 
   // Fetch configured payment processors
-  const { data: processors, isLoading } = useQuery({
+  const { data: processors = [], isLoading } = useQuery({
     queryKey: ["/api/agency/payment-processors", organizationId],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", `/api/agency/payment-processors?organizationId=${organizationId}`);
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.warn("Payment processors endpoint not available:", error);
+        return [];
+      }
+    },
   });
 
   // Add/Update payment processor
@@ -196,7 +206,7 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
   };
 
   const configuredProviderIds = new Set(
-    processors?.map((p: any) => p.provider) || []
+    Array.isArray(processors) ? processors.map((p: any) => p.provider) : []
   );
 
   const filteredProviders = Object.values(PAYMENT_PROVIDERS).filter((provider) => {
@@ -242,7 +252,7 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
       </Tabs>
 
       {/* Configured Providers */}
-      {processors && processors.length > 0 && (
+      {Array.isArray(processors) && processors.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Active Payment Providers</CardTitle>

@@ -66,6 +66,23 @@ export default function ProviderIntegrationConfig() {
   // Fetch existing integrations
   const { data: integrations = [], refetch, isLoading, isError, error } = useQuery<ProviderIntegration[]>({
     queryKey: ["/api/integrations/all"],
+    queryFn: async () => {
+      try {
+        // Try the multi-provider integrations endpoint first
+        const response = await fetch("/api/integrations/all", {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return Array.isArray(data) ? data : [];
+        }
+        // Fallback to empty array if endpoint doesn't exist yet
+        return [];
+      } catch (error) {
+        console.warn("Integrations endpoint not available:", error);
+        return [];
+      }
+    },
     retry: 1,
     staleTime: 30000,
   });
