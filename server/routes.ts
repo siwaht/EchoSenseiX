@@ -231,10 +231,15 @@ function decryptCredentials(encryptedData: string): any {
   try {
     const algorithm = "aes-256-cbc";
     const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-    
+
     // Handle both old and new encryption formats
     if (!encryptedData.includes(":")) {
-      // Old format - try legacy decryption
+      // Old format detected - use legacy decryption (deprecated method)
+      // TODO: Migrate all old encrypted data to new format and remove this code path
+      console.warn("WARNING: Old encryption format detected. Please re-save credentials to use secure encryption.");
+
+      // Using deprecated createDecipher for backward compatibility only
+      // This should be migrated to createDecipheriv
       const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
       let decrypted = decipher.update(encryptedData, "hex", "utf8");
       decrypted += decipher.final("utf8");
@@ -280,10 +285,15 @@ function decryptApiKey(encryptedApiKey: string): string {
   try {
     const algorithm = "aes-256-cbc";
     const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-    
+
     // Handle both old and new encryption formats
     if (!encryptedApiKey.includes(":")) {
-      // Old format - try legacy decryption
+      // Old format detected - use legacy decryption (deprecated method)
+      // TODO: Migrate all old encrypted data to new format and remove this code path
+      console.warn("WARNING: Old encryption format detected. Please re-save API key to use secure encryption.");
+
+      // Using deprecated createDecipher for backward compatibility only
+      // This should be migrated to createDecipheriv
       const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
       let decrypted = decipher.update(encryptedApiKey, "hex", "utf8");
       decrypted += decipher.final("utf8");

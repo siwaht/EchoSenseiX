@@ -44,14 +44,11 @@ export function useRealtimeSync(organizationId: string, userId: string) {
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/realtime-sync?token=${userId}&userId=${userId}&organizationId=${organizationId}`;
-      
-      console.log('[REALTIME-SYNC] Connecting to:', wsUrl);
-      
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[REALTIME-SYNC] Connected to WebSocket');
         setState(prev => ({ ...prev, isConnected: true, error: null }));
 
         // Start ping interval
@@ -65,11 +62,9 @@ export function useRealtimeSync(organizationId: string, userId: string) {
       ws.onmessage = (event) => {
         try {
           const message: SyncEvent = JSON.parse(event.data);
-          console.log('[REALTIME-SYNC] Received message:', message);
 
           switch (message.type) {
             case 'connected':
-              console.log('[REALTIME-SYNC] Connection confirmed');
               break;
 
             case 'sync_started':
@@ -82,7 +77,6 @@ export function useRealtimeSync(organizationId: string, userId: string) {
 
             case 'sync_progress':
               // Handle progress updates
-              console.log('[REALTIME-SYNC] Sync progress:', message.data);
               break;
 
             case 'sync_completed':
@@ -152,7 +146,8 @@ export function useRealtimeSync(organizationId: string, userId: string) {
               break;
 
             default:
-              console.log('[REALTIME-SYNC] Unknown message type:', message.type);
+              // Unknown message type
+              break;
           }
         } catch (error) {
           console.error('[REALTIME-SYNC] Error parsing message:', error);
@@ -160,7 +155,6 @@ export function useRealtimeSync(organizationId: string, userId: string) {
       };
 
       ws.onclose = (event) => {
-        console.log('[REALTIME-SYNC] WebSocket closed:', event.code, event.reason);
         setState(prev => ({ ...prev, isConnected: false }));
         
         // Clear ping interval
@@ -172,7 +166,6 @@ export function useRealtimeSync(organizationId: string, userId: string) {
         // Attempt to reconnect after a delay (unless it was a clean close)
         if (event.code !== 1000) {
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('[REALTIME-SYNC] Attempting to reconnect...');
             connect();
           }, 5000);
         }

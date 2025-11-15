@@ -1,9 +1,10 @@
-  import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAgencyPath } from "@/hooks/useAgencyPath";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
+import type { User } from "@shared/schema";
 import { 
   Mic, 
   LayoutDashboard, 
@@ -62,9 +63,10 @@ export default function AppShell({ children }: AppShellProps) {
   const [elevated, setElevated] = useState(false);
   
   // Get user permissions and role
-  const userPermissions = (user as any)?.permissions || [];
-  const isAdmin = (user as any)?.isAdmin || false;
-  const userRole = (user as any)?.role || 'user';
+  const typedUser = user as User | null;
+  const userPermissions = typedUser?.permissions || [];
+  const isAdmin = typedUser?.isAdmin || false;
+  const userRole = typedUser?.role || 'user';
   
   // Fetch organization details to check if it's an agency
   const { data: organization } = useQuery<{ organizationType?: string; agencyPermissions?: string[] }>({
@@ -367,12 +369,12 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="w-7 h-7 sm:w-8 sm:h-8 brand-gradient rounded-full flex items-center justify-center shadow-lg ring-2 ring-primary/20 transition-all duration-250 hover:ring-primary/40 hover:scale-105">
                 <span className="text-white text-xs sm:text-sm font-medium" data-testid="text-user-initials">
-                  {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
+                  {typedUser?.firstName?.[0]}{typedUser?.lastName?.[0]}
                 </span>
               </div>
               <div className="hidden sm:block">
                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100" data-testid="text-user-name">
-                  {(user as any)?.firstName} {(user as any)?.lastName}
+                  {typedUser?.firstName} {typedUser?.lastName}
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400" data-testid="text-organization-name">
                   Organization

@@ -20,6 +20,16 @@ import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
 import { UserPlanCard } from "@/components/dashboard/user-plan-card";
 import { CallAnalyticsCard } from "@/components/dashboard/call-analytics-card";
 import { useAgentContext } from "@/contexts/agent-context";
+import type { CallLog, Agent } from "@shared/schema";
+
+// Type definitions for dashboard stats
+interface DashboardStats {
+  totalCalls?: number;
+  totalMinutes?: number;
+  estimatedCost?: number;
+  activeAgents?: number;
+  lastSync?: string;
+}
 
 // Success Rate Chart Component
 const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { selectedAgentId: string }) {
@@ -37,12 +47,12 @@ const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { s
   });
 
   // Process call logs for success rate over time
-  const processSuccessRate = (logs: any[]) => {
+  const processSuccessRate = (logs: CallLog[]) => {
     if (!logs || logs.length === 0) return [];
 
-    const dailyStats: any = {};
-    
-    logs.forEach((call: any) => {
+    const dailyStats: Record<string, { total: number; successful: number }> = {};
+
+    logs.forEach((call) => {
       const date = new Date(call.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       if (!dailyStats[date]) {
         dailyStats[date] = { total: 0, successful: 0 };
@@ -131,9 +141,9 @@ const AgentPerformanceTable = memo(function AgentPerformanceTable({ selectedAgen
 
     const agentStats: any = {};
 
-    (callLogs as any[]).forEach((call: any) => {
+    (callLogs as CallLog[]).forEach((call) => {
       const agentId = call.agentId;
-      const agent = (agents as any[]).find((a: any) => a.id === agentId);
+      const agent = (agents as Agent[]).find((a) => a.id === agentId);
       
       // Skip deleted agents - only show stats for currently assigned agents
       if (!agent) return;
@@ -282,7 +292,7 @@ function RecentActivity() {
 
   // Add call logs as activities
   if (callLogs) {
-    (callLogs as any[]).forEach((call: any) => {
+    (callLogs as CallLog[]).forEach((call) => {
       activities.push({
         id: call.id,
         type: 'call',
@@ -298,7 +308,7 @@ function RecentActivity() {
 
   // Add agent sync activities
   if (agents) {
-    (agents as any[]).forEach((agent: any) => {
+    (agents as Agent[]).forEach((agent) => {
       if (agent.lastSync) {
         activities.push({
           id: `sync-${agent.id}`,
@@ -842,15 +852,16 @@ export default function Dashboard() {
   }
 
   // Calculate average duration
-  const avgDuration = (stats as any)?.totalCalls > 0 
-    ? Math.floor((stats as any)?.totalMinutes * 60 / (stats as any)?.totalCalls)
+  const typedStats = stats as DashboardStats | undefined;
+  const avgDuration = typedStats?.totalCalls && typedStats.totalCalls > 0
+    ? Math.floor((typedStats.totalMinutes || 0) * 60 / typedStats.totalCalls)
     : 0;
   const avgMinutes = Math.floor(avgDuration / 60);
   const avgSeconds = avgDuration % 60;
 
   // Calculate average cost per call
-  const avgCostPerCall = (stats as any)?.totalCalls > 0
-    ? ((stats as any)?.estimatedCost / (stats as any)?.totalCalls).toFixed(2)
+  const avgCostPerCall = typedStats?.totalCalls && typedStats.totalCalls > 0
+    ? ((typedStats.estimatedCost || 0) / typedStats.totalCalls).toFixed(2)
     : '0.00';
 
   return (
@@ -867,10 +878,10 @@ export default function Dashboard() {
             <span className="text-xs sm:text-sm text-muted-foreground break-words">
               {agents.length === 0
                 ? 'No agents available'
-                : selectedAgentId !== "all" 
-                  ? `Showing: ${Array.isArray(agents) ? agents.find((a: any) => a.id === selectedAgentId)?.name : 'Agent'} `
-                  : lastSyncTime || (stats as any)?.lastSync 
-                    ? `Synced: ${(lastSyncTime || new Date((stats as any)?.lastSync)).toLocaleString()}` 
+                : selectedAgentId !== "all"
+                  ? `Showing: ${Array.isArray(agents) ? agents.find((a) => a.id === selectedAgentId)?.name : 'Agent'} `
+                  : lastSyncTime || typedStats?.lastSync
+                    ? `Synced: ${(lastSyncTime || new Date(typedStats?.lastSync || '')).toLocaleString()}`
                     : 'Sync to update data'}
             </span>
           </div>
@@ -1034,7 +1045,7 @@ export default function Dashboard() {
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Total Calls</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{(stats as any)?.totalCalls || 0}</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalCalls || 0}</p>
             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">All conversations</p>
           </div>
         </Card>
@@ -1048,7 +1059,7 @@ export default function Dashboard() {
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Duration</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{(stats as any)?.totalMinutes || 0}m</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalMinutes || 0}m</p>
             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total time</p>
           </div>
         </Card>
@@ -1062,7 +1073,7 @@ export default function Dashboard() {
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Spending</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white truncate">${(stats as any)?.estimatedCost?.toFixed(2) || '0.00'}</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white truncate">${typedStats?.estimatedCost?.toFixed(2) || '0.00'}</p>
             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total USD</p>
           </div>
         </Card>
@@ -1104,7 +1115,7 @@ export default function Dashboard() {
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Agents</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{(stats as any)?.activeAgents || 0}</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.activeAgents || 0}</p>
             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Active</p>
           </div>
         </Card>

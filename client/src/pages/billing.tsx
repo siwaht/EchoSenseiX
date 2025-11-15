@@ -25,8 +25,9 @@ export default function Billing() {
   };
 
   // Calculate usage percentages
-  const callsUsagePercent = Math.min(((stats as any)?.totalCalls || 0) / planLimits.calls * 100, 100);
-  const minutesUsagePercent = Math.min(((stats as any)?.totalMinutes || 0) / planLimits.minutes * 100, 100);
+  const typedStats = stats as { totalCalls?: number; totalMinutes?: number; estimatedCost?: number } | undefined;
+  const callsUsagePercent = Math.min((typedStats?.totalCalls || 0) / planLimits.calls * 100, 100);
+  const minutesUsagePercent = Math.min((typedStats?.totalMinutes || 0) / planLimits.minutes * 100, 100);
 
   if (isLoading) {
     return (
@@ -64,7 +65,7 @@ export default function Billing() {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600 dark:text-gray-400">Total Calls</span>
                 <span className="font-medium" data-testid="text-current-calls">
-                  {(stats as any)?.totalCalls || 0} / {planLimits.calls}
+                  {typedStats?.totalCalls || 0} / {planLimits.calls}
                 </span>
               </div>
               <Progress 
@@ -79,7 +80,7 @@ export default function Billing() {
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600 dark:text-gray-400">Minutes Used</span>
                 <span className="font-medium" data-testid="text-current-minutes">
-                  {Math.round((stats as any)?.totalMinutes || 0)} / {planLimits.minutes}
+                  {Math.round(typedStats?.totalMinutes || 0)} / {planLimits.minutes}
                 </span>
               </div>
               <Progress 
@@ -99,7 +100,7 @@ export default function Billing() {
             <DollarSign className="w-5 h-5 text-green-600" />
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2" data-testid="text-estimated-cost-value">
-            ${(stats as any)?.estimatedCost?.toFixed(2) || '0.00'}
+            ${typedStats?.estimatedCost?.toFixed(2) || '0.00'}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Based on actual API usage
@@ -111,11 +112,11 @@ export default function Billing() {
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-600 dark:text-gray-400">Usage Charges</span>
-              <span>${((stats as any)?.estimatedCost || 0).toFixed(2)}</span>
+              <span>${(typedStats?.estimatedCost || 0).toFixed(2)}</span>
             </div>
             <div className="border-t pt-1 flex justify-between text-sm font-medium">
               <span>Total</span>
-              <span>${(49 + ((stats as any)?.estimatedCost || 0)).toFixed(2)}</span>
+              <span>${(49 + (typedStats?.estimatedCost || 0)).toFixed(2)}</span>
             </div>
           </div>
         </Card>
@@ -129,7 +130,7 @@ export default function Billing() {
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-4" data-testid="text-plan-price">
             $49/month + usage
           </div>
-          {(orgInfo as any)?.parentOrganizationId ? (
+          {orgInfo && 'parentOrganizationId' in orgInfo && orgInfo.parentOrganizationId ? (
             // User is under an agency - show agency checkout
             <Button 
               className="w-full" 

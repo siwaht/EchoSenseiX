@@ -158,12 +158,6 @@
   .tablet-gap-3 { gap: 0.75rem !important; }
 }
 
-/* Mobile viewport optimization */
-@viewport {
-  width: device-width;
-  initial-scale: 1.0;
-}
-
 /* Container and spacing utilities */
 .container-mobile {
   @apply px-4 sm:px-6 lg:px-8;

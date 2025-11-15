@@ -59,9 +59,7 @@ export default function Integrations() {
 
   const saveApiKeyMutation = useMutation({
     mutationFn: async (data: ApiKeyForm) => {
-      console.log("Saving API key:", data);
       const response = await apiRequest("POST", "/api/integrations", data);
-      console.log("Save response:", response);
       return response;
     },
     onSuccess: () => {
@@ -104,7 +102,6 @@ export default function Integrations() {
   });
 
   const onSubmit = (data: ApiKeyForm) => {
-    console.log("Form submitted with data:", data);
     saveApiKeyMutation.mutate(data);
   };
 
