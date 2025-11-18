@@ -220,16 +220,18 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                     Test Agent in Playground
                   </Button>
                   
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => {
                       // Copy agent ID to clipboard
-                      navigator.clipboard.writeText(agent.elevenLabsAgentId);
-                      toast({ 
-                        title: "Copied", 
-                        description: "Agent ID copied to clipboard" 
-                      });
+                      if (agent.elevenLabsAgentId) {
+                        navigator.clipboard.writeText(agent.elevenLabsAgentId);
+                        toast({
+                          title: "Copied",
+                          description: "Agent ID copied to clipboard"
+                        });
+                      }
                     }}
                   >
                     <Copy className="w-4 h-4 mr-2" />
@@ -257,13 +259,15 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                 <div>
                   <p className="text-sm text-muted-foreground">Agent ID</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <code className="flex-1 text-xs bg-muted p-2 rounded">{agent.elevenLabsAgentId}</code>
-                    <Button 
-                      variant="ghost" 
+                    <code className="flex-1 text-xs bg-muted p-2 rounded">{agent.elevenLabsAgentId || 'N/A'}</code>
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => {
-                        navigator.clipboard.writeText(agent.elevenLabsAgentId);
-                        toast({ title: "Copied", description: "Agent ID copied to clipboard" });
+                        if (agent.elevenLabsAgentId) {
+                          navigator.clipboard.writeText(agent.elevenLabsAgentId);
+                          toast({ title: "Copied", description: "Agent ID copied to clipboard" });
+                        }
                       }}
                     >
                       Copy

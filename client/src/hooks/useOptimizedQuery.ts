@@ -174,7 +174,8 @@ export function useCacheWarming() {
       activeQueries: queries.filter(q => q.getObserversCount() > 0).length,
       staleQueries: queries.filter(q => {
         const timeSinceUpdate = Date.now() - (q.state.dataUpdatedAt || 0);
-        return timeSinceUpdate > (q.options.staleTime as number || 0);
+        const staleTime = (q.options as any)?.staleTime || 0;
+        return timeSinceUpdate > staleTime;
       }).length,
       cacheSize: queries.reduce((size, q) => {
         try {

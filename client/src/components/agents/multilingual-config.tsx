@@ -386,7 +386,7 @@ export function MultilingualConfig({ agentId }: MultilingualConfigProps) {
             <Checkbox
               id="disable-interruptions"
               checked={disableInterruptions}
-              onCheckedChange={setDisableInterruptions}
+              onCheckedChange={(checked) => setDisableInterruptions(checked === true)}
             />
             <Label htmlFor="disable-interruptions">
               Disable interruptions during first message

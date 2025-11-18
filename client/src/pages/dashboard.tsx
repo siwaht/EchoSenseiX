@@ -53,6 +53,7 @@ const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { s
     const dailyStats: Record<string, { total: number; successful: number }> = {};
 
     logs.forEach((call) => {
+      if (!call.createdAt) return; // Skip calls without createdAt
       const date = new Date(call.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       if (!dailyStats[date]) {
         dailyStats[date] = { total: 0, successful: 0 };
@@ -291,13 +292,20 @@ function RecentActivity() {
   const activities: any[] = [];
 
   // Add call logs as activities
-  if (callLogs) {
+  if (callLogs && Array.isArray(callLogs)) {
     (callLogs as CallLog[]).forEach((call) => {
+      if (!call.createdAt) return; // Skip if no timestamp
+
+      // Find agent name by agentId
+      const agentName = agents && Array.isArray(agents)
+        ? (agents as Agent[]).find(a => a.id === call.agentId)?.name
+        : undefined;
+
       activities.push({
         id: call.id,
         type: 'call',
         timestamp: call.createdAt,
-        title: `Call with ${call.agent?.name || 'Unknown Agent'}`,
+        title: `Call with ${agentName || 'Unknown Agent'}`,
         description: `Duration: ${Math.floor((call.duration || 0) / 60)}:${String((call.duration || 0) % 60).padStart(2, '0')} • Cost: $${Number(call.cost || 0).toFixed(4)}`,
         status: call.status,
         icon: PhoneCall,
@@ -307,6 +315,9 @@ function RecentActivity() {
   }
 
   // Add agent sync activities
+  // Note: Agent type doesn't have lastSync property in the schema, so we skip this for now
+  // This can be re-enabled when lastSync is added to the Agent schema
+  /*
   if (agents) {
     (agents as Agent[]).forEach((agent) => {
       if (agent.lastSync) {
@@ -323,6 +334,7 @@ function RecentActivity() {
       }
     });
   }
+  */
 
   // Sort by timestamp (most recent first)
   activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());

@@ -119,7 +119,7 @@ export function VoiceConfiguration({
         stability: form.getValues("stability"),
         similarityBoost: form.getValues("similarityBoost"),
       });
-      return response.data;
+      return response.json();
     },
     onSuccess: (data) => {
       if (data.audioUrl) {

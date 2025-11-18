@@ -130,7 +130,7 @@ export default function Billing() {
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-4" data-testid="text-plan-price">
             $49/month + usage
           </div>
-          {orgInfo && 'parentOrganizationId' in orgInfo && orgInfo.parentOrganizationId ? (
+          {orgInfo && typeof orgInfo === 'object' && 'parentOrganizationId' in orgInfo && orgInfo.parentOrganizationId ? (
             // User is under an agency - show agency checkout
             <Button 
               className="w-full" 
