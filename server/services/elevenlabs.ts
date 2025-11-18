@@ -667,7 +667,16 @@ class ElevenLabsService {
 }
 
 /**
- * Helper functions to handle API key encryption/decryption with backward compatibility.
+ * ElevenLabs API Service
+ *
+ * This service provides a complete wrapper for the ElevenLabs API v1.
+ * Updated for 2025 API specifications including:
+ * - WebRTC session support
+ * - Enhanced webhook formats (Aug 2025 update)
+ * - Service account API key management
+ * - Improved error handling and retry logic
+ *
+ * Helper functions to handle API key encryption/decryption with backward compatibility:
  * - decryptApiKey: Accepts both plaintext and encrypted values. Never throws on malformed input,
  *   instead falls back to treating the input as plaintext to avoid blocking API calls.
  * - encryptApiKey: AES-256-CBC with scrypt-derived key and random IV. Format: ivHex:encryptedHex
