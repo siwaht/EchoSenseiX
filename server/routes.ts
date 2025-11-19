@@ -4976,13 +4976,10 @@ Generate the complete prompt now:`;
         }
 
 
-        const response = await callElevenLabsAPI(
-          decryptedKey,
-          `/v1/convai/agents/${elevenLabsAgentId}`,
-          "PATCH",
-          elevenLabsPayload,
-          integration.id
-        );
+        const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+        await provider.initialize({ apiKey: decryptedKey });
+
+        const response = await provider.updateAgent(elevenLabsAgentId, elevenLabsPayload);
 
         console.log("ElevenLabs update response:", response);
 
@@ -6329,14 +6326,16 @@ Generate the complete prompt now:`;
         if (integration && integration.apiKey) {
           const keyLast4 = integration.apiKey.slice(-4);
           console.log(`[RECORDING-FETCH] Tier 2: ElevenLabs integration found with API key ***${keyLast4}`);
-          console.log(`[RECORDING-FETCH] Tier 2: Creating ElevenLabsService and calling fetchAndStoreAudio...`);
-          const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
+          console.log(`[RECORDING-FETCH] Tier 2: Using ProviderRegistry and SyncService...`);
 
-          const result = await elevenLabsService.fetchAndStoreAudio(
+          const apiKey = decryptApiKey(integration.apiKey);
+          const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+          await provider.initialize({ apiKey });
+
+          const result = await SyncService.fetchAndStoreAudio(
+            provider,
             callLog.conversationId,
             callLog.id,
-            audioStorage,
-            storage,
             user.organizationId
           );
 
@@ -6501,7 +6500,8 @@ Generate the complete prompt now:`;
       }
 
       const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
-      await provider.initialize({ apiKey: integration.apiKey });
+      const apiKey = decryptApiKey(integration.apiKey);
+      await provider.initialize({ apiKey });
 
       const results = {
         total: callLogsWithoutAudio.length,
@@ -6723,39 +6723,15 @@ Generate the complete prompt now:`;
         return res.status(404).json({ message: "User not found" });
       }
 
-      const integration = await storage.getIntegration(user.organizationId, 'elevenlabs');
-      if (!integration || !integration.apiKey) {
-        return res.status(400).json({
-          error: "ElevenLabs integration not found",
-          message: "Please configure your ElevenLabs API key in Integrations settings"
-        });
-      }
-
       const apiKey = decryptApiKey(integration.apiKey);
 
-      // Call ElevenLabs TTS API
+      // Call ElevenLabs TTS API via Provider
       try {
-        const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'audio/mpeg',
-            'Content-Type': 'application/json',
-            'xi-api-key': apiKey
-          },
-          body: JSON.stringify({
-            text: text,
-            model_id: modelId,
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.5
-            }
-          })
-        });
+        const provider = providerRegistry.getProvider("elevenlabs") as ITTSProvider;
+        await provider.initialize({ apiKey });
 
-        if (!ttsResponse.ok) {
-          const errorText = await ttsResponse.text();
-          throw new Error(`ElevenLabs API error: ${ttsResponse.status} - ${errorText}`);
-        }
+        // Generate audio to test if it works
+        await provider.generateAudio(text, voiceId, { modelId });
 
         // Return success response with metadata
         return res.json({
@@ -6812,41 +6788,30 @@ Generate the complete prompt now:`;
       const apiKey = decryptApiKey(integration.apiKey);
 
       try {
-        const voicesResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
-          headers: {
-            'xi-api-key': apiKey
-          }
-        });
+        const provider = providerRegistry.getProvider("elevenlabs") as ITTSProvider;
+        await provider.initialize({ apiKey });
 
-        if (!voicesResponse.ok) {
-          const errorText = await voicesResponse.text();
-          throw new Error(`ElevenLabs API error: ${voicesResponse.status} - ${errorText}`);
-        }
+        const voices = await provider.getVoices();
 
-        const voicesData = await voicesResponse.json();
-
-        // Format voices for easy consumption by voice agents
-        const formattedVoices = voicesData.voices?.map((voice: any) => ({
-          id: voice.voice_id,
-          name: voice.name,
-          category: voice.category,
-          description: voice.description || `${voice.name} voice`,
-          accent: voice.labels?.accent,
-          age: voice.labels?.age,
-          gender: voice.labels?.gender,
-          use_case: voice.labels?.use_case
-        })) || [];
+        // Format response for the tool
+        const formattedVoices = voices.slice(0, 10).map(v => ({
+          voice_id: v.id,
+          name: v.name,
+          category: v.category,
+          description: v.description,
+          preview_url: v.previewUrl
+        }));
 
         return res.json({
           success: true,
-          voices_count: formattedVoices.length,
-          voices: formattedVoices.slice(0, 10), // Limit to first 10 for agent response
-          message: `Found ${formattedVoices.length} available voices. Here are the first 10 options.`,
+          count: formattedVoices.length,
+          total_available: voices.length,
+          voices: formattedVoices,
           timestamp: new Date().toISOString()
         });
 
       } catch (error: any) {
-        console.error("ElevenLabs get voices error:", error);
+        console.error("ElevenLabs Get Voices error:", error);
         return res.status(500).json({
           success: false,
           error: "Failed to fetch voices",
@@ -7019,27 +6984,25 @@ Generate the complete prompt now:`;
 
       const apiKey = decryptApiKey(integration.apiKey);
 
-      // Fetch the audio from ElevenLabs
-      const audioResponse = await fetch(
-        `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
-        {
-          headers: {
-            "xi-api-key": apiKey,
-          },
-        }
-      );
+      // Use ProviderRegistry
+      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+      await provider.initialize({ apiKey });
 
-      if (!audioResponse.ok) {
-        console.error(`Failed to fetch audio for conversation ${conversationId}: ${audioResponse.status}`);
-        return res.status(404).json({ message: "Audio not found" });
+      const audioResult = await provider.getConversationAudio(conversationId);
+
+      if (!audioResult.buffer) {
+        if (audioResult.notFound) {
+          return res.status(404).json({ message: "Audio not found" });
+        }
+        console.error(`Failed to fetch audio for conversation ${conversationId}: ${audioResult.error}`);
+        return res.status(500).json({ message: "Failed to fetch audio", error: audioResult.error });
       }
 
       // Stream the audio response to the client
-      res.setHeader("Content-Type", audioResponse.headers.get("Content-Type") || "audio/mpeg");
+      res.setHeader("Content-Type", "audio/mpeg");
       res.setHeader("Cache-Control", "public, max-age=3600");
 
-      const audioBuffer = await audioResponse.arrayBuffer();
-      res.send(Buffer.from(audioBuffer));
+      res.send(audioResult.buffer);
     } catch (error) {
       console.error("Error fetching audio:", error);
       res.status(500).json({ message: "Failed to fetch audio" });
