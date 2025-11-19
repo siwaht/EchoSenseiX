@@ -23,10 +23,31 @@ export interface IConversationalAIProvider extends IProvider {
 
     // Real-time
     createWebRTCSession(agentId: string, options?: any): Promise<any>;
+
+    // Tool Management
+    manageTools(tools: any[], integrationId?: string): Promise<{ toolIds: string[]; builtInTools: any }>;
+
+    // Phone Number Management
+    getPhoneNumbers(): Promise<any[]>;
+    createPhoneNumber(data: any): Promise<any>;
+    updatePhoneNumber(id: string, updates: any): Promise<any>;
+    deletePhoneNumber(phoneNumberId: string): Promise<any>;
+
+    // Batch Calling
+    createBatchCall(data: any): Promise<any>;
+    getBatchCalls(): Promise<any[]>;
+    getBatchCallStatus(batchId: string): Promise<any>;
+    cancelBatchCall(batchId: string): Promise<any>;
+
+    // Conversation Initiation
+    createConversation(data: any): Promise<any>;
 }
 
 export interface ITTSProvider extends IProvider {
     getVoices(): Promise<any[]>;
+    getVoice(voiceId: string): Promise<any>;
+    cloneVoice(name: string, description: string, files: any[], removeBackgroundNoise?: boolean): Promise<any>;
+    deleteVoice(voiceId: string): Promise<any>;
     generateAudio(text: string, voiceId: string, options?: any): Promise<ArrayBuffer>;
 }
 

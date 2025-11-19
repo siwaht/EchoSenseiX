@@ -1,17 +1,5 @@
-import crypto from "crypto";
-
-export interface ElevenLabsConfig {
-  apiKey: string;
-  baseUrl?: string;
-  maxRetries?: number;
-  retryDelay?: number;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  statusCode?: number;
+error ?: string;
+statusCode ?: number;
 }
 
 class ElevenLabsService {
@@ -52,7 +40,7 @@ class ElevenLabsService {
     const retryDelay = this.config.retryDelay || 1000;
 
     let lastError: any;
-    
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const response = await fetch(url, {
@@ -64,7 +52,7 @@ class ElevenLabsService {
         });
 
         const responseText = await response.text();
-        
+
         if (!response.ok) {
           // Don't retry on client errors (400-499)
           if (response.status >= 400 && response.status < 500) {
@@ -75,14 +63,14 @@ class ElevenLabsService {
             } catch {
               errorMessage = responseText || errorMessage;
             }
-            
+
             return {
               success: false,
               error: errorMessage,
               statusCode: response.status,
             };
           }
-          
+
           // Retry on server errors (500-599)
           throw new Error(`Server error: ${response.status}`);
         }
@@ -102,7 +90,7 @@ class ElevenLabsService {
         };
       } catch (error: any) {
         lastError = error;
-        
+
         // Don't retry on the last attempt
         if (attempt < maxRetries - 1) {
           // Exponential backoff
@@ -172,7 +160,7 @@ class ElevenLabsService {
     if (params?.agent_id) queryParams.append("agent_id", params.agent_id);
     if (params?.page_size) queryParams.append("page_size", params.page_size.toString());
     if (params?.page) queryParams.append("page", params.page.toString());
-    
+
     const endpoint = `/v1/convai/conversations${queryParams.toString() ? `?${queryParams}` : ""}`;
     return this.makeRequest<any>(endpoint);
   }
@@ -199,11 +187,11 @@ class ElevenLabsService {
     try {
       const url = `${this.config.baseUrl}/v1/convai/conversations/${conversationId}/audio`;
       const keyLast4 = this.config.apiKey.slice(-4);
-      
+
       console.log(`[ELEVENLABS-AUDIO] Fetching audio for conversation ${conversationId}`);
       console.log(`[ELEVENLABS-AUDIO] Using API key: ***${keyLast4}`);
       console.log(`[ELEVENLABS-AUDIO] Request URL: ${url}`);
-      
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -235,8 +223,8 @@ class ElevenLabsService {
   }
 
   async fetchAndStoreAudio(
-    conversationId: string, 
-    callId: string, 
+    conversationId: string,
+    callId: string,
     audioStorageService: any,
     storage: any,
     organizationId: string
@@ -247,7 +235,7 @@ class ElevenLabsService {
       // Directly attempt to fetch the audio - the API will tell us if it doesn't exist
       console.log(`[FETCH-STORE-AUDIO] Step 1: Downloading audio from ElevenLabs...`);
       const audioResult = await this.getConversationAudio(conversationId);
-      
+
       if (!audioResult.buffer) {
         // Distinguish between 404 (unavailable) and other errors (failed)
         if (audioResult.notFound) {
@@ -296,7 +284,7 @@ class ElevenLabsService {
     } catch (error: any) {
       console.error(`[FETCH-STORE-AUDIO] ❌ Error in fetchAndStoreAudio for ${conversationId}:`, error);
       console.error(`[FETCH-STORE-AUDIO] Error stack:`, error.stack);
-      
+
       try {
         await storage.updateCallAudioStatus(callId, organizationId, {
           audioFetchStatus: 'failed',
@@ -311,469 +299,413 @@ class ElevenLabsService {
     }
   }
 
-  // Voice endpoints
-  async getVoices() {
-    return this.makeRequest<any>("/v1/voices");
-  }
-
-  async getVoice(voiceId: string) {
-    return this.makeRequest<any>(`/v1/voices/${voiceId}`);
-  }
-
-  // Text-to-speech endpoints
-  async textToSpeech(text: string, voiceId: string, modelId?: string) {
-    const response = await fetch(`${this.config.baseUrl}/v1/text-to-speech/${voiceId}`, {
-      method: "POST",
-      headers: {
+  method: "POST",
+  headers: {
         ...this.defaultHeaders,
       },
-      body: JSON.stringify({
-        text,
-        model_id: modelId || "eleven_multilingual_v2",
-      }),
+body: JSON.stringify({
+  text,
+  model_id: modelId || "eleven_multilingual_v2",
+}),
     });
 
-    if (!response.ok) {
-      throw new Error(`TTS failed: ${response.status}`);
-    }
-
-    return response.arrayBuffer();
-  }
-
-  // WebRTC session endpoints
-  async createWebRTCSession(agentId: string, enableMicrophone: boolean = true) {
-    return this.makeRequest<any>("/v1/convai/conversation/websocket", {
-      method: "POST",
-      body: JSON.stringify({
-        agent_id: agentId,
-        enable_microphone: enableMicrophone,
-      }),
-    });
-  }
-
-  async createWebSocketSession(agentId: string) {
-    return this.makeRequest<any>("/v1/convai/conversation/websocket", {
-      method: "POST",
-      body: JSON.stringify({
-        agent_id: agentId,
-      }),
-    });
-  }
-
-  // Phone endpoints
-  async getPhoneNumbers(agentId?: string) {
-    const endpoint = agentId 
-      ? `/v1/convai/phone-numbers?agent_id=${agentId}`
-      : "/v1/convai/phone-numbers";
-    return this.makeRequest<any>(endpoint);
-  }
-
-  async createPhoneNumber(phoneNumberData: any) {
-    return this.makeRequest<any>("/v1/convai/phone-numbers", {
-      method: "POST",
-      body: JSON.stringify(phoneNumberData),
-    });
-  }
-
-  async deletePhoneNumber(phoneNumberId: string) {
-    return this.makeRequest<any>(`/v1/convai/phone-numbers/${phoneNumberId}`, {
-      method: "DELETE",
-    });
-  }
-
-  // Analytics endpoints
-  async getUsageAnalytics(startDate?: string, endDate?: string) {
-    const queryParams = new URLSearchParams();
-    if (startDate) queryParams.append("start_date", startDate);
-    if (endDate) queryParams.append("end_date", endDate);
-    
-    const endpoint = `/v1/usage/character-stats${queryParams.toString() ? `?${queryParams}` : ""}`;
-    return this.makeRequest<any>(endpoint);
-  }
-
-  async getMCPStatus() {
-    return this.makeRequest<any>("/v1/convai/mcp/status");
-  }
-
-  async updateMCPConfig(config: any) {
-    return this.makeRequest<any>("/v1/convai/mcp/config", {
-      method: "POST",
-      body: JSON.stringify(config),
-    });
-  }
-
-  // Tool endpoints
-  async getTools() {
-    return this.makeRequest<any>("/v1/convai/tools");
-  }
-
-  async createTool(toolData: any) {
-    return this.makeRequest<any>("/v1/convai/tools", {
-      method: "POST",
-      body: JSON.stringify(toolData),
-    });
-  }
-
-  async updateTool(toolId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/convai/tools/${toolId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
+if (!response.ok) {
+  throw new Error(`TTS failed: ${response.status}`);
+}
   }
 
   async deleteTool(toolId: string) {
-    return this.makeRequest<any>(`/v1/convai/tools/${toolId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/tools/${toolId}`, {
+    method: "DELETE",
+  });
+}
 
   // Agent Testing endpoints
   async getAgentTests(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/tests?agent_id=${agentId}`);
-  }
+  return this.makeRequest<any>(`/v1/convai/tests?agent_id=${agentId}`);
+}
 
   async createAgentTest(testData: any) {
-    return this.makeRequest<any>("/v1/convai/tests", {
-      method: "POST",
-      body: JSON.stringify(testData),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/tests", {
+    method: "POST",
+    body: JSON.stringify(testData),
+  });
+}
 
   async runAgentTest(testId: string) {
-    return this.makeRequest<any>(`/v1/convai/tests/${testId}/run`, {
-      method: "POST",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/tests/${testId}/run`, {
+    method: "POST",
+  });
+}
 
   async getTestResults(testId: string) {
-    return this.makeRequest<any>(`/v1/convai/tests/${testId}/results`);
-  }
+  return this.makeRequest<any>(`/v1/convai/tests/${testId}/results`);
+}
 
   // Widget endpoints
   async getWidgetConfig(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/widget?agent_id=${agentId}`);
-  }
+  return this.makeRequest<any>(`/v1/convai/widget?agent_id=${agentId}`);
+}
 
   async updateWidgetConfig(agentId: string, config: any) {
-    return this.makeRequest<any>("/v1/convai/widget", {
-      method: "POST",
-      body: JSON.stringify({ agent_id: agentId, ...config }),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/widget", {
+    method: "POST",
+    body: JSON.stringify({ agent_id: agentId, ...config }),
+  });
+}
 
   async getWidgetEmbedCode(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/widget/embed/${agentId}`);
-  }
+  return this.makeRequest<any>(`/v1/convai/widget/embed/${agentId}`);
+}
 
   // SIP Trunk endpoints
   async getSipTrunks() {
-    return this.makeRequest<any>("/v1/convai/sip-trunk");
-  }
+  return this.makeRequest<any>("/v1/convai/sip-trunk");
+}
 
   async createSipTrunk(sipData: any) {
-    return this.makeRequest<any>("/v1/convai/sip-trunk", {
-      method: "POST",
-      body: JSON.stringify(sipData),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/sip-trunk", {
+    method: "POST",
+    body: JSON.stringify(sipData),
+  });
+}
 
   async updateSipTrunk(sipId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/convai/sip-trunk/${sipId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/sip-trunk/${sipId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
 
   async deleteSipTrunk(sipId: string) {
-    return this.makeRequest<any>(`/v1/convai/sip-trunk/${sipId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/sip-trunk/${sipId}`, {
+    method: "DELETE",
+  });
+}
 
   // Batch Calling endpoints
   async getBatchCalls() {
-    return this.makeRequest<any>("/v1/convai/batch-calling");
-  }
+  return this.makeRequest<any>("/v1/convai/batch-calling");
+}
 
   async createBatchCall(batchData: any) {
-    return this.makeRequest<any>("/v1/convai/batch-calling", {
-      method: "POST",
-      body: JSON.stringify(batchData),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/batch-calling", {
+    method: "POST",
+    body: JSON.stringify(batchData),
+  });
+}
 
   async getBatchCallStatus(batchId: string) {
-    return this.makeRequest<any>(`/v1/convai/batch-calling/${batchId}`);
-  }
+  return this.makeRequest<any>(`/v1/convai/batch-calling/${batchId}`);
+}
 
   async cancelBatchCall(batchId: string) {
-    return this.makeRequest<any>(`/v1/convai/batch-calling/${batchId}/cancel`, {
-      method: "POST",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/batch-calling/${batchId}/cancel`, {
+    method: "POST",
+  });
+}
 
   // Workspace endpoints
   async getWorkspace() {
-    return this.makeRequest<any>("/v1/convai/workspace");
-  }
+  return this.makeRequest<any>("/v1/convai/workspace");
+}
 
   async updateWorkspaceSettings(settings: any) {
-    return this.makeRequest<any>("/v1/convai/workspace", {
-      method: "PATCH",
-      body: JSON.stringify(settings),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/workspace", {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+}
 
   async getWorkspaceMembers() {
-    return this.makeRequest<any>("/v1/convai/workspace/members");
-  }
+  return this.makeRequest<any>("/v1/convai/workspace/members");
+}
 
   async inviteWorkspaceMember(email: string, role: string) {
-    return this.makeRequest<any>("/v1/convai/workspace/members/invite", {
-      method: "POST",
-      body: JSON.stringify({ email, role }),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/workspace/members/invite", {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+}
 
   // LLM Usage endpoints
-  async getLlmUsage(startDate?: string, endDate?: string, agentId?: string) {
-    const queryParams = new URLSearchParams();
-    if (startDate) queryParams.append("start_date", startDate);
-    if (endDate) queryParams.append("end_date", endDate);
-    if (agentId) queryParams.append("agent_id", agentId);
-    
-    const endpoint = `/v1/convai/llm-usage${queryParams.toString() ? `?${queryParams}` : ""}`;
-    return this.makeRequest<any>(endpoint);
-  }
+  async getLlmUsage(startDate ?: string, endDate ?: string, agentId ?: string) {
+  const queryParams = new URLSearchParams();
+  if (startDate) queryParams.append("start_date", startDate);
+  if (endDate) queryParams.append("end_date", endDate);
+  if (agentId) queryParams.append("agent_id", agentId);
+
+  const endpoint = `/v1/convai/llm-usage${queryParams.toString() ? `?${queryParams}` : ""}`;
+  return this.makeRequest<any>(endpoint);
+}
 
   async getLlmUsageDetails(conversationId: string) {
-    return this.makeRequest<any>(`/v1/convai/llm-usage/${conversationId}`);
-  }
+  return this.makeRequest<any>(`/v1/convai/llm-usage/${conversationId}`);
+}
 
   // Twilio endpoints
   async getTwilioConfig() {
-    return this.makeRequest<any>("/v1/convai/twilio");
-  }
+  return this.makeRequest<any>("/v1/convai/twilio");
+}
 
   async updateTwilioConfig(config: any) {
-    return this.makeRequest<any>("/v1/convai/twilio", {
-      method: "POST",
-      body: JSON.stringify(config),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/twilio", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+}
 
   async verifyTwilioPhone(phoneNumber: string) {
-    return this.makeRequest<any>("/v1/convai/twilio/verify", {
-      method: "POST",
-      body: JSON.stringify({ phone_number: phoneNumber }),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/twilio/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  });
+}
 
   // MCP Server endpoints
   async getMcpServers() {
-    return this.makeRequest<any>("/v1/convai/mcp/servers");
-  }
+  return this.makeRequest<any>("/v1/convai/mcp/servers");
+}
 
   async addMcpServer(serverConfig: any) {
-    return this.makeRequest<any>("/v1/convai/mcp/servers", {
-      method: "POST",
-      body: JSON.stringify(serverConfig),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/mcp/servers", {
+    method: "POST",
+    body: JSON.stringify(serverConfig),
+  });
+}
 
   async updateMcpServer(serverId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
 
   async deleteMcpServer(serverId: string) {
-    return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}`, {
+    method: "DELETE",
+  });
+}
 
   async testMcpServer(serverId: string) {
-    return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}/test`, {
-      method: "POST",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/mcp/servers/${serverId}/test`, {
+    method: "POST",
+  });
+}
 
   // Evaluation endpoints
   async getEvaluationCriteria(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/evaluation`);
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/evaluation`);
+}
 
   async updateEvaluationCriteria(agentId: string, criteria: any) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/evaluation`, {
-      method: "POST",
-      body: JSON.stringify(criteria),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/evaluation`, {
+    method: "POST",
+    body: JSON.stringify(criteria),
+  });
+}
 
-  async getEvaluationResults(agentId: string, startDate?: string, endDate?: string) {
-    const queryParams = new URLSearchParams();
-    if (startDate) queryParams.append("start_date", startDate);
-    if (endDate) queryParams.append("end_date", endDate);
-    
-    const endpoint = `/v1/convai/agents/${agentId}/evaluation/results${queryParams.toString() ? `?${queryParams}` : ""}`;
-    return this.makeRequest<any>(endpoint);
-  }
+  async getEvaluationResults(agentId: string, startDate ?: string, endDate ?: string) {
+  const queryParams = new URLSearchParams();
+  if (startDate) queryParams.append("start_date", startDate);
+  if (endDate) queryParams.append("end_date", endDate);
+
+  const endpoint = `/v1/convai/agents/${agentId}/evaluation/results${queryParams.toString() ? `?${queryParams}` : ""}`;
+  return this.makeRequest<any>(endpoint);
+}
 
   // Privacy & Compliance endpoints
   async getPrivacySettings(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/privacy`);
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/privacy`);
+}
 
   async updatePrivacySettings(agentId: string, settings: any) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/privacy`, {
-      method: "PATCH",
-      body: JSON.stringify(settings),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/privacy`, {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+}
 
   // Dynamic variables endpoints
   async getDynamicVariables(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/variables`);
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/variables`);
+}
 
   async updateDynamicVariables(agentId: string, variables: any) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/variables`, {
-      method: "POST",
-      body: JSON.stringify(variables),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/variables`, {
+    method: "POST",
+    body: JSON.stringify(variables),
+  });
+}
 
   // Agent cloning endpoint
   async cloneAgent(agentId: string, name: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/clone`, {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/clone`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
 
   // Concurrency settings endpoint
   async getConcurrencySettings() {
-    return this.makeRequest<any>("/v1/convai/concurrency");
-  }
+  return this.makeRequest<any>("/v1/convai/concurrency");
+}
 
   async updateConcurrencySettings(settings: any) {
-    return this.makeRequest<any>("/v1/convai/concurrency", {
-      method: "PATCH",
-      body: JSON.stringify(settings),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/concurrency", {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+}
 
   // Workflow endpoints (2025 feature)
   async getWorkflows(agentId: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`);
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`);
+}
 
   async createWorkflow(agentId: string, workflowData: any) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`, {
-      method: "POST",
-      body: JSON.stringify(workflowData),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`, {
+    method: "POST",
+    body: JSON.stringify(workflowData),
+  });
+}
 
   async updateWorkflow(agentId: string, workflowId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
 
   async deleteWorkflow(agentId: string, workflowId: string) {
-    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
+    method: "DELETE",
+  });
+}
 
   // Pronunciation dictionary endpoints (2025 feature)
   async getPronunciationDictionaries() {
-    return this.makeRequest<any>("/v1/pronunciation-dictionaries");
-  }
+  return this.makeRequest<any>("/v1/pronunciation-dictionaries");
+}
 
   async createPronunciationDictionary(dictionaryData: any) {
-    return this.makeRequest<any>("/v1/pronunciation-dictionaries", {
-      method: "POST",
-      body: JSON.stringify(dictionaryData),
-    });
-  }
+  return this.makeRequest<any>("/v1/pronunciation-dictionaries", {
+    method: "POST",
+    body: JSON.stringify(dictionaryData),
+  });
+}
 
   async addPronunciationRule(dictionaryId: string, rule: any) {
-    return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}/add-rules`, {
-      method: "POST",
-      body: JSON.stringify(rule),
-    });
-  }
+  return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}/add-rules`, {
+    method: "POST",
+    body: JSON.stringify(rule),
+  });
+}
 
   async deletePronunciationDictionary(dictionaryId: string) {
-    return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}`, {
+    method: "DELETE",
+  });
+}
 
   // Knowledge base endpoints for RAG (2025 feature)
-  async getKnowledgeBases(agentId?: string) {
-    const endpoint = agentId
-      ? `/v1/convai/knowledge-base?agent_id=${agentId}`
-      : "/v1/convai/knowledge-base";
-    return this.makeRequest<any>(endpoint);
-  }
+  async getKnowledgeBases(agentId ?: string) {
+  const endpoint = agentId
+    ? `/v1/convai/knowledge-base?agent_id=${agentId}`
+    : "/v1/convai/knowledge-base";
+  return this.makeRequest<any>(endpoint);
+}
 
   async createKnowledgeBase(knowledgeBaseData: any) {
-    return this.makeRequest<any>("/v1/convai/knowledge-base", {
-      method: "POST",
-      body: JSON.stringify(knowledgeBaseData),
-    });
-  }
+  return this.makeRequest<any>("/v1/convai/knowledge-base", {
+    method: "POST",
+    body: JSON.stringify(knowledgeBaseData),
+  });
+}
 
   async updateKnowledgeBase(knowledgeBaseId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
 
   async deleteKnowledgeBase(knowledgeBaseId: string) {
-    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
+    method: "DELETE",
+  });
+}
 
   async addDocumentToKnowledgeBase(knowledgeBaseId: string, documentData: any) {
-    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}/documents`, {
-      method: "POST",
-      body: JSON.stringify(documentData),
-    });
-  }
+  return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}/documents`, {
+    method: "POST",
+    body: JSON.stringify(documentData),
+  });
+}
 
   // Service account API keys endpoints (2025 feature)
   async getServiceAccountKeys() {
-    return this.makeRequest<any>("/v1/service-account-keys");
-  }
+  return this.makeRequest<any>("/v1/service-account-keys");
+}
 
   async createServiceAccountKey(keyData: any) {
-    return this.makeRequest<any>("/v1/service-account-keys", {
-      method: "POST",
-      body: JSON.stringify(keyData),
-    });
-  }
+  return this.makeRequest<any>("/v1/service-account-keys", {
+    method: "POST",
+    body: JSON.stringify(keyData),
+  });
+}
 
   async deleteServiceAccountKey(keyId: string) {
-    return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
-      method: "DELETE",
-    });
-  }
+  return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
+    method: "DELETE",
+  });
+}
 
   async updateServiceAccountKey(keyId: string, updates: any) {
-    return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
-      method: "PATCH",
-      body: JSON.stringify(updates),
-    });
-  }
+  return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+  // Phone Number endpoints
+  async getPhoneNumbers() {
+  return this.makeRequest<any>("/v1/convai/phone-numbers");
+}
+
+  async createPhoneNumber(phoneData: any) {
+  return this.makeRequest<any>("/v1/convai/phone-numbers", {
+    method: "POST",
+    body: JSON.stringify(phoneData),
+  });
+}
+
+  async updatePhoneNumber(phoneId: string, updates: any) {
+  return this.makeRequest<any>(`/v1/convai/phone-numbers/${phoneId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+  async updatePhoneNumberPut(phoneId: string, updates: any) {
+  return this.makeRequest<any>(`/v1/convai/phone-numbers/${phoneId}`, {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
+  async deletePhoneNumber(phoneId: string) {
+  return this.makeRequest<any>(`/v1/convai/phone-numbers/${phoneId}`, {
+    method: "DELETE",
+  });
+}
+
+  // Conversation initiation (for test calls)
+  async createConversation(conversationData: any) {
+  return this.makeRequest<any>("/v1/convai/conversations", {
+    method: "POST",
+    body: JSON.stringify(conversationData),
+  });
+}
 }
 
 /**
