@@ -8,7 +8,8 @@ import crypto from "crypto";
 import type { RequestHandler } from "express";
 import { seedAdminUser } from "./seedAdmin";
 import { checkPermission, checkRoutePermission } from "./middleware/permissions";
-import ElevenLabsService from "./services/elevenlabs";
+import { providerRegistry } from "./services/providers/registry";
+import { IConversationalAIProvider, ITTSProvider } from "./services/providers/types";
 import * as unifiedPayment from "./unified-payment";
 import { cacheMiddleware } from "./middleware/cache-middleware";
 import Stripe from "stripe";
@@ -21,10 +22,10 @@ import DocumentProcessingService from "./services/document-processing-service";
 import MultilingualService from "./services/multilingual-service";
 import EmailService from "./services/email-service";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
-import { 
-  handleConversationInitWebhook, 
-  handlePostCallWebhook, 
-  handleEventsWebhook 
+import {
+  handleConversationInitWebhook,
+  handlePostCallWebhook,
+  handleEventsWebhook
 } from "./webhooks/elevenlabs-webhooks";
 
 // Authentication middleware
@@ -59,7 +60,7 @@ async function callElevenLabsAPI(apiKey: string, endpoint: string, method = "GET
   });
 
   const responseText = await response.text();
-  
+
   if (!response.ok) {
     // Check for authentication errors and mark integration as disconnected
     if ((response.status === 401 || response.status === 403) && integrationId) {
@@ -69,7 +70,7 @@ async function callElevenLabsAPI(apiKey: string, endpoint: string, method = "GET
         // Silent fail - integration status update
       }
     }
-    
+
     // Try to parse error message from response
     let errorMessage = `ElevenLabs API error: ${response.status}`;
     try {
@@ -85,14 +86,14 @@ async function callElevenLabsAPI(apiKey: string, endpoint: string, method = "GET
       // If response is not JSON, use the status text
       errorMessage = responseText || response.statusText;
     }
-    
+
     // Add authentication-specific error messages
     if (response.status === 401) {
       errorMessage = "Authentication failed: Invalid API key. Please update your API key in Integrations.";
     } else if (response.status === 403) {
       errorMessage = "Access forbidden: Your API key may not have the required permissions.";
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -111,16 +112,16 @@ async function callElevenLabsAPI(apiKey: string, endpoint: string, method = "GET
 async function manageElevenLabsTools(apiKey: string, tools: any[], integrationId?: string) {
   const toolIds: string[] = [];
   const builtInTools: any = {}; // Changed to object format for ElevenLabs API
-  
+
   if (!tools || tools.length === 0) {
     return { toolIds, builtInTools };
   }
-  
+
   for (const tool of tools) {
     // Handle system/built-in tools
-    if (tool.type === 'system' || tool.name === 'end_call' || tool.name === 'language_detection' || 
-        tool.name === 'skip_turn' || tool.name === 'transfer_to_agent' || tool.name === 'transfer_to_number' ||
-        tool.name === 'play_dtmf' || tool.name === 'voicemail_detection') {
+    if (tool.type === 'system' || tool.name === 'end_call' || tool.name === 'language_detection' ||
+      tool.name === 'skip_turn' || tool.name === 'transfer_to_agent' || tool.name === 'transfer_to_number' ||
+      tool.name === 'play_dtmf' || tool.name === 'voicemail_detection') {
       // Map our system tool names to ElevenLabs built-in tool names
       let builtInToolName = tool.name;
       if (tool.name === 'play_dtmf') {
@@ -137,10 +138,10 @@ async function manageElevenLabsTools(apiKey: string, tools: any[], integrationId
         // First, try to get existing tools to check if this tool already exists
         const existingToolsResponse = await callElevenLabsAPI(apiKey, '/v1/convai/tools', 'GET', null, integrationId);
         const existingTools = existingToolsResponse?.tools || [];
-        
+
         // Check if a tool with the same name already exists
         const existingTool = existingTools.find((t: any) => t.name === tool.name);
-        
+
         let toolId;
         if (existingTool) {
           // Update existing tool
@@ -160,12 +161,12 @@ async function manageElevenLabsTools(apiKey: string, tools: any[], integrationId
               parameters: tool.parameters || {}
             })
           };
-          
+
           await callElevenLabsAPI(
-            apiKey, 
-            `/v1/convai/tools/${existingTool.tool_id}`, 
-            'PATCH', 
-            updatePayload, 
+            apiKey,
+            `/v1/convai/tools/${existingTool.tool_id}`,
+            'PATCH',
+            updatePayload,
             integrationId
           );
           toolId = existingTool.tool_id;
@@ -186,18 +187,18 @@ async function manageElevenLabsTools(apiKey: string, tools: any[], integrationId
               parameters: tool.parameters || {}
             })
           };
-          
+
           const response = await callElevenLabsAPI(
-            apiKey, 
-            '/v1/convai/tools', 
-            'POST', 
-            createPayload, 
+            apiKey,
+            '/v1/convai/tools',
+            'POST',
+            createPayload,
             integrationId
           );
-          
+
           toolId = response?.tool_id;
         }
-        
+
         if (toolId) {
           toolIds.push(toolId);
         }
@@ -207,7 +208,7 @@ async function manageElevenLabsTools(apiKey: string, tools: any[], integrationId
       }
     }
   }
-  
+
   return { toolIds, builtInTools };
 }
 
@@ -218,11 +219,11 @@ function encryptCredentials(data: any): string {
   const algorithm = "aes-256-cbc";
   const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
   const iv = crypto.randomBytes(16);
-  
+
   const cipher = crypto.createCipheriv(algorithm, key, iv);
   let encrypted = cipher.update(dataStr, "utf8", "hex");
   encrypted += cipher.final("hex");
-  
+
   return `${iv.toString("hex")}:${encrypted}`;
 }
 
@@ -249,15 +250,15 @@ function decryptCredentials(encryptedData: string): any {
         return decrypted;
       }
     }
-    
+
     // New format
     const [ivHex, encrypted] = encryptedData.split(":");
     const iv = Buffer.from(ivHex, "hex");
-    
+
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
-    
+
     try {
       return JSON.parse(decrypted);
     } catch {
@@ -273,11 +274,11 @@ function encryptApiKey(apiKey: string): string {
   const algorithm = "aes-256-cbc";
   const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
   const iv = crypto.randomBytes(16);
-  
+
   const cipher = crypto.createCipheriv(algorithm, key, iv);
   let encrypted = cipher.update(apiKey, "utf8", "hex");
   encrypted += cipher.final("hex");
-  
+
   return `${iv.toString("hex")}:${encrypted}`;
 }
 
@@ -299,15 +300,15 @@ function decryptApiKey(encryptedApiKey: string): string {
       decrypted += decipher.final("utf8");
       return decrypted;
     }
-    
+
     // New format
     const [ivHex, encrypted] = encryptedApiKey.split(":");
     const iv = Buffer.from(ivHex, "hex");
-    
+
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
-    
+
     return decrypted;
   } catch (error) {
     console.error("Decryption failed:", error);
@@ -322,7 +323,7 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
   if (credits) {
     return Number(credits) * 0.001; // Convert credits to dollars
   }
-  
+
   // Check for direct cost field (might already be in dollars)
   if (costData?.cost !== undefined && costData?.cost !== null) {
     const cost = Number(costData.cost);
@@ -332,7 +333,7 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
     }
     return cost;
   }
-  
+
   // Check for llm_cost field
   if (costData?.llm_cost !== undefined && costData?.llm_cost !== null) {
     const cost = Number(costData.llm_cost);
@@ -342,23 +343,23 @@ function calculateCallCost(durationSeconds: number, costData?: any): number {
     }
     return cost;
   }
-  
+
   // Check for silent period tracking
   const silentSeconds = costData?.silent_seconds || 0;
   const activeSeconds = Math.max(0, durationSeconds - silentSeconds);
-  
+
   // Calculate cost based on ElevenLabs pricing tiers
   // Business plan: $0.08 per minute (annual), $0.096 per minute (monthly)
   // Silent periods (>10 seconds): charged at 5% of usual rate
   const RATE_PER_MINUTE = 0.08; // Business plan rate
   const SILENT_RATE_MULTIPLIER = 0.05; // 5% rate for silent periods
-  
+
   const activeMinutes = activeSeconds / 60;
   const silentMinutes = silentSeconds / 60;
-  
+
   const activeCost = activeMinutes * RATE_PER_MINUTE;
   const silentCost = silentMinutes * RATE_PER_MINUTE * SILENT_RATE_MULTIPLIER;
-  
+
   return Math.round((activeCost + silentCost) * 100) / 100; // Round to 2 decimal places
 }
 
@@ -377,7 +378,7 @@ export function registerRoutes(app: Express): Server {
   setTimeout(() => {
     seedAdminUser().catch(console.error);
   }, 1000);
-  
+
   // Auth middleware
   setupAuth(app);
 
@@ -389,13 +390,13 @@ export function registerRoutes(app: Express): Server {
   // ==========================================
   // ElevenLabs Webhook Routes (No Auth Required)
   // ==========================================
-  
+
   // Post-call webhook - receives call summary and metadata after call completion
   app.post("/api/webhooks/elevenlabs/post-call", handlePostCallWebhook);
-  
+
   // Conversation initialization webhook - receives data when conversation starts
   app.post("/api/webhooks/elevenlabs/conversation-init", handleConversationInitWebhook);
-  
+
   // Events webhook - receives real-time events during conversation
   app.post("/api/webhooks/elevenlabs/events", handleEventsWebhook);
 
@@ -413,7 +414,7 @@ export function registerRoutes(app: Express): Server {
   };
 
   // Admin routes - User Management
-  
+
   // User-Agent assignment routes
   app.get('/api/admin/users/:userId/agents', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
@@ -422,27 +423,27 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Get all agents in the organization
       const allAgents = await storage.getAgents(user.organizationId);
-      
+
       // Get assigned agents for the user
       const assignedAgents = await storage.getAgentsForUser(userId, user.organizationId);
       const assignedAgentIds = assignedAgents.map(a => a.id);
-      
+
       // Return agents with assignment status
       const agentsWithAssignment = allAgents.map(agent => ({
         ...agent,
         assigned: assignedAgentIds.includes(agent.id)
       }));
-      
+
       res.json(agentsWithAssignment);
     } catch (error) {
       console.error("Error fetching user agent assignments:", error);
       res.status(500).json({ message: "Failed to fetch agent assignments" });
     }
   });
-  
+
   app.post('/api/admin/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { userId, agentId } = req.params;
@@ -453,7 +454,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: "Failed to assign agent" });
     }
   });
-  
+
   app.delete('/api/admin/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { userId, agentId } = req.params;
@@ -464,7 +465,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: "Failed to unassign agent" });
     }
   });
-  
+
   app.get('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const users = await storage.getAllUsers();
@@ -495,7 +496,7 @@ export function registerRoutes(app: Express): Server {
       if (updates.password) {
         updates.password = await hashPassword(updates.password);
       }
-      
+
       const updatedUser = await storage.updateUser(req.params.userId, updates);
       res.json(updatedUser);
     } catch (error) {
@@ -541,7 +542,7 @@ export function registerRoutes(app: Express): Server {
       if (!organizationId) {
         return res.status(400).json({ message: "Organization ID is required" });
       }
-      
+
       const agent = await storage.reassignAgentToOrganization(req.params.agentId, organizationId);
       res.json(agent);
     } catch (error) {
@@ -588,18 +589,18 @@ export function registerRoutes(app: Express): Server {
       if (!Array.isArray(permissions)) {
         return res.status(400).json({ message: "Permissions must be an array" });
       }
-      
+
       const updateData: any = {
         agencyPermissions: permissions
       };
-      
+
       // Also save the role if provided
       if (role) {
         updateData.agencyRole = role;
       }
-      
+
       const updatedOrg = await storage.updateOrganization(req.params.orgId, updateData);
-      
+
       res.json({
         message: "Agency permissions updated successfully",
         permissions: updatedOrg.agencyPermissions,
@@ -618,7 +619,7 @@ export function registerRoutes(app: Express): Server {
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       res.json({
         organizationId: org.id,
         organizationName: org.name,
@@ -639,8 +640,8 @@ export function registerRoutes(app: Express): Server {
       res.json({ message: "Organization deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting organization:", error);
-      res.status(error.message.includes("existing users") ? 400 : 500).json({ 
-        message: error.message || "Failed to delete organization" 
+      res.status(error.message.includes("existing users") ? 400 : 500).json({
+        message: error.message || "Failed to delete organization"
       });
     }
   });
@@ -677,10 +678,10 @@ export function registerRoutes(app: Express): Server {
   app.get('/api/admin/sync/status', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const allIntegrations = await storage.getAllIntegrations();
-      const elevenLabsIntegrations = allIntegrations.filter((i: Integration) => 
+      const elevenLabsIntegrations = allIntegrations.filter((i: Integration) =>
         i.provider === 'elevenlabs' && i.apiKey && i.status === 'ACTIVE'
       );
-      
+
       const endpoints = [
         { name: 'agents/list', path: '/v1/convai/agents', method: 'GET', status: 'active' },
         { name: 'agents/get', path: '/v1/convai/agents/:id', method: 'GET', status: 'active' },
@@ -706,30 +707,30 @@ export function registerRoutes(app: Express): Server {
         endpointsUpdated: endpoints.filter(e => e.status === 'updated').length,
         syncInProgress: false
       };
-      
+
       // Get comprehensive sync information
       if (elevenLabsIntegrations.length > 0) {
         const organizations = await storage.getAllOrganizations();
-        const activeOrganizations = organizations.filter(org => 
+        const activeOrganizations = organizations.filter(org =>
           elevenLabsIntegrations.some(int => int.organizationId === org.id)
         );
-        
+
         syncStatus.totalOrganizations = activeOrganizations.length;
-        
+
         // Get last sync times
         const lastSyncTimes = activeOrganizations
           .map(org => (org as any).lastSync)
           .filter(Boolean)
           .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-        
+
         if (lastSyncTimes.length > 0) {
           syncStatus.lastSync = lastSyncTimes[0];
         }
-        
+
         // Get total agents and conversations across all organizations
         let totalAgents = 0;
         let totalConversations = 0;
-        
+
         for (const org of activeOrganizations) {
           try {
             const agents = await storage.getAgents(org.id);
@@ -740,21 +741,21 @@ export function registerRoutes(app: Express): Server {
             console.warn(`Error getting stats for organization ${org.id}:`, error);
           }
         }
-        
+
         syncStatus.totalAgents = totalAgents;
         syncStatus.totalConversations = totalConversations;
-        
+
         // Check API health
         try {
           const firstIntegration = elevenLabsIntegrations[0];
           const apiKey = decryptApiKey(firstIntegration.apiKey);
-          
+
           const healthResponse = await fetch('https://api.elevenlabs.io/v1/user', {
             headers: {
               'xi-api-key': apiKey,
             },
           });
-          
+
           if (healthResponse.ok) {
             syncStatus.healthStatus = 'healthy';
           } else {
@@ -763,7 +764,7 @@ export function registerRoutes(app: Express): Server {
         } catch (error) {
           syncStatus.healthStatus = 'unreachable';
         }
-        
+
         // Get recent activity
         try {
           const recentCallLogs: any[] = [];
@@ -784,7 +785,7 @@ export function registerRoutes(app: Express): Server {
               console.warn(`Error getting recent logs for organization ${org.id}:`, error);
             }
           }
-          
+
           syncStatus.recentActivity = recentCallLogs
             .filter(log => log.createdAt !== null)
             .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
@@ -905,18 +906,18 @@ export function registerRoutes(app: Express): Server {
       console.log("Admin sync requested");
       const allIntegrations = await storage.getAllIntegrations();
       console.log("Found integrations:", allIntegrations.length);
-      
+
       // Find ElevenLabs integration specifically
-      const elevenLabsIntegration = allIntegrations.find((i: Integration) => 
+      const elevenLabsIntegration = allIntegrations.find((i: Integration) =>
         i.provider === 'elevenlabs' && i.apiKey && i.status === 'ACTIVE'
       );
-      
+
       console.log("ElevenLabs integration found:", !!elevenLabsIntegration);
-      
+
       if (!elevenLabsIntegration || !elevenLabsIntegration.apiKey) {
         console.log("No active ElevenLabs integration found");
-        return res.status(400).json({ 
-          message: 'No API key configured. Please configure an ElevenLabs API key in at least one organization.' 
+        return res.status(400).json({
+          message: 'No API key configured. Please configure an ElevenLabs API key in at least one organization.'
         });
       }
 
@@ -958,14 +959,14 @@ export function registerRoutes(app: Express): Server {
       const endpoint = req.body;
       // For admin sync validation, try to find any organization with a configured API key
       const allIntegrations = await storage.getAllIntegrations();
-      const elevenLabsIntegration = allIntegrations.find((i: Integration) => 
+      const elevenLabsIntegration = allIntegrations.find((i: Integration) =>
         i.provider === 'elevenlabs' && i.apiKey && i.status === 'ACTIVE'
       );
-      
+
       if (!elevenLabsIntegration || !elevenLabsIntegration.apiKey) {
-        return res.status(400).json({ 
-          valid: false, 
-          message: 'No API key configured. Please configure an ElevenLabs API key in at least one organization.' 
+        return res.status(400).json({
+          valid: false,
+          message: 'No API key configured. Please configure an ElevenLabs API key in at least one organization.'
         });
       }
 
@@ -973,7 +974,7 @@ export function registerRoutes(app: Express): Server {
 
       // Validate specific endpoint
       let testUrl = 'https://api.elevenlabs.io';
-      
+
       // Map endpoint paths to actual test URLs
       if (endpoint.path.includes('agents')) {
         testUrl += '/v1/convai/agents';
@@ -990,7 +991,7 @@ export function registerRoutes(app: Express): Server {
 
       const valid = response.status !== 404;
 
-      res.json({ 
+      res.json({
         valid,
         status: response.status,
         message: valid ? 'Endpoint is valid' : 'Endpoint not found or changed'
@@ -1004,12 +1005,12 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/admin/sync/update-endpoint', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const endpoint = req.body;
-      
+
       // In a real implementation, this would update the endpoint configuration
       // For now, we'll just log the update
       console.log('Updating endpoint:', endpoint);
 
-      res.json({ 
+      res.json({
         success: true,
         message: `Endpoint ${endpoint.name} updated successfully`,
         updatedAt: new Date().toISOString()
@@ -1023,13 +1024,13 @@ export function registerRoutes(app: Express): Server {
   // Admin routes - Create new user
   app.post('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const { 
-        email, firstName, lastName, password, companyName, isAdmin, organizationType, 
+      const {
+        email, firstName, lastName, password, companyName, isAdmin, organizationType,
         commissionRate, role, parentOrganizationId, creditBalance, billingPackage,
         perCallRate, perMinuteRate, monthlyCredits, maxAgents, maxUsers,
         subdomain, customDomain, permissions
       } = req.body;
-      
+
       // Check if user exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -1041,15 +1042,15 @@ export function registerRoutes(app: Express): Server {
       if (companyName && companyName.trim()) {
         // Try to find existing organization
         const organizations = await storage.getAllOrganizations();
-        const existingOrg = organizations.find(org => 
+        const existingOrg = organizations.find(org =>
           org.name.toLowerCase() === companyName.toLowerCase()
         );
-        
+
         if (existingOrg) {
           organizationId = existingOrg.id;
         } else {
           // Create new organization with type
-          const newOrg = await storage.createOrganization({ 
+          const newOrg = await storage.createOrganization({
             name: companyName,
             organizationType: organizationType || 'end_customer',
             commissionRate: organizationType === 'agency' ? (commissionRate || 30) : undefined,
@@ -1071,7 +1072,7 @@ export function registerRoutes(app: Express): Server {
 
       // Hash password before creating user
       const hashedPassword = await hashPassword(password);
-      
+
       // Create new user with role and permissions
       const newUser = await storage.createUser({
         email,
@@ -1095,28 +1096,28 @@ export function registerRoutes(app: Express): Server {
   app.delete('/api/admin/users/:userId', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
-      
+
       // Check if user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Don't allow deleting yourself
       if (userId === req.user.id) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
-      
+
       // Delete the user
       await storage.deleteUser(userId);
-      
+
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
-  
+
   // Quick test agency creation endpoint
   app.post('/api/admin/create-test-agency', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
@@ -1129,7 +1130,7 @@ export function registerRoutes(app: Express): Server {
         maxUsers: 5,
         creditBalance: '100'
       });
-      
+
       // Create an agency owner user
       const agencyOwner = await storage.createUser({
         email: 'agency@test.com',
@@ -1140,7 +1141,7 @@ export function registerRoutes(app: Express): Server {
         isAdmin: false,
         role: 'agency'
       });
-      
+
       res.json({
         message: 'Test agency created successfully',
         agency: testAgency,
@@ -1170,7 +1171,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins can view all users
       if (!currentUser?.isAdmin) {
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -1178,7 +1179,7 @@ export function registerRoutes(app: Express): Server {
 
       const allUsers = await storage.getAllUsers();
       const orgUsers = allUsers.filter(u => u.organizationId === organizationId);
-      
+
       // Add role and status fields if not present
       const enrichedUsers = orgUsers.map(user => ({
         ...user,
@@ -1186,7 +1187,7 @@ export function registerRoutes(app: Express): Server {
         status: user.status || 'active',
         organizationName: 'Organization',
       }));
-      
+
       res.json(enrichedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -1199,7 +1200,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins can update users
       if (!currentUser?.isAdmin) {
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -1217,7 +1218,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const updatedUser = await storage.updateUser(req.params.userId, updates);
-      
+
       // Log activity
       const log = {
         id: crypto.randomBytes(16).toString('hex'),
@@ -1230,7 +1231,7 @@ export function registerRoutes(app: Express): Server {
       const logs = activityLogs.get(organizationId) || [];
       logs.unshift(log);
       activityLogs.set(organizationId, logs.slice(0, 100)); // Keep last 100 logs
-      
+
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user:", error);
@@ -1243,7 +1244,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins can delete users
       if (!currentUser?.isAdmin) {
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -1260,7 +1261,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       await storage.deleteUser(req.params.userId);
-      
+
       // Log activity
       const log = {
         id: crypto.randomBytes(16).toString('hex'),
@@ -1273,7 +1274,7 @@ export function registerRoutes(app: Express): Server {
       const logs = activityLogs.get(organizationId) || [];
       logs.unshift(log);
       activityLogs.set(organizationId, logs);
-      
+
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -1286,20 +1287,20 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins and managers can create users
       if (!currentUser?.isAdmin && !currentUser?.permissions?.includes('manage_users')) {
         return res.status(403).json({ message: "Forbidden: Insufficient permissions to create users" });
       }
 
       const { email, password, firstName, lastName, permissions } = req.body;
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
-      
+
       // Create the user with the same organization ID
       const newUser = await storage.createUser({
         email,
@@ -1309,7 +1310,7 @@ export function registerRoutes(app: Express): Server {
         organizationId,
         permissions: permissions || [],
       });
-      
+
       res.json(newUser);
     } catch (error) {
       console.error("Error creating user:", error);
@@ -1333,7 +1334,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins and managers can invite users
       if (!currentUser?.isAdmin && currentUser?.role !== 'manager') {
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -1436,7 +1437,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const organizationId = req.user.organizationId;
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Only admins and managers can view activity logs
       if (!currentUser?.isAdmin && currentUser?.role !== 'manager') {
         return res.status(403).json({ message: "Insufficient permissions" });
@@ -1575,12 +1576,12 @@ export function registerRoutes(app: Express): Server {
       if (!button) {
         return res.status(404).json({ message: "Quick action button not found" });
       }
-      
+
       // Only allow admins to update system buttons
       if (!button.isSystem) {
         return res.status(403).json({ message: "Cannot modify user buttons through admin API" });
       }
-      
+
       const updatedButton = await storage.updateQuickActionButton(req.params.buttonId, req.body);
       res.json(updatedButton);
     } catch (error) {
@@ -1595,12 +1596,12 @@ export function registerRoutes(app: Express): Server {
       if (!button) {
         return res.status(404).json({ message: "Quick action button not found" });
       }
-      
+
       // Only allow admins to delete system buttons
       if (!button.isSystem) {
         return res.status(403).json({ message: "Cannot delete user buttons through admin API" });
       }
-      
+
       await storage.deleteQuickActionButton(req.params.buttonId);
       res.json({ message: "Quick action button deleted successfully" });
     } catch (error) {
@@ -1649,23 +1650,23 @@ export function registerRoutes(app: Express): Server {
     try {
       const adminId = req.user.id;
       const taskId = req.params.taskId;
-      
+
       // Get the task to determine what needs approval
       const task = await storage.getAdminTask(taskId);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       // Handle approval based on entity type
       // Note: RAG configuration approval has been removed
-      
+
       // Complete the approval task
       await storage.updateAdminTask(taskId, {
         status: "completed",
         approvedBy: adminId,
         completedAt: new Date(),
       });
-      
+
       // Trigger webhooks for task approval
       await triggerApprovalWebhooks('task.approved', {
         taskId: taskId,
@@ -1676,7 +1677,7 @@ export function registerRoutes(app: Express): Server {
         approvedAt: new Date().toISOString(),
         metadata: task.metadata
       });
-      
+
       res.json({ message: "Task approved successfully" });
     } catch (error) {
       console.error("Error approving task:", error);
@@ -1689,13 +1690,13 @@ export function registerRoutes(app: Express): Server {
       const { reason } = req.body;
       const adminId = req.user.id;
       const taskId = req.params.taskId;
-      
+
       // Get the task before updating
       const task = await storage.getAdminTask(taskId);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
-      
+
       // Update task status to rejected
       await storage.updateAdminTask(taskId, {
         status: "rejected",
@@ -1703,10 +1704,10 @@ export function registerRoutes(app: Express): Server {
         completedAt: new Date(),
         metadata: { ...task.metadata, rejectionReason: reason }
       });
-      
+
       // Handle rejection based on entity type
       // Note: RAG configuration rejection has been removed
-      
+
       // Trigger webhooks for task rejection
       await triggerApprovalWebhooks('task.rejected', {
         taskId: taskId,
@@ -1718,7 +1719,7 @@ export function registerRoutes(app: Express): Server {
         rejectionReason: reason,
         metadata: task.metadata
       });
-      
+
       res.json({ message: "Task rejected successfully" });
     } catch (error) {
       console.error("Error rejecting task:", error);
@@ -1731,14 +1732,14 @@ export function registerRoutes(app: Express): Server {
     try {
       // Get all pending tasks
       const allTasks = await storage.getAdminTasks("pending");
-      
+
       // Filter tasks created by or related to the current user
-      const userTasks = allTasks.filter(task => 
-        task.requestedBy === req.user.id || 
+      const userTasks = allTasks.filter(task =>
+        task.requestedBy === req.user.id ||
         task.metadata?.userId === req.user.id ||
         task.metadata?.requestedBy === req.user.id
       );
-      
+
       res.json(userTasks);
     } catch (error) {
       console.error("Error fetching user pending approvals:", error);
@@ -1751,12 +1752,12 @@ export function registerRoutes(app: Express): Server {
     try {
       // Get all active webhooks that are subscribed to this event
       const webhooks = await storage.getApprovalWebhooks();
-      const activeWebhooks = webhooks.filter(w => 
-        w.isActive && 
-        w.events && 
+      const activeWebhooks = webhooks.filter(w =>
+        w.isActive &&
+        w.events &&
         (w.events.includes(event) || w.events.includes('task.status_changed'))
       );
-      
+
       // Send webhook to each endpoint
       for (const webhook of activeWebhooks) {
         try {
@@ -1765,12 +1766,12 @@ export function registerRoutes(app: Express): Server {
             timestamp: new Date().toISOString(),
             data: taskData
           };
-          
+
           const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             ...webhook.headers
           };
-          
+
           // Add signature if secret is configured
           if (webhook.secret) {
             const crypto = require('crypto');
@@ -1780,13 +1781,13 @@ export function registerRoutes(app: Express): Server {
               .digest('hex');
             headers['X-Webhook-Signature'] = signature;
           }
-          
+
           const response = await fetch(webhook.webhookUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify(payload)
           });
-          
+
           if (response.ok) {
             await storage.updateApprovalWebhook(webhook.id, {
               lastTriggered: new Date()
@@ -1807,7 +1808,7 @@ export function registerRoutes(app: Express): Server {
       console.error('Error triggering approval webhooks:', error);
     }
   }
-  
+
   // Approval Webhook routes
   app.get('/api/admin/approval-webhooks', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
@@ -1827,7 +1828,7 @@ export function registerRoutes(app: Express): Server {
         updatedAt: new Date(),
         failureCount: 0
       };
-      
+
       const newWebhook = await storage.createApprovalWebhook(webhookData);
       res.json(newWebhook);
     } catch (error) {
@@ -1842,7 +1843,7 @@ export function registerRoutes(app: Express): Server {
       if (!webhook) {
         return res.status(404).json({ message: "Webhook not found" });
       }
-      
+
       const updatedWebhook = await storage.updateApprovalWebhook(req.params.webhookId, {
         ...req.body,
         updatedAt: new Date()
@@ -1860,7 +1861,7 @@ export function registerRoutes(app: Express): Server {
       if (!webhook) {
         return res.status(404).json({ message: "Webhook not found" });
       }
-      
+
       await storage.deleteApprovalWebhook(req.params.webhookId);
       res.json({ message: "Webhook deleted successfully" });
     } catch (error) {
@@ -1876,7 +1877,7 @@ export function registerRoutes(app: Express): Server {
       if (!webhook) {
         return res.status(404).json({ message: "Webhook not found" });
       }
-      
+
       // Send test webhook
       const testPayload = {
         event: 'test',
@@ -1887,7 +1888,7 @@ export function registerRoutes(app: Express): Server {
           webhookName: webhook.name
         }
       };
-      
+
       try {
         const response = await fetch(webhook.webhookUrl, {
           method: 'POST',
@@ -1898,7 +1899,7 @@ export function registerRoutes(app: Express): Server {
           },
           body: JSON.stringify(testPayload)
         });
-        
+
         if (response.ok) {
           await storage.updateApprovalWebhook(req.params.webhookId, {
             lastTriggered: new Date()
@@ -1926,7 +1927,7 @@ export function registerRoutes(app: Express): Server {
   // ==========================================
   // Multi-tier Agency Management Routes
   // ==========================================
-  
+
   // Create a new user directly for agency (with plan limit validation)
   app.post('/api/agency/users', isAuthenticated, async (req: any, res) => {
     try {
@@ -1934,55 +1935,55 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can create users for their organization
       if (org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only agencies can create users" });
       }
-      
+
       // Check if user has permission to manage users
       // Agency owners and admins have implicit permission to manage users within their organization
-      const isAgencyOwner = org.organizationType === 'agency' && 
-        (user.role === 'admin' || user.role === 'agency' || user.role === 'owner' || 
-         user.permissions?.includes('manage_agency_users'));
-      
+      const isAgencyOwner = org.organizationType === 'agency' &&
+        (user.role === 'admin' || user.role === 'agency' || user.role === 'owner' ||
+          user.permissions?.includes('manage_agency_users'));
+
       if (!isAgencyOwner && !user.isAdmin) {
         return res.status(403).json({ message: "You don't have permission to manage users" });
       }
-      
+
       let { email, firstName, lastName, password, role, permissions } = req.body;
-      
+
       // Agency users can only create users with 'user' role
       if (user.role === 'agency' && role && role !== 'user') {
-        return res.status(403).json({ 
-          message: "Agency users can only create users with 'User - Limited access' role" 
+        return res.status(403).json({
+          message: "Agency users can only create users with 'User - Limited access' role"
         });
       }
-      
+
       // Check if email already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
-      
+
       // Check plan limits - get current user count
       const orgUsers = await storage.getOrganizationUsers(user.organizationId);
       if (orgUsers.length >= (org.maxUsers || 10)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: `User limit reached. Your plan allows ${org.maxUsers || 10} users. Current: ${orgUsers.length}`,
           currentUsers: orgUsers.length,
           maxUsers: org.maxUsers || 10
         });
       }
-      
+
       // Hash password before creating user
       const hashedPassword = await hashPassword(password);
-      
+
       // Create new user for the agency
       const newUser = await storage.createUser({
         email,
@@ -1995,7 +1996,7 @@ export function registerRoutes(app: Express): Server {
         status: 'active',
         invitedBy: user.id
       });
-      
+
       res.json({
         ...newUser,
         currentUsers: orgUsers.length + 1,
@@ -2014,17 +2015,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only platform owners and agencies can view invitations
       if (org.organizationType !== 'platform_owner' && org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only platform owners and agencies can view invitations" });
       }
-      
+
       const invitations = await storage.getAgencyInvitations(user.organizationId);
       res.json(invitations);
     } catch (error) {
@@ -2040,19 +2041,19 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only platform owners and agencies can create invitations
       if (org.organizationType !== 'platform_owner' && org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only platform owners and agencies can create invitations" });
       }
-      
+
       const { email, name, company, commissionRate, initialCredits, customMessage } = req.body;
-      
+
       const invitation = await storage.createAgencyInvitation({
         inviterOrganizationId: user.organizationId,
         inviteeEmail: email,
@@ -2089,15 +2090,15 @@ export function registerRoutes(app: Express): Server {
   app.post('/api/agency/invitations/accept', isAuthenticated, async (req: any, res) => {
     try {
       const { invitationCode } = req.body;
-      
+
       if (!invitationCode) {
         return res.status(400).json({ message: "Invitation code is required" });
       }
-      
+
       const agencyOrg = await storage.acceptAgencyInvitation(invitationCode, req.user.id);
-      res.json({ 
-        message: "Invitation accepted successfully", 
-        organization: agencyOrg 
+      res.json({
+        message: "Invitation accepted successfully",
+        organization: agencyOrg
       });
     } catch (error: any) {
       console.error("Error accepting agency invitation:", error);
@@ -2112,17 +2113,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only platform owners and agencies can view child organizations
       if (org.organizationType === 'end_customer') {
         return res.status(403).json({ message: "End customers cannot have child organizations" });
       }
-      
+
       const childOrgs = await storage.getChildOrganizations(user.organizationId);
       res.json(childOrgs);
     } catch (error) {
@@ -2138,17 +2139,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can view their commissions
       if (org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only agencies can view commissions" });
       }
-      
+
       const commissions = await storage.getAgencyCommissions(user.organizationId);
       res.json(commissions);
     } catch (error) {
@@ -2164,7 +2165,7 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const transactions = await storage.getCreditTransactions(user.organizationId);
       res.json(transactions);
     } catch (error) {
@@ -2180,26 +2181,26 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can purchase credits
       if (org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only agencies can purchase credits" });
       }
-      
+
       const { amount, paymentMethodId } = req.body;
-      
+
       if (!amount || amount <= 0) {
         return res.status(400).json({ message: "Invalid credit amount" });
       }
-      
+
       // TODO: Process payment with Stripe/PayPal
       // For now, just create the transaction
-      
+
       const transaction = await storage.createCreditTransaction({
         organizationId: user.organizationId,
         type: 'purchase',
@@ -2207,7 +2208,7 @@ export function registerRoutes(app: Express): Server {
         creditAmount: Math.round(amount * 1000), // Convert dollars to credits
         description: `Purchased ${amount} credits`,
       });
-      
+
       res.json(transaction);
     } catch (error) {
       console.error("Error purchasing credits:", error);
@@ -2222,17 +2223,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage payment configurations
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage payment configurations" });
       }
-      
+
       const config = await storage.getAgencyPaymentConfig(user.organizationId);
       res.json(config || null);
     } catch (error) {
@@ -2247,22 +2248,22 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage payment configurations
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage payment configurations" });
       }
-      
+
       const configData = {
         organizationId: user.organizationId,
         ...req.body
       };
-      
+
       const config = await storage.createAgencyPaymentConfig(configData);
       res.json(config);
     } catch (error) {
@@ -2277,17 +2278,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage payment configurations
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage payment configurations" });
       }
-      
+
       const config = await storage.updateAgencyPaymentConfig(user.organizationId, req.body);
       res.json(config);
     } catch (error) {
@@ -2301,19 +2302,19 @@ export function registerRoutes(app: Express): Server {
     try {
       // Allow public access to view pricing plans
       const { agencyDomain } = req.query;
-      
+
       if (!agencyDomain) {
         return res.status(400).json({ message: "Agency domain is required" });
       }
-      
+
       // Find agency by subdomain or custom domain
-      const org = await storage.getOrganizationBySubdomain(agencyDomain) || 
-                  await storage.getOrganizationByCustomDomain(agencyDomain);
-      
+      const org = await storage.getOrganizationBySubdomain(agencyDomain) ||
+        await storage.getOrganizationByCustomDomain(agencyDomain);
+
       if (!org) {
         return res.status(404).json({ message: "Agency not found" });
       }
-      
+
       const plans = await storage.getAgencyPricingPlans(org.id);
       res.json(plans);
     } catch (error) {
@@ -2328,22 +2329,22 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage pricing plans
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage pricing plans" });
       }
-      
+
       const planData = {
         organizationId: user.organizationId,
         ...req.body
       };
-      
+
       const plan = await storage.createAgencyPricingPlan(planData);
       res.json(plan);
     } catch (error) {
@@ -2358,17 +2359,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage pricing plans
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage pricing plans" });
       }
-      
+
       const plan = await storage.updateAgencyPricingPlan(req.params.planId, req.body);
       res.json(plan);
     } catch (error) {
@@ -2383,17 +2384,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can manage pricing plans
       if (org.organizationType !== 'agency' || user.role !== 'agency') {
         return res.status(403).json({ message: "Only agency owners can manage pricing plans" });
       }
-      
+
       await storage.deleteAgencyPricingPlan(req.params.planId);
       res.json({ message: "Pricing plan deleted successfully" });
     } catch (error) {
@@ -2409,12 +2410,12 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Agencies see all their client subscriptions
       // End customers see their own subscriptions
       let subscriptions: any[] = [];
@@ -2429,7 +2430,7 @@ export function registerRoutes(app: Express): Server {
           subscriptions = [];
         }
       }
-      
+
       res.json(subscriptions);
     } catch (error) {
       console.error("Error fetching agency subscriptions:", error);
@@ -2443,7 +2444,7 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const subscriptionData = {
         userId: user.id,
         agencyOrganizationId: req.body.agencyOrganizationId,
@@ -2451,7 +2452,7 @@ export function registerRoutes(app: Express): Server {
         status: 'active' as const,
         ...req.body
       };
-      
+
       const subscription = await storage.createAgencySubscription(subscriptionData);
       res.json(subscription);
     } catch (error) {
@@ -2487,17 +2488,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
-      
+
       // Only agencies can view their transactions
       if (org.organizationType !== 'agency') {
         return res.status(403).json({ message: "Only agencies can view transactions" });
       }
-      
+
       const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
       const transactions = await storage.getAgencyTransactions(user.organizationId, limit);
       res.json(transactions);
@@ -2513,12 +2514,12 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const transactionData = {
         agencyOrganizationId: user.organizationId,
         ...req.body
       };
-      
+
       const transaction = await storage.createAgencyTransaction(transactionData);
       res.json(transaction);
     } catch (error) {
@@ -2526,7 +2527,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: "Failed to create transaction" });
     }
   });
-  
+
   // Agency client payment processing routes
   app.post('/api/agency/create-payment-intent', isAuthenticated, async (req: any, res) => {
     try {
@@ -2534,25 +2535,25 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org || !org.parentOrganizationId) {
         return res.status(400).json({ message: "Invalid organization structure" });
       }
-      
+
       // Get agency's payment config
       const paymentConfig = await storage.getAgencyPaymentConfig(org.parentOrganizationId);
       if (!paymentConfig || !paymentConfig.isConfigured || !paymentConfig.stripeSecretKey) {
         return res.status(400).json({ message: "Stripe is not configured for this agency" });
       }
-      
+
       const { planId, amount } = req.body;
-      
+
       // Initialize Stripe with agency's secret key
       const stripe = new Stripe(paymentConfig.stripeSecretKey, {
         apiVersion: "2025-08-27.basil" as Stripe.LatestApiVersion,
       });
-      
+
       // Create payment intent
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
@@ -2564,34 +2565,34 @@ export function registerRoutes(app: Express): Server {
           planId: planId
         }
       });
-      
+
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
       console.error("Error creating payment intent:", error);
       res.status(500).json({ message: error.message || "Failed to create payment intent" });
     }
   });
-  
+
   app.post('/api/agency/create-paypal-order', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org || !org.parentOrganizationId) {
         return res.status(400).json({ message: "Invalid organization structure" });
       }
-      
+
       // Get agency's payment config
       const paymentConfig = await storage.getAgencyPaymentConfig(org.parentOrganizationId);
       if (!paymentConfig || !paymentConfig.isConfigured || !paymentConfig.paypalClientId || !paymentConfig.paypalClientSecret) {
         return res.status(400).json({ message: "PayPal is not configured for this agency" });
       }
-      
+
       const { planId, amount } = req.body;
-      
+
       // Create PayPal order using the agency's credentials
       // This would use the PayPal SDK with the agency's credentials
       // For now, returning a mock order ID
@@ -2601,27 +2602,27 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: error.message || "Failed to create PayPal order" });
     }
   });
-  
+
   app.post('/api/agency/capture-paypal-order', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org || !org.parentOrganizationId) {
         return res.status(400).json({ message: "Invalid organization structure" });
       }
-      
+
       const { orderId, planId } = req.body;
-      
+
       // Get plan details
       const plan = await storage.getAgencyPricingPlan(planId);
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
       }
-      
+
       // Create subscription
       const subscription = await storage.createAgencySubscription({
         organizationId: user.organizationId,
@@ -2634,7 +2635,7 @@ export function registerRoutes(app: Express): Server {
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       });
-      
+
       // Create transaction record
       await storage.createAgencyTransaction({
         organizationId: user.organizationId,
@@ -2650,23 +2651,23 @@ export function registerRoutes(app: Express): Server {
         paypalOrderId: orderId,
         description: `Subscription to ${plan.name}`,
       });
-      
+
       res.json({ success: true, subscriptionId: subscription.id });
     } catch (error: any) {
       console.error("Error capturing PayPal order:", error);
       res.status(500).json({ message: error.message || "Failed to capture PayPal order" });
     }
   });
-  
+
   // Get organization's payment config (for clients to check)
   app.get('/api/organizations/:organizationId/payment-config', isAuthenticated, async (req: any, res) => {
     try {
       const config = await storage.getAgencyPaymentConfig(req.params.organizationId);
-      
+
       if (!config) {
         return res.json(null);
       }
-      
+
       // Only return public information
       res.json({
         stripeEnabled: !!config.stripeSecretKey,
@@ -2681,7 +2682,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: "Failed to fetch payment configuration" });
     }
   });
-  
+
   // Get current user's subscription
   app.get('/api/agency/subscriptions/current', isAuthenticated, async (req: any, res) => {
     try {
@@ -2689,12 +2690,12 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const org = await storage.getOrganization(user.organizationId);
       if (!org || !org.parentOrganizationId) {
         return res.json(null);
       }
-      
+
       const subscription = await storage.getUserSubscription(user.id, org.parentOrganizationId);
       res.json(subscription);
     } catch (error) {
@@ -2710,7 +2711,7 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Get both system buttons and user's organization buttons
       const buttons = await storage.getQuickActionButtons(user.organizationId);
       res.json(buttons);
@@ -2726,14 +2727,14 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const buttonData = {
         ...req.body,
         isSystem: false,
         createdBy: req.user.id,
         organizationId: user.organizationId
       };
-      
+
       const newButton = await storage.createQuickActionButton(buttonData);
       res.json(newButton);
     } catch (error) {
@@ -2748,17 +2749,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const button = await storage.getQuickActionButton(req.params.buttonId);
       if (!button) {
         return res.status(404).json({ message: "Quick action button not found" });
       }
-      
+
       // Users can only update their own organization's buttons (not system buttons)
       if (button.isSystem || button.organizationId !== user.organizationId) {
         return res.status(403).json({ message: "You don't have permission to modify this button" });
       }
-      
+
       const updatedButton = await storage.updateQuickActionButton(req.params.buttonId, req.body);
       res.json(updatedButton);
     } catch (error) {
@@ -2773,17 +2774,17 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const button = await storage.getQuickActionButton(req.params.buttonId);
       if (!button) {
         return res.status(404).json({ message: "Quick action button not found" });
       }
-      
+
       // Users can only delete their own organization's buttons (not system buttons)
       if (button.isSystem || button.organizationId !== user.organizationId) {
         return res.status(403).json({ message: "You don't have permission to delete this button" });
       }
-      
+
       await storage.deleteQuickActionButton(req.params.buttonId);
       res.json({ message: "Quick action button deleted successfully" });
     } catch (error) {
@@ -2823,19 +2824,19 @@ export function registerRoutes(app: Express): Server {
       const encryptedKey = encryptApiKey(apiKey);
       const apiKeyLast4 = apiKey.slice(-4);
       console.log("Encrypted API key length:", encryptedKey.length);
-      
+
       // Check if this is a different API key - if so, clear old data
       const existingIntegration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (existingIntegration && existingIntegration.apiKeyLast4 && existingIntegration.apiKeyLast4 !== apiKeyLast4) {
         console.log(`[API KEY CHANGE] Detected new API key (old: ***${existingIntegration.apiKeyLast4}, new: ***${apiKeyLast4}). Clearing old data...`);
-        
+
         // Delete all old call logs and agents from previous API key
         await db().delete(callLogs).where(eq(callLogs.organizationId, user.organizationId));
         await db().delete(agents).where(eq(agents.organizationId, user.organizationId));
-        
+
         console.log(`[API KEY CHANGE] Old data cleared. Ready for fresh sync with new API key.`);
       }
-      
+
       // Create integration directly as ACTIVE - no approval needed for integrations
       console.log("Saving integration for org:", user.organizationId);
       const integration = await storage.upsertIntegration({
@@ -2847,8 +2848,8 @@ export function registerRoutes(app: Express): Server {
       });
       console.log("Integration saved successfully:", integration.id);
 
-      res.json({ 
-        message: "Integration saved successfully", 
+      res.json({
+        message: "Integration saved successfully",
         id: integration.id,
         status: "ACTIVE",
         apiKeyLast4: apiKeyLast4
@@ -2885,9 +2886,9 @@ export function registerRoutes(app: Express): Server {
         // Return masked credentials (show that they exist but not the values)
         credentials: integration.credentials
           ? Object.keys(integration.credentials).reduce((acc, key) => ({
-              ...acc,
-              [key]: '***'
-            }), {})
+            ...acc,
+            [key]: '***'
+          }), {})
           : {},
       }));
 
@@ -2902,31 +2903,31 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/integrations/:provider", isAuthenticated, checkPermission('manage_integrations'), async (req: any, res) => {
     try {
       let { provider } = req.params;
-      
+
       // Map voiceai to elevenlabs internally
       if (provider === "voiceai") {
         provider = "elevenlabs";
       }
-      
+
       const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const integration = await storage.getIntegration(user.organizationId, provider);
-      
+
       if (!integration) {
         // Return inactive status if no integration exists
-        return res.json({ 
+        return res.json({
           status: "INACTIVE",
           provider: provider,
           message: "No integration configured"
         });
       }
-      
+
       // No approval needed for integrations anymore - only for RAG, tools, webhooks, and MCP
-      
+
       // Don't send the encrypted API key to the client
       const { apiKey, ...integrationWithoutKey } = integration;
       res.json(integrationWithoutKey);
@@ -2952,21 +2953,21 @@ export function registerRoutes(app: Express): Server {
       // Use the new ElevenLabs service for better error handling and retries
       const { createElevenLabsClient } = await import("./services/elevenlabs");
       const client = createElevenLabsClient(integration.apiKey);
-      
+
       const userResult = await client.getUser();
-      
+
       if (userResult.success && userResult.data) {
         await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
-        
-        res.json({ 
-          message: "Connection successful", 
+
+        res.json({
+          message: "Connection successful",
           status: "ACTIVE",
           subscription: userResult.data.subscription || null
         });
       } else {
         console.error("ElevenLabs API test failed:", userResult.error);
         await storage.updateIntegrationStatus(integration.id, "ERROR", new Date());
-        
+
         // Return more specific error message based on status code
         let errorMessage = "Connection failed";
         if (userResult.statusCode === 401) {
@@ -2978,16 +2979,16 @@ export function registerRoutes(app: Express): Server {
         } else if (userResult.error) {
           errorMessage = userResult.error;
         }
-        
-        res.status(400).json({ 
-          message: errorMessage, 
-          status: "ERROR" 
+
+        res.status(400).json({
+          message: errorMessage,
+          status: "ERROR"
         });
       }
     } catch (error: any) {
       console.error("Error testing integration:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to test integration" 
+      res.status(500).json({
+        message: error.message || "Failed to test integration"
       });
     }
   });
@@ -3057,11 +3058,11 @@ export function registerRoutes(app: Express): Server {
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
-      
+
       try {
         const agentData = await callElevenLabsAPI(apiKey, `/v1/convai/agents/${elevenLabsAgentId}`, "GET", undefined, integration.id);
-        res.json({ 
-          message: "Agent validated successfully", 
+        res.json({
+          message: "Agent validated successfully",
           agentData: {
             id: agentData.id,
             name: agentData.name,
@@ -3171,9 +3172,9 @@ Generate the complete prompt now:`;
       }
 
 
-      res.json({ 
+      res.json({
         systemPrompt: generatedPrompt,
-        description: description 
+        description: description
       });
 
     } catch (error) {
@@ -3197,13 +3198,13 @@ Generate the complete prompt now:`;
       }
 
       const { name, firstMessage, systemPrompt, language, voiceId } = req.body;
-      
+
       if (!name || !firstMessage || !systemPrompt) {
         return res.status(400).json({ message: "Name, first message, and system prompt are required" });
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
-      
+
       // Create agent on ElevenLabs with complete configuration override
       const agentPayload: any = {
         name,
@@ -3341,7 +3342,7 @@ Generate the complete prompt now:`;
         }
       };
 
-      
+
       const elevenLabsResponse = await callElevenLabsAPI(
         apiKey,
         "/v1/convai/agents/create",
@@ -3372,7 +3373,7 @@ Generate the complete prompt now:`;
       });
 
       const newAgent = await storage.createAgent(agentData);
-      
+
       // Update integration status to active
       await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
 
@@ -3382,8 +3383,8 @@ Generate the complete prompt now:`;
       });
     } catch (error) {
       console.error("Error creating agent:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to create agent" 
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Failed to create agent"
       });
     }
   });
@@ -3414,7 +3415,7 @@ Generate the complete prompt now:`;
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (integration && integration.apiKey && agentData.elevenLabsAgentId) {
         const decryptedKey = decryptApiKey(integration.apiKey);
-        
+
         try {
           // Fetch agent details from ElevenLabs to sync initial settings
           const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentData.elevenLabsAgentId}`, {
@@ -3423,22 +3424,22 @@ Generate the complete prompt now:`;
               "Content-Type": "application/json",
             },
           });
-          
+
           if (response.ok) {
             const elevenLabsAgent = await response.json();
-            
+
             // Extract settings from ElevenLabs agent
             const conversationConfig = elevenLabsAgent.conversation_config || {};
             const agentConfig = conversationConfig.agent || {};
             const ttsConfig = conversationConfig.tts || {};
             const llmConfig = conversationConfig.llm || {};
-            
+
             // Update agent data with ElevenLabs settings
             agentData.firstMessage = agentConfig.first_message || agentData.firstMessage;
             agentData.systemPrompt = agentConfig.prompt || agentData.systemPrompt;
             agentData.language = agentConfig.language || agentData.language || 'en';
             agentData.voiceId = ttsConfig.voice_id || agentData.voiceId;
-            
+
             if (ttsConfig.stability !== undefined || ttsConfig.similarity_boost !== undefined) {
               agentData.voiceSettings = {
                 stability: ttsConfig.stability || 0.5,
@@ -3447,7 +3448,7 @@ Generate the complete prompt now:`;
                 useSpeakerBoost: ttsConfig.use_speaker_boost ?? true,
               };
             }
-            
+
             if (llmConfig.model || llmConfig.temperature !== undefined || llmConfig.max_tokens !== undefined) {
               agentData.llmSettings = {
                 model: llmConfig.model || 'gpt-4',
@@ -3455,8 +3456,8 @@ Generate the complete prompt now:`;
                 maxTokens: llmConfig.max_tokens || 150,
               };
             }
-            
-            
+
+
             // Set up default tools configuration
             agentData.tools = {
               webhooks: [],
@@ -3472,7 +3473,7 @@ Generate the complete prompt now:`;
               ],
               toolIds: []
             };
-            
+
             if (agentConfig.dynamic_variables) {
               agentData.dynamicVariables = agentConfig.dynamic_variables;
             }
@@ -3500,48 +3501,48 @@ Generate the complete prompt now:`;
       }
 
 
-          // Check if ElevenLabs integration exists
+      // Check if ElevenLabs integration exists
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-      
+
       // If admin with integration, always return fresh data from database (no cache issues)
       if (user.isAdmin && integration && integration.apiKey) {
         // Admin users always see fresh agent data from database
         const agents = await storage.getAgentsForUser(userId, user.organizationId);
         return res.json(agents);
       }
-      
+
       // For non-admin users, use standard flow
       const userAgents = await storage.getAgentsForUser(userId, user.organizationId);
-      
+
       // Legacy sync logic (kept for compatibility but not used for admins anymore)
       if (integration && integration.apiKey && false && user!.isAdmin) {
         const decryptedKey = decryptApiKey(integration!.apiKey);
-        
+
         try {
           // Fetch all agents from ElevenLabs using centralized sync service
           const syncAgentsResult = await SyncService.syncAgents(user!.organizationId);
           const elevenLabsAgents = [] as any[]; // no direct list from service; keep existing flow below as display only
-          
+
           // Get local agents
           const localAgents = await storage.getAgents(user!.organizationId);
           const localAgentsByElevenLabsId = new Map(
             localAgents.map(a => [a.elevenLabsAgentId, a])
           );
-          
+
           // Sync agents from ElevenLabs (admin only)
           const syncedAgents = [];
-          
+
           for (const elevenLabsAgent of elevenLabsAgents) {
             const agentId = elevenLabsAgent.agent_id || elevenLabsAgent.id;
             const existingAgent = localAgentsByElevenLabsId.get(agentId);
-            
+
             // Parse agent configuration from ElevenLabs
             const conversationConfig = elevenLabsAgent.conversation_config || {};
             const agentConfig = conversationConfig.agent || {};
             const promptConfig = agentConfig.prompt || {};
             const ttsConfig = conversationConfig.tts || {};
             const llmConfig = conversationConfig.llm || {};
-            
+
             // Initialize tools configuration
             const tools: any = {
               webhooks: [],
@@ -3549,7 +3550,7 @@ Generate the complete prompt now:`;
               customTools: [],
               toolIds: []
             };
-            
+
             if (agentConfig.tools && Array.isArray(agentConfig.tools)) {
               for (const tool of agentConfig.tools) {
                 if (tool.type === 'system') {
@@ -3567,7 +3568,7 @@ Generate the complete prompt now:`;
                 }
               }
             }
-            
+
             const agentData = {
               organizationId: user!.organizationId,
               elevenLabsAgentId: agentId,
@@ -3593,7 +3594,7 @@ Generate the complete prompt now:`;
               isActive: true,
               lastSynced: new Date()
             };
-            
+
             if (existingAgent) {
               // Don't overwrite existing agent data - keep local data as source of truth
               // Just add the existing agent to the synced list without updating
@@ -3604,7 +3605,7 @@ Generate the complete prompt now:`;
               syncedAgents.push(created);
             }
           }
-          
+
           // Remove agents that no longer exist in ElevenLabs
           const elevenLabsAgentIds = new Set(elevenLabsAgents.map((a: any) => a.agent_id || a.id));
           for (const localAgent of localAgents) {
@@ -3613,11 +3614,11 @@ Generate the complete prompt now:`;
               await storage.updateAgent(localAgent.id, user!.organizationId, { isActive: false });
             }
           }
-          
+
           // Return only agents the user has access to
           const allAgents = await storage.getAgentsForUser(userId, user!.organizationId);
           res.json(allAgents);
-          
+
         } catch (syncError) {
           console.error("Error syncing with ElevenLabs:", syncError);
           // Fall back to local data if sync fails
@@ -3645,11 +3646,11 @@ Generate the complete prompt now:`;
       }
 
       const agentId = req.params.id;
-      
+
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(userId, user.organizationId);
       const agent = userAgents.find(a => a.id === agentId);
-      
+
       if (!agent) {
         return res.status(404).json({ message: "Agent not found or access denied" });
       }
@@ -3673,16 +3674,16 @@ Generate the complete prompt now:`;
       }
 
       const agentId = req.params.id;
-      
+
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(userId, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
       const updates = req.body;
-      
+
       // Check if agent exists
       const agent = await storage.getAgent(agentId, user.organizationId);
       if (!agent) {
@@ -3695,29 +3696,29 @@ Generate the complete prompt now:`;
         if (integration && integration.apiKey) {
           try {
             const decryptedKey = decryptApiKey(integration.apiKey);
-            
+
             // Convert updates to ElevenLabs format
             const elevenLabsPayload: any = {};
-            
+
             if (updates.name !== undefined) {
               elevenLabsPayload.name = updates.name;
             }
-            
+
             if (updates.firstMessage || updates.systemPrompt || updates.language || updates.voiceId || updates.voiceSettings || updates.llmSettings || updates.tools) {
               elevenLabsPayload.conversation_config = {};
-              
+
               // Agent configuration - only create agent object if there are agent-specific updates
               if (updates.firstMessage || updates.systemPrompt || updates.language || updates.tools) {
                 elevenLabsPayload.conversation_config.agent = {};
-                
+
                 // First message goes directly in agent, not in prompt
                 if (updates.firstMessage) {
                   elevenLabsPayload.conversation_config.agent.first_message = updates.firstMessage;
                 }
-                
+
                 // Check if RAG tool is enabled and enhance system prompt
                 let enhancedSystemPrompt = updates.systemPrompt || agent.systemPrompt;
-                
+
                 // Add general tool usage instructions to prevent verbalizing tool codes
                 const toolInstructions = '\n\n**CRITICAL TOOL USAGE INSTRUCTIONS:**\n' +
                   '- NEVER verbalize tool codes or function names to the user\n' +
@@ -3726,12 +3727,12 @@ Generate the complete prompt now:`;
                   '- For transfers: Simply say "I\'ll transfer you now" or "Let me connect you with..."\n' +
                   '- For searches: Say "Let me find that information for you" instead of mentioning tools\n' +
                   '- Tools are invoked automatically based on context - just speak naturally\n';
-                
+
                 if (enhancedSystemPrompt && !enhancedSystemPrompt.includes('CRITICAL TOOL USAGE INSTRUCTIONS')) {
                   enhancedSystemPrompt = enhancedSystemPrompt + toolInstructions;
                 }
-                
-                
+
+
                 // System prompt and language go in the prompt object
                 // Only include prompt object if there's actually a system prompt
                 if (enhancedSystemPrompt) {
@@ -3747,15 +3748,15 @@ Generate the complete prompt now:`;
                     language: updates.language
                   };
                 }
-                
+
                 // Convert tools to ElevenLabs format
                 if (updates.tools) {
                   const elevenLabsTools: any[] = [];
                   const systemTools = updates.tools.systemTools || {};
-                  
+
                   // IMPORTANT: Only add tools that are explicitly enabled
                   // ElevenLabs interprets the presence of a tool in the array as enabling it
-                  
+
                   if (systemTools.endCall?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3768,7 +3769,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.detectLanguage?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3784,7 +3785,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.skipTurn?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3797,7 +3798,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.transferToAgent?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3805,7 +3806,7 @@ Generate the complete prompt now:`;
                       description: systemTools.transferToAgent.description || "Transfer to another AI agent",
                       pre_tool_speech: systemTools.transferToAgent.preToolSpeech || "I'll transfer you to the right agent now."
                     };
-                    
+
                     // Handle transfer rules for transfer_to_agent
                     if (systemTools.transferToAgent.transferRules && systemTools.transferToAgent.transferRules.length > 0) {
                       tool.transfer_rules = systemTools.transferToAgent.transferRules.map((rule: any) => ({
@@ -3816,13 +3817,13 @@ Generate the complete prompt now:`;
                         enable_first_message: rule.enableFirstMessage !== false
                       }));
                     }
-                    
+
                     if (systemTools.transferToAgent.disableInterruptions) {
                       tool.disable_interruptions = true;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.transferToNumber?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3842,7 +3843,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.playKeypadTone?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3855,7 +3856,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   if (systemTools.voicemailDetection?.enabled === true) {
                     const tool: any = {
                       type: "system",
@@ -3872,7 +3873,7 @@ Generate the complete prompt now:`;
                     }
                     elevenLabsTools.push(tool);
                   }
-                  
+
                   // Add MCP servers as webhooks
                   if (updates.tools.mcpServers && Array.isArray(updates.tools.mcpServers)) {
                     for (const mcpServer of updates.tools.mcpServers) {
@@ -3893,18 +3894,18 @@ Generate the complete prompt now:`;
                             description: cap.description || ""
                           })) || []
                         };
-                        
+
                         // Add pre-tool speech if configured
                         if (mcpServer.preToolSpeech) {
                           mcpTool.pre_tool_speech = mcpServer.preToolSpeech;
                         }
-                        
+
                         console.log('Adding MCP server as webhook:', mcpServer.name);
                         elevenLabsTools.push(mcpTool);
                       }
                     }
                   }
-                  
+
                   // Add custom tools (webhooks, RAG, etc.)
                   if (updates.tools.customTools && Array.isArray(updates.tools.customTools)) {
                     console.log('Processing custom tools:', updates.tools.customTools.map((t: any) => ({
@@ -3950,7 +3951,7 @@ Generate the complete prompt now:`;
                       }
                     }
                   }
-                  
+
                   // Add configured webhooks with proper ElevenLabs format
                   if (updates.tools.webhooks && Array.isArray(updates.tools.webhooks)) {
                     console.log('Processing webhooks from tools.webhooks:', updates.tools.webhooks.map((w: any) => ({
@@ -3960,15 +3961,15 @@ Generate the complete prompt now:`;
                       enabled: w.enabled,
                       hasConfig: !!w.webhookConfig
                     })));
-                    
+
                     for (const webhook of updates.tools.webhooks) {
                       // Check if webhook is enabled (default to true if not specified)
                       if (webhook.enabled !== false && webhook.url) {
                         // Ensure webhook has a valid name (required by ElevenLabs)
-                        const webhookName = webhook.name && webhook.name.trim() 
+                        const webhookName = webhook.name && webhook.name.trim()
                           ? webhook.name.replace(/\s+/g, '_').toLowerCase()
                           : `webhook_${Date.now()}`;
-                        
+
                         const webhookTool: any = {
                           type: "webhook",
                           name: webhookName,
@@ -4010,8 +4011,8 @@ Generate the complete prompt now:`;
                       }
                     }
                   }
-                  
-                  
+
+
                   // Use the new tools API format
                   // First, manage tools via the dedicated tools endpoint
                   const { toolIds, builtInTools } = await manageElevenLabsTools(
@@ -4019,15 +4020,15 @@ Generate the complete prompt now:`;
                     elevenLabsTools,
                     integration.id
                   );
-                  
+
                   console.log('Tool IDs created/updated:', toolIds);
                   console.log('Built-in tools to enable:', builtInTools);
-                  
+
                   // Update the agent's prompt with the new format
                   if (!elevenLabsPayload.conversation_config.agent.prompt) {
                     elevenLabsPayload.conversation_config.agent.prompt = {};
                   }
-                  
+
                   // Set tool_ids for client/server tools
                   if (toolIds.length > 0) {
                     elevenLabsPayload.conversation_config.agent.prompt.tool_ids = toolIds;
@@ -4035,7 +4036,7 @@ Generate the complete prompt now:`;
                     // Clear tool_ids if no tools
                     elevenLabsPayload.conversation_config.agent.prompt.tool_ids = [];
                   }
-                  
+
                   // Set built_in_tools for system tools
                   if (Object.keys(builtInTools).length > 0) {
                     elevenLabsPayload.conversation_config.agent.prompt.built_in_tools = builtInTools;
@@ -4045,7 +4046,7 @@ Generate the complete prompt now:`;
                   }
                 }
               }
-              
+
               // TTS configuration
               if (updates.voiceId || updates.voiceSettings) {
                 elevenLabsPayload.conversation_config.tts = {
@@ -4058,7 +4059,7 @@ Generate the complete prompt now:`;
                   } : {})
                 };
               }
-              
+
               // LLM configuration
               if (updates.llmSettings) {
                 elevenLabsPayload.conversation_config.llm = {
@@ -4068,7 +4069,7 @@ Generate the complete prompt now:`;
                 };
               }
             }
-            
+
             // Always add client_config_override to enable ALL overrides by default
             elevenLabsPayload.client_config_override = {
               agent: {
@@ -4110,7 +4111,7 @@ Generate the complete prompt now:`;
                 post_call_webhook: {}
               }
             };
-            
+
             // Update in ElevenLabs if we have any changes
             if (Object.keys(elevenLabsPayload).length > 0) {
               const response = await callElevenLabsAPI(
@@ -4133,7 +4134,7 @@ Generate the complete prompt now:`;
         ...updates,
         lastSynced: new Date()
       });
-      
+
       res.json(updatedAgent);
     } catch (error) {
       console.error("Error updating agent:", error);
@@ -4150,7 +4151,7 @@ Generate the complete prompt now:`;
       }
 
       const agentId = req.params.id;
-      
+
       // Check if agent exists and belongs to the organization
       const agent = await storage.getAgent(agentId, user.organizationId);
       if (!agent) {
@@ -4163,8 +4164,8 @@ Generate the complete prompt now:`;
         if (integration && integration.apiKey) {
           try {
             const decryptedKey = decryptApiKey(integration.apiKey);
-            
-            
+
+
             // Call ElevenLabs API to delete the agent
             const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agent.elevenLabsAgentId}`, {
               method: "DELETE",
@@ -4189,7 +4190,7 @@ Generate the complete prompt now:`;
 
       // Delete the agent from local database
       await storage.deleteAgent(user.organizationId, agentId);
-      
+
       res.json({ message: "Agent deleted successfully" });
     } catch (error) {
       console.error("Error deleting agent:", error);
@@ -4202,11 +4203,11 @@ Generate the complete prompt now:`;
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "User not found" 
+          message: "User not found"
         });
       }
 
@@ -4229,7 +4230,7 @@ Generate the complete prompt now:`;
       res.json(result);
     } catch (error: any) {
       console.error("[SYNC] Sync call logs error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: error.message || "Failed to sync call logs",
         syncedCount: 0,
@@ -4246,11 +4247,11 @@ Generate the complete prompt now:`;
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "User not found" 
+          message: "User not found"
         });
       }
 
@@ -4271,7 +4272,7 @@ Generate the complete prompt now:`;
       res.json(result);
     } catch (error: any) {
       console.error("[SYNC] Dashboard sync error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: error.message || "Failed to sync dashboard",
         agents: {
@@ -4299,17 +4300,17 @@ Generate the complete prompt now:`;
   app.post("/api/dashboard/sync-test", async (req: any, res) => {
     try {
       console.log("[SYNC-TEST] Dashboard sync test endpoint called");
-      
+
       // Get a test organization ID from the request or use default
       const testOrgId = req.body.organizationId || "test-org";
-      
+
       console.log(`[SYNC-TEST] Testing sync for organization: ${testOrgId}`);
-      
+
       // Test the sync service directly
       const result = await SyncService.syncDashboard(testOrgId);
-      
+
       console.log("[SYNC-TEST] Test completed:", result);
-      
+
       res.json({
         success: true,
         message: "Sync test completed",
@@ -4320,7 +4321,7 @@ Generate the complete prompt now:`;
       });
     } catch (error) {
       console.error("[SYNC-TEST] Error in test endpoint:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Sync test failed",
         error: (error as Error).message,
@@ -4333,11 +4334,11 @@ Generate the complete prompt now:`;
   app.post("/api/debug/elevenlabs-test", async (req: any, res) => {
     try {
       console.log("[DEBUG] ElevenLabs API test endpoint called");
-      
+
       const { apiKey, organizationId } = req.body;
-      
+
       if (!apiKey && !organizationId) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: "Either apiKey or organizationId is required"
         });
@@ -4347,7 +4348,7 @@ Generate the complete prompt now:`;
       if (!testApiKey && organizationId) {
         const integration = await storage.getIntegration(organizationId, "elevenlabs");
         if (!integration?.apiKey) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             success: false,
             message: "No ElevenLabs API key found for organization"
           });
@@ -4389,7 +4390,7 @@ Generate the complete prompt now:`;
       });
     } catch (error) {
       console.error("[DEBUG] ElevenLabs API test error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "ElevenLabs API test failed",
         error: (error as Error).message,
@@ -4409,7 +4410,7 @@ Generate the complete prompt now:`;
           elevenLabsClient: "available"
         }
       };
-      
+
       res.json(health);
     } catch (error: any) {
       res.status(500).json({
@@ -4425,11 +4426,11 @@ Generate the complete prompt now:`;
     try {
       const userId = req.user.id;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "User not found" 
+          message: "User not found"
         });
       }
 
@@ -4438,11 +4439,11 @@ Generate the complete prompt now:`;
       // Get all call logs for the organization
       const callLogsResult = await storage.getCallLogs(user.organizationId, 10000, 0);
       const callLogsList = callLogsResult.data;
-      
+
       let withSummary = 0;
       let withoutSummary = 0;
       let withTranscript = 0;
-      
+
       for (const callLog of callLogsList) {
         if (callLog.transcript) {
           withTranscript++;
@@ -4465,11 +4466,11 @@ Generate the complete prompt now:`;
       };
 
       console.log(`[SUMMARIES] Status check complete:`, response);
-      
+
       res.json(response);
     } catch (error: any) {
       console.error("[SUMMARIES] Summary status error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: error.message || "Failed to check summary status",
         timestamp: new Date().toISOString()
@@ -4555,7 +4556,7 @@ Generate the complete prompt now:`;
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(user.id, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
@@ -4586,7 +4587,7 @@ Generate the complete prompt now:`;
   app.post("/api/documents/upload", isAuthenticated, DocumentProcessingService.getUploadMiddleware().single('document'), async (req: any, res) => {
     try {
       const user = req.user;
-      
+
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
@@ -4711,13 +4712,13 @@ Generate the complete prompt now:`;
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(user.id, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
 
       const config = await MultilingualService.getAgentMultilingualConfig(user.organizationId, agentId);
-      
+
       res.json({
         success: true,
         data: config,
@@ -4746,7 +4747,7 @@ Generate the complete prompt now:`;
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(user.id, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
@@ -4780,7 +4781,7 @@ Generate the complete prompt now:`;
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(user.id, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
@@ -4812,7 +4813,7 @@ Generate the complete prompt now:`;
       // Check if user has access to this agent
       const userAgents = await storage.getAgentsForUser(user.id, user.organizationId);
       const hasAccess = userAgents.some(a => a.id === agentId);
-      
+
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this agent" });
       }
@@ -4885,7 +4886,7 @@ Generate the complete prompt now:`;
       return res.json(result);
     } catch (error: any) {
       console.error("Error syncing agents:", error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to sync agents",
         syncedCount: 0,
@@ -4908,7 +4909,7 @@ Generate the complete prompt now:`;
 
       const agentId = req.params.id;
       const updates = req.body;
-      
+
       // Check if agent exists
       const agent = await storage.getAgent(agentId, user.organizationId);
       if (!agent) {
@@ -4922,7 +4923,7 @@ Generate the complete prompt now:`;
       }
 
       const decryptedKey = decryptApiKey(integration.apiKey);
-      
+
       // Build ElevenLabs update payload
       const elevenLabsPayload: any = {
         conversation_config: {
@@ -4931,17 +4932,17 @@ Generate the complete prompt now:`;
           llm: {}
         }
       };
-      
+
       // Update name if provided
       if (updates.name !== undefined) {
         elevenLabsPayload.name = updates.name;
       }
-      
+
       // Update first message
       if (updates.firstMessage !== undefined) {
         elevenLabsPayload.conversation_config.agent.first_message = updates.firstMessage;
       }
-      
+
       // Update system prompt and language
       if (updates.systemPrompt !== undefined || updates.language !== undefined) {
         elevenLabsPayload.conversation_config.agent.prompt = {
@@ -4949,7 +4950,7 @@ Generate the complete prompt now:`;
           language: updates.language || agent.language || "en"
         };
       }
-      
+
       // Update voice settings
       if (updates.voiceId !== undefined || updates.voiceSettings) {
         elevenLabsPayload.conversation_config.tts = {
@@ -4957,7 +4958,7 @@ Generate the complete prompt now:`;
           ...(updates.voiceSettings || {})
         };
       }
-      
+
       // Update LLM settings
       if (updates.llmSettings) {
         elevenLabsPayload.conversation_config.llm = {
@@ -4966,15 +4967,15 @@ Generate the complete prompt now:`;
           max_tokens: updates.llmSettings.maxTokens || agent.llmSettings?.maxTokens || 150
         };
       }
-      
+
       // Update in ElevenLabs
       try {
         const elevenLabsAgentId = agent.elevenLabsAgentId;
         if (!elevenLabsAgentId) {
           return res.status(400).json({ message: "Agent not synced with ElevenLabs" });
         }
-        
-        
+
+
         const response = await callElevenLabsAPI(
           decryptedKey,
           `/v1/convai/agents/${elevenLabsAgentId}`,
@@ -4982,24 +4983,24 @@ Generate the complete prompt now:`;
           elevenLabsPayload,
           integration.id
         );
-        
+
         console.log("ElevenLabs update response:", response);
-        
+
         // Update local database
         await storage.updateAgent(user.organizationId, agentId, updates);
-        
+
         // Return updated agent
         const updatedAgent = await storage.getAgent(agentId, user.organizationId);
         res.json(updatedAgent);
-        
+
       } catch (elevenLabsError: any) {
         console.error("Error updating agent in ElevenLabs:", elevenLabsError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: "Failed to update agent in ElevenLabs",
           error: elevenLabsError.message || "Unknown error"
         });
       }
-      
+
     } catch (error) {
       console.error("Error updating agent settings:", error);
       res.status(500).json({ error: "Failed to update agent settings" });
@@ -5022,7 +5023,7 @@ Generate the complete prompt now:`;
       }
 
       const decryptedKey = decryptApiKey(integration.apiKey);
-      
+
       // Fetch voices from ElevenLabs API v1
       const response = await fetch("https://api.elevenlabs.io/v1/voices", {
         headers: {
@@ -5066,7 +5067,7 @@ Generate the complete prompt now:`;
       formData.append('name', name);
       formData.append('description', description || '');
       formData.append('remove_background_noise', String(remove_background_noise || false));
-      
+
       // In a real implementation, files would be appended here
       // files.forEach((file: any) => formData.append('files', file));
 
@@ -5106,7 +5107,7 @@ Generate the complete prompt now:`;
 
       const decryptedKey = decryptApiKey(integration.apiKey);
       const { voiceId } = req.params;
-      
+
       const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
         headers: {
           "xi-api-key": decryptedKey,
@@ -5142,7 +5143,7 @@ Generate the complete prompt now:`;
 
       const decryptedKey = decryptApiKey(integration.apiKey);
       const { voiceId } = req.params;
-      
+
       const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
         method: "DELETE",
         headers: {
@@ -5161,7 +5162,7 @@ Generate the complete prompt now:`;
       res.status(500).json({ message: "Failed to delete voice" });
     }
   });
-  
+
   // Legacy endpoint for backwards compatibility
   app.get("/api/elevenlabs/voices", isAuthenticated, async (req: any, res) => {
     try {
@@ -5177,7 +5178,7 @@ Generate the complete prompt now:`;
       }
 
       const decryptedKey = decryptApiKey(integration.apiKey);
-      
+
       // Fetch voices from ElevenLabs API
       const response = await fetch("https://api.elevenlabs.io/v1/voices", {
         headers: {
@@ -5219,7 +5220,7 @@ Generate the complete prompt now:`;
 
       const decryptedKey = decryptApiKey(integration.apiKey);
       const previewText = text || "Hello! This is a preview of how I sound. I'm excited to help you with your voice AI needs.";
-      
+
       // Use ElevenLabs text-to-speech API for preview
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: "POST",
@@ -5247,7 +5248,7 @@ Generate the complete prompt now:`;
       const audioBuffer = await response.arrayBuffer();
       const base64Audio = Buffer.from(audioBuffer).toString('base64');
       const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
-      
+
       res.json({ audioUrl });
     } catch (error: any) {
       console.error("Error generating voice preview:", error);
@@ -5302,20 +5303,20 @@ Generate the complete prompt now:`;
       // Set initial status to pending for validation
       phoneNumberData.status = "pending";
       let phoneNumber = await storage.createPhoneNumber(phoneNumberData);
-      
+
       // Then attempt to sync with ElevenLabs if integration exists
       // This is a non-blocking validation step
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (integration && integration.apiKey) {
         try {
           const decryptedKey = decryptApiKey(integration.apiKey);
-          
+
           // Format phone number for ElevenLabs in E.164 format
           // Remove any non-digit characters from the phone number
           const cleanPhoneNumber = phoneNumberData.phoneNumber.replace(/\D/g, '');
           // Get the country code without the + sign
           const rawCountryCode = (phoneNumberData.countryCode || '+1').replace('+', '');
-          
+
           // Check if the phone number already starts with the country code
           // If it does, don't add it again
           let formattedPhoneNumber;
@@ -5326,7 +5327,7 @@ Generate the complete prompt now:`;
             // Add country code to phone number
             formattedPhoneNumber = '+' + rawCountryCode + cleanPhoneNumber;
           }
-          
+
           // Create phone number in ElevenLabs
           const elevenLabsPayload: any = {
             label: phoneNumberData.label,
@@ -5362,7 +5363,7 @@ Generate the complete prompt now:`;
           // ElevenLabs returns phone_number_id in the response
           // Let's check multiple possible field names to be sure
           const phoneId = response.phone_number_id || response.phone_id || response.id;
-          
+
           if (phoneId) {
             // Update the phone number status to active after successful sync
             const updateResult = await storage.updatePhoneNumber(phoneNumber.id, user.organizationId, {
@@ -5375,7 +5376,7 @@ Generate the complete prompt now:`;
               elevenLabsPhoneId: phoneId,
               updateSuccess: !!updateResult
             });
-            
+
             // Update the returned phone number object
             phoneNumber.elevenLabsPhoneId = phoneId;
             phoneNumber.status = "active";
@@ -5429,7 +5430,7 @@ Generate the complete prompt now:`;
       res.status(500).json({ message: "Failed to update phone number" });
     }
   });
-  
+
   // Verify phone number with ElevenLabs
   app.post("/api/phone-numbers/:id/verify", isAuthenticated, async (req: any, res) => {
     try {
@@ -5441,28 +5442,28 @@ Generate the complete prompt now:`;
 
       const { id } = req.params;
       const phoneNumber = await storage.getPhoneNumber(id, user.organizationId);
-      
+
       if (!phoneNumber) {
         return res.status(404).json({ message: "Phone number not found" });
       }
-      
+
       // Try to sync with ElevenLabs
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "ElevenLabs integration not configured. Please add your ElevenLabs API key in the integrations section.",
-          status: "pending" 
+          status: "pending"
         });
       }
-      
+
       try {
         const decryptedKey = decryptApiKey(integration.apiKey);
-        
+
         // Format phone number for ElevenLabs in E.164 format
         const cleanPhoneNumber = phoneNumber.phoneNumber.replace(/\D/g, '');
         // Get the country code without the + sign
         const rawCountryCode = (phoneNumber.countryCode || '+1').replace('+', '');
-        
+
         // Check if the phone number already starts with the country code
         // If it does, don't add it again
         let formattedPhoneNumber;
@@ -5473,7 +5474,7 @@ Generate the complete prompt now:`;
           // Add country code to phone number
           formattedPhoneNumber = '+' + rawCountryCode + cleanPhoneNumber;
         }
-        
+
         // Create phone number in ElevenLabs
         const elevenLabsPayload: any = {
           label: phoneNumber.label,
@@ -5482,12 +5483,12 @@ Generate the complete prompt now:`;
 
         if (phoneNumber.provider === "twilio") {
           if (!phoneNumber.twilioAccountSid || !phoneNumber.twilioAuthToken) {
-            return res.status(400).json({ 
+            return res.status(400).json({
               message: "Twilio credentials are missing. Please edit the phone number to add your Twilio Account SID and Auth Token.",
-              status: "pending" 
+              status: "pending"
             });
           }
-          
+
           elevenLabsPayload.provider = "twilio";
           elevenLabsPayload.sid = phoneNumber.twilioAccountSid;
           const decryptedToken = decryptApiKey(phoneNumber.twilioAuthToken);
@@ -5514,21 +5515,21 @@ Generate the complete prompt now:`;
             status: "active",
             lastSynced: new Date()
           });
-          
-          res.json({ 
+
+          res.json({
             status: "active",
             message: "Phone number successfully verified and activated",
-            elevenLabsPhoneId: response.phone_id 
+            elevenLabsPhoneId: response.phone_id
           });
         } else {
-          res.json({ 
+          res.json({
             status: "pending",
-            message: "Verification completed but phone number not activated. Please check your credentials." 
+            message: "Verification completed but phone number not activated. Please check your credentials."
           });
         }
       } catch (elevenLabsError: any) {
         console.error("ElevenLabs verification error:", elevenLabsError.message);
-        
+
         // Parse error message for specific issues
         let errorMessage = "Unable to verify phone number with ElevenLabs.";
         if (elevenLabsError.message?.includes("Twilio") || elevenLabsError.message?.includes("Authenticate")) {
@@ -5536,18 +5537,18 @@ Generate the complete prompt now:`;
         } else if (elevenLabsError.message?.includes("already exists")) {
           errorMessage = "This phone number is already registered with ElevenLabs.";
         }
-        
-        res.json({ 
+
+        res.json({
           status: "pending",
           message: errorMessage,
-          error: elevenLabsError.message 
+          error: elevenLabsError.message
         });
       }
     } catch (error: any) {
       console.error("Error verifying phone number:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: error.message || "Failed to verify phone number",
-        status: "pending" 
+        status: "pending"
       });
     }
   });
@@ -5593,16 +5594,16 @@ Generate the complete prompt now:`;
         if (integration && integration.apiKey) {
           try {
             const decryptedKey = decryptApiKey(integration.apiKey);
-            
+
             // Update phone number in ElevenLabs with agent assignment
             // ElevenLabs expects just "agent_id" in the request body
             const payload: any = {};
-            
+
             // Only include agent_id if we have one (to assign), otherwise empty payload (to unassign)
             if (elevenLabsAgentId) {
               payload.agent_id = elevenLabsAgentId;
             }
-            
+
             // Try PATCH first, then fall back to PUT if it fails
             let response;
             try {
@@ -5654,19 +5655,19 @@ Generate the complete prompt now:`;
 
       const { id } = req.params;
       const phoneNumber = await storage.getPhoneNumber(id, user.organizationId);
-      
+
       if (!phoneNumber) {
         return res.status(404).json({ message: "Phone number not found" });
       }
-      
+
       // Get ElevenLabs integration
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
         return res.status(400).json({ message: "ElevenLabs integration not configured" });
       }
-      
+
       const decryptedKey = decryptApiKey(integration.apiKey);
-      
+
       // Get all phone numbers from ElevenLabs to find this one
       try {
         const elevenLabsPhones = await callElevenLabsAPI(
@@ -5676,9 +5677,9 @@ Generate the complete prompt now:`;
           undefined,
           integration.id
         );
-        
+
         console.log("ElevenLabs phone numbers:", JSON.stringify(elevenLabsPhones, null, 2));
-        
+
         // Format our phone number for comparison
         const cleanPhoneNumber = phoneNumber.phoneNumber.replace(/\D/g, '');
         const rawCountryCode = (phoneNumber.countryCode || '+1').replace('+', '');
@@ -5688,30 +5689,30 @@ Generate the complete prompt now:`;
         } else {
           formattedPhoneNumber = '+' + rawCountryCode + cleanPhoneNumber;
         }
-        
+
         // Find matching phone number in ElevenLabs
-        const matchingPhone = elevenLabsPhones.find((p: any) => 
-          p.phone_number === formattedPhoneNumber || 
+        const matchingPhone = elevenLabsPhones.find((p: any) =>
+          p.phone_number === formattedPhoneNumber ||
           p.label === phoneNumber.label
         );
-        
+
         if (matchingPhone) {
           const phoneId = matchingPhone.phone_number_id || matchingPhone.id;
-          
+
           // Update our database with the ElevenLabs ID
           await storage.updatePhoneNumber(phoneNumber.id, user.organizationId, {
             elevenLabsPhoneId: phoneId,
             status: "active",
             lastSynced: new Date()
           });
-          
-          res.json({ 
+
+          res.json({
             message: "Phone number re-synced successfully",
             elevenLabsPhoneId: phoneId,
             status: "active"
           });
         } else {
-          res.status(404).json({ 
+          res.status(404).json({
             message: "Phone number not found in ElevenLabs. You may need to delete and re-import it.",
             searchedFor: formattedPhoneNumber
           });
@@ -5735,7 +5736,7 @@ Generate the complete prompt now:`;
       }
 
       const { id } = req.params;
-      
+
       // Get phone number to check if it has ElevenLabs ID
       const phoneNumber = await storage.getPhoneNumber(id, user.organizationId);
       if (!phoneNumber) {
@@ -5781,7 +5782,7 @@ Generate the complete prompt now:`;
 
       const { agentId } = req.params;
       const updates = req.body;
-      
+
       console.log("\n=== AGENT UPDATE REQUEST ===");
       console.log("Updates received:", JSON.stringify(updates, null, 2));
       console.log("================================\n");
@@ -5793,22 +5794,22 @@ Generate the complete prompt now:`;
       }
 
       // If we have any ElevenLabs-related updates, sync with ElevenLabs API
-      const needsElevenLabsUpdate = updates.firstMessage !== undefined || 
-                                     updates.systemPrompt !== undefined ||
-                                     updates.language !== undefined ||
-                                     updates.voiceId !== undefined || 
-                                     updates.voiceSettings !== undefined ||
-                                     updates.llmSettings !== undefined ||
-                                     updates.tools !== undefined ||
-                                     updates.dynamicVariables !== undefined ||
-                                     updates.evaluationCriteria !== undefined ||
-                                     updates.dataCollection !== undefined;
+      const needsElevenLabsUpdate = updates.firstMessage !== undefined ||
+        updates.systemPrompt !== undefined ||
+        updates.language !== undefined ||
+        updates.voiceId !== undefined ||
+        updates.voiceSettings !== undefined ||
+        updates.llmSettings !== undefined ||
+        updates.tools !== undefined ||
+        updates.dynamicVariables !== undefined ||
+        updates.evaluationCriteria !== undefined ||
+        updates.dataCollection !== undefined;
 
       if (needsElevenLabsUpdate && agent.elevenLabsAgentId) {
         const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
         if (integration && integration.apiKey) {
           const decryptedKey = decryptApiKey(integration.apiKey);
-          
+
           try {
             // First, fetch the current agent configuration from ElevenLabs
             console.log("\n=== FETCHING CURRENT AGENT CONFIG ===");
@@ -5818,14 +5819,14 @@ Generate the complete prompt now:`;
                 "Content-Type": "application/json",
               },
             });
-            
+
             let currentAgentConfig: any = {};
             if (currentAgentResponse.ok) {
               currentAgentConfig = await currentAgentResponse.json();
             } else {
               console.error("Failed to fetch current agent config, using defaults");
             }
-            
+
             // Build the update payload - COMPLETE OVERRIDE, not partial update
             const elevenLabsPayload: any = {
               name: updates.name || agent.name,
@@ -5882,9 +5883,9 @@ Generate the complete prompt now:`;
             if (updates.tools || agent.tools) {
               const tools = updates.tools || agent.tools;
               const toolConfigs: any[] = [];
-              
+
               // System tools removed - not syncing with ElevenLabs anymore
-              
+
               // Handle custom tools (webhooks, integrations)
               if (tools.customTools && tools.customTools.length > 0) {
                 for (const customTool of tools.customTools) {
@@ -5909,7 +5910,7 @@ Generate the complete prompt now:`;
                             },
                           }),
                         });
-                        
+
                         if (toolResponse.ok) {
                           const toolData = await toolResponse.json();
                           toolConfigs.push({
@@ -5927,7 +5928,7 @@ Generate the complete prompt now:`;
                   }
                 }
               }
-              
+
               // Use the new tools API format for RAG tools
               if (toolConfigs.length > 0) {
                 const { toolIds, builtInTools } = await manageElevenLabsTools(
@@ -5935,15 +5936,15 @@ Generate the complete prompt now:`;
                   toolConfigs,
                   integration.id
                 );
-                
+
                 // Ensure prompt object exists
                 if (!elevenLabsPayload.conversation_config.agent.prompt) {
                   elevenLabsPayload.conversation_config.agent.prompt = {};
                 }
-                
+
                 // Set tool_ids for webhook tools
                 if (toolIds.length > 0) {
-                  elevenLabsPayload.conversation_config.agent.prompt.tool_ids = 
+                  elevenLabsPayload.conversation_config.agent.prompt.tool_ids =
                     [...(elevenLabsPayload.conversation_config.agent.prompt.tool_ids || []), ...toolIds];
                 }
               }
@@ -5990,7 +5991,7 @@ Generate the complete prompt now:`;
             // Add webhook settings if provided
             if (updates.tools || agent.tools) {
               const tools = updates.tools || agent.tools;
-              
+
               // Add conversation initiation webhook
               if (tools.conversationInitiationWebhook) {
                 elevenLabsPayload.platform_settings = {
@@ -6001,7 +6002,7 @@ Generate the complete prompt now:`;
                   }
                 };
               }
-              
+
               // Add post-call webhook
               if (tools.postCallWebhook) {
                 elevenLabsPayload.platform_settings = {
@@ -6055,7 +6056,7 @@ Generate the complete prompt now:`;
                 post_call_webhook: {}
               }
             };
-            
+
             console.log("\n=== UPDATING ELEVENLABS AGENT ===");
             console.log("Payload:", JSON.stringify(elevenLabsPayload, null, 2));
 
@@ -6068,7 +6069,7 @@ Generate the complete prompt now:`;
               },
               body: JSON.stringify(elevenLabsPayload),
             });
-            
+
             // If PATCH fails with 500, try a simpler update with just the conversation config
             if (response.status === 500) {
               console.log("\n=== PATCH failed, trying simpler update ===");
@@ -6080,7 +6081,7 @@ Generate the complete prompt now:`;
                   }
                 }
               };
-              
+
               response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agent.elevenLabsAgentId}`, {
                 method: "PATCH",
                 headers: {
@@ -6135,7 +6136,7 @@ Generate the complete prompt now:`;
       const pageNumber = parseInt(page as string);
       const pageSize = parseInt(limit as string);
       const skip = pageNumber > 0 ? (pageNumber - 1) * pageSize : parseInt(offset as string);
-      
+
       const result = await storage.getCallLogs(
         user.organizationId,
         pageSize,
@@ -6147,7 +6148,7 @@ Generate the complete prompt now:`;
       // Version includes recordingUrl field availability to invalidate cache when data structure changes
       const hasRecordings = result.data.some((log: any) => log.recordingUrl);
       const dataVersion = hasRecordings ? 'v2-recordings' : 'v1';
-      
+
       res.set({
         'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
         'ETag': `W/"${dataVersion}-${result.total}-${skip}"`
@@ -6228,9 +6229,9 @@ Generate the complete prompt now:`;
       });
     } catch (error: any) {
       console.error("Error generating call summary:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to generate call summary",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -6272,12 +6273,12 @@ Generate the complete prompt now:`;
           webhookConfig: "Ensure your agents have the post-call webhook configured in ElevenLabs"
         }
       });
-      
+
     } catch (error: any) {
       console.error("[BATCH-SUMMARY] Error in batch summary generation:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to run batch summary generation",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -6330,7 +6331,7 @@ Generate the complete prompt now:`;
           console.log(`[RECORDING-FETCH] Tier 2: ElevenLabs integration found with API key ***${keyLast4}`);
           console.log(`[RECORDING-FETCH] Tier 2: Creating ElevenLabsService and calling fetchAndStoreAudio...`);
           const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
-          
+
           const result = await elevenLabsService.fetchAndStoreAudio(
             callLog.conversationId,
             callLog.id,
@@ -6392,9 +6393,9 @@ Generate the complete prompt now:`;
     try {
       const { fileName } = req.params;
       const userId = req.user.id;
-      
+
       console.log(`[AUDIO-SERVE] Request for: ${fileName} from user: ${userId}`);
-      
+
       // Get user to check organization
       const user = await storage.getUser(userId);
       if (!user) {
@@ -6405,10 +6406,10 @@ Generate the complete prompt now:`;
       // Import audio storage service
       const AudioStorageService = (await import("./services/audio-storage-service")).default;
       const audioStorage = new AudioStorageService();
-      
+
       // Get validated file path (returns null if invalid or path traversal attempt)
       const filePath = audioStorage.getFilePathForServing(fileName);
-      
+
       if (!filePath) {
         console.warn(`[AUDIO-SERVE] Invalid filename or path traversal attempt: ${fileName}`);
         return res.status(400).json({ message: "Invalid audio file name" });
@@ -6426,9 +6427,9 @@ Generate the complete prompt now:`;
       // Convert to absolute path for res.sendFile()
       const path = await import('path');
       const absolutePath = path.resolve(filePath);
-      
+
       console.log(`[AUDIO-SERVE] Sending file: ${absolutePath} (exists: ${fs.existsSync(absolutePath)})`);
-      
+
       // Serve the audio file
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
@@ -6487,19 +6488,21 @@ Generate the complete prompt now:`;
 
       // Get all call logs without audio storage
       const result = await storage.getCallLogs(user.organizationId, 1000, 0);
-      const callLogsWithoutAudio = result.data.filter(call => 
+      const callLogsWithoutAudio = result.data.filter(call =>
         !call.audioStorageKey && call.conversationId
       );
 
       const AudioStorageService = (await import("./services/audio-storage-service")).default;
       const audioStorage = new AudioStorageService();
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-      
+
       if (!integration || !integration.apiKey) {
         return res.status(400).json({ message: "ElevenLabs integration not configured" });
       }
 
-      const elevenLabsService = new ElevenLabsService({ apiKey: integration.apiKey });
+      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+      await provider.initialize({ apiKey: integration.apiKey });
+
       const results = {
         total: callLogsWithoutAudio.length,
         success: 0,
@@ -6509,11 +6512,10 @@ Generate the complete prompt now:`;
 
       // Process in parallel with a limit
       const processCall = async (call: any) => {
-        const result = await elevenLabsService.fetchAndStoreAudio(
+        const result = await SyncService.fetchAndStoreAudio(
+          provider,
           call.conversationId,
           call.id,
-          audioStorage,
-          storage,
           user.organizationId
         );
 
@@ -6576,12 +6578,12 @@ Generate the complete prompt now:`;
       console.log("Headers:", req.headers);
       console.log("Query Parameters:", req.query);
       console.log("Body:", req.body);
-      
+
       // Get the search query from URL parameters (ElevenLabs Server Tools style)
       const searchQuery = req.query.query || req.query.q || req.body?.query || '';
-      
+
       console.log("Search Query:", searchQuery);
-      
+
       if (!searchQuery) {
         return res.json({
           error: "No search query provided",
@@ -6600,7 +6602,7 @@ Generate the complete prompt now:`;
           price: "$150-300"
         },
         {
-          title: `Popular ${searchQuery} - Option 2`, 
+          title: `Popular ${searchQuery} - Option 2`,
           description: `Highly rated ${searchQuery} with modern amenities and great customer service.`,
           rating: "4.6/5",
           location: "Central area",
@@ -6609,7 +6611,7 @@ Generate the complete prompt now:`;
         {
           title: `Budget-friendly ${searchQuery} - Option 3`,
           description: `Affordable ${searchQuery} with good value for money and basic amenities.`,
-          rating: "4.2/5", 
+          rating: "4.2/5",
           location: "Convenient location",
           price: "$50-150"
         }
@@ -6623,10 +6625,10 @@ Generate the complete prompt now:`;
         results: mockResults,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error) {
       console.error("Search tool error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: "Search tool error occurred",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -6640,11 +6642,11 @@ Generate the complete prompt now:`;
       console.log("Method:", req.method);
       console.log("Query Parameters:", req.query);
       console.log("Body:", req.body);
-      
+
       const topic = req.query.topic || req.body?.topic || 'general';
-      
+
       console.log("Info Topic:", topic);
-      
+
       // Mock detailed information that the agent can use
       const mockInfo = {
         topic: topic,
@@ -6662,7 +6664,7 @@ Generate the complete prompt now:`;
         },
         recommendations: [
           "Best for first-time users",
-          "Suitable for all experience levels", 
+          "Suitable for all experience levels",
           "Highly recommended by experts"
         ]
       };
@@ -6673,10 +6675,10 @@ Generate the complete prompt now:`;
         information: mockInfo,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error) {
       console.error("Info tool error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: "Info tool error occurred",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -6699,11 +6701,11 @@ Generate the complete prompt now:`;
       console.log("=== TEXT TO SPEECH TOOL CALLED ===");
       console.log("Query Parameters:", req.query);
       console.log("Body:", req.body);
-      
+
       const text = req.query.text || req.body?.text || '';
       const voiceId = req.query.voice_id || req.body?.voice_id || '21m00Tcm4TlvDq8ikWAM'; // Default voice
       const modelId = req.query.model_id || req.body?.model_id || 'eleven_v3'; // Default to new v3 model (2025)
-      
+
       if (!text) {
         return res.json({
           error: "No text provided",
@@ -6720,7 +6722,7 @@ Generate the complete prompt now:`;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const integration = await storage.getIntegration(user.organizationId, 'elevenlabs');
       if (!integration || !integration.apiKey) {
         return res.status(400).json({
@@ -6730,7 +6732,7 @@ Generate the complete prompt now:`;
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
-      
+
       // Call ElevenLabs TTS API
       try {
         const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -6777,10 +6779,10 @@ Generate the complete prompt now:`;
           message: error.message || "Unknown error occurred"
         });
       }
-      
+
     } catch (error) {
       console.error("Text-to-speech tool error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: "Text-to-speech tool error occurred",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -6791,14 +6793,14 @@ Generate the complete prompt now:`;
   const handleGetVoices = async (req: any, res: any) => {
     try {
       console.log("=== GET VOICES TOOL CALLED ===");
-      
+
       // Get user's organization and ElevenLabs integration
       const userId = req.user.id;
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const integration = await storage.getIntegration(user.organizationId, 'elevenlabs');
       if (!integration || !integration.apiKey) {
         return res.status(400).json({
@@ -6808,7 +6810,7 @@ Generate the complete prompt now:`;
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
-      
+
       try {
         const voicesResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
           headers: {
@@ -6822,7 +6824,7 @@ Generate the complete prompt now:`;
         }
 
         const voicesData = await voicesResponse.json();
-        
+
         // Format voices for easy consumption by voice agents
         const formattedVoices = voicesData.voices?.map((voice: any) => ({
           id: voice.voice_id,
@@ -6851,10 +6853,10 @@ Generate the complete prompt now:`;
           message: error.message || "Unknown error occurred"
         });
       }
-      
+
     } catch (error) {
       console.error("Get voices tool error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: "Get voices tool error occurred",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -6867,10 +6869,10 @@ Generate the complete prompt now:`;
       console.log("=== VOICE CLONE TOOL CALLED ===");
       console.log("Query Parameters:", req.query);
       console.log("Body:", req.body);
-      
+
       const name = req.query.name || req.body?.name || '';
       const description = req.query.description || req.body?.description || '';
-      
+
       if (!name) {
         return res.json({
           error: "No voice name provided",
@@ -6885,7 +6887,7 @@ Generate the complete prompt now:`;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const integration = await storage.getIntegration(user.organizationId, 'elevenlabs');
       if (!integration || !integration.apiKey) {
         return res.status(400).json({
@@ -6909,17 +6911,17 @@ Generate the complete prompt now:`;
           ],
           next_steps: [
             "Upload audio samples",
-            "Process voice characteristics", 
+            "Process voice characteristics",
             "Generate voice model",
             "Test and refine"
           ]
         },
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error) {
       console.error("Voice clone tool error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: "Voice clone tool error occurred",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -6939,9 +6941,9 @@ Generate the complete prompt now:`;
   app.post("/api/webhooks/voiceai", async (req, res) => {
     try {
       console.log("ElevenLabs conversation event received:", JSON.stringify(req.body, null, 2));
-      
+
       const { type, data } = req.body;
-      
+
       if (type === "post_call_transcription") {
         // Extract call data from webhook
         const {
@@ -6962,7 +6964,7 @@ Generate the complete prompt now:`;
             cost: data.cost,
             credits_used: data.credits_used,
           };
-          
+
           // Store call log
           await storage.createCallLog({
             organizationId: agent.organizationId,
@@ -6976,25 +6978,25 @@ Generate the complete prompt now:`;
             cost: calculateCallCost(duration_seconds || 0, costData).toString(),
             status: "completed",
           });
-          
+
           console.log("Call log saved for conversation:", conversation_id);
         }
       } else if (type === "post_call_audio") {
         // Update call log with audio URL
         const { conversation_id, full_audio } = data;
-        
+
         // In production, you'd save the audio to cloud storage
         // For now, we'll just log that we received it
         console.log("Audio received for conversation:", conversation_id, "Size:", full_audio?.length || 0);
       }
-      
+
       res.status(200).json({ message: "Webhook processed successfully" });
     } catch (error) {
       console.error("Error processing webhook:", error);
       res.status(500).json({ message: "Failed to process webhook" });
     }
   });
-  
+
 
 
 
@@ -7008,7 +7010,7 @@ Generate the complete prompt now:`;
       }
 
       const { conversationId } = req.params;
-      
+
       // Get the ElevenLabs integration to get the API key
       const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
       if (!integration || integration.status !== "ACTIVE") {
@@ -7016,7 +7018,7 @@ Generate the complete prompt now:`;
       }
 
       const apiKey = decryptApiKey(integration.apiKey);
-      
+
       // Fetch the audio from ElevenLabs
       const audioResponse = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
@@ -7035,7 +7037,7 @@ Generate the complete prompt now:`;
       // Stream the audio response to the client
       res.setHeader("Content-Type", audioResponse.headers.get("Content-Type") || "audio/mpeg");
       res.setHeader("Cache-Control", "public, max-age=3600");
-      
+
       const audioBuffer = await audioResponse.arrayBuffer();
       res.send(Buffer.from(audioBuffer));
     } catch (error) {
@@ -7069,16 +7071,16 @@ Generate the complete prompt now:`;
   app.get("/api/whitelabel/subdomain/:subdomain", cacheMiddleware.long, async (req, res) => {
     try {
       const { subdomain } = req.params;
-      
+
       // Get organization by subdomain
       const org = await storage.getOrganizationBySubdomain(subdomain);
       if (!org) {
         return res.status(404).json({ error: "Organization not found" });
       }
-      
+
       // Get whitelabel config for this organization
       const config = await storage.getWhitelabelConfig(org.id);
-      
+
       if (!config) {
         // Return default branding if no config exists
         return res.json({
@@ -7087,7 +7089,7 @@ Generate the complete prompt now:`;
           removePlatformBranding: false
         });
       }
-      
+
       // Return public whitelabel config
       res.json({
         appName: config.appName || org.name,
@@ -7106,9 +7108,9 @@ Generate the complete prompt now:`;
 
   // Domain configuration endpoint
   app.get("/api/config/domain", (req: any, res) => {
-    const baseDomain = process.env.BASE_DOMAIN || 
+    const baseDomain = process.env.BASE_DOMAIN ||
       (process.env.NODE_ENV === 'production' ? req.get('host') : 'localhost:5000');
-    
+
     res.json({
       baseDomain,
       isDevelopment: process.env.NODE_ENV !== 'production',
@@ -7122,14 +7124,14 @@ Generate the complete prompt now:`;
   app.get("/api/whitelabel/public", cacheMiddleware.long, async (req: any, res) => {
     try {
       const { subdomain } = req.query;
-      
+
       // If subdomain is provided, look up the specific organization
       if (subdomain) {
         const org = await storage.getOrganizationBySubdomain(subdomain as string);
-        
+
         if (org) {
           const config = await storage.getWhitelabelConfig(org.id);
-          
+
           if (config) {
             // Return public-safe fields only
             return res.json({
@@ -7141,7 +7143,7 @@ Generate the complete prompt now:`;
             });
           }
         }
-        
+
         // If subdomain not found, return 404
         return res.status(404).json({
           error: "Agency not found",
@@ -7150,10 +7152,10 @@ Generate the complete prompt now:`;
           removePlatformBranding: false,
         });
       }
-      
+
       // Default behavior: Get the first whitelabel config (for single-tenant deployments)
       const allConfigs = await storage.getAllWhitelabelConfigs();
-      
+
       if (allConfigs && allConfigs.length > 0) {
         const config = allConfigs[0];
         // Return public-safe fields only
@@ -7247,7 +7249,7 @@ Generate the complete prompt now:`;
   app.post("/api/subdomain/check", isAuthenticated, async (req: any, res) => {
     try {
       const { subdomain } = req.body;
-      
+
       if (!subdomain) {
         return res.status(400).json({ message: "Subdomain is required" });
       }
@@ -7255,25 +7257,25 @@ Generate the complete prompt now:`;
       // Validate subdomain format
       const subdomainRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
       if (!subdomainRegex.test(subdomain)) {
-        return res.status(400).json({ 
-          available: false, 
-          message: "Invalid subdomain format. Use only lowercase letters, numbers, and hyphens." 
+        return res.status(400).json({
+          available: false,
+          message: "Invalid subdomain format. Use only lowercase letters, numbers, and hyphens."
         });
       }
 
       // Check if subdomain exists
       const existingOrg = await storage.getOrganizationBySubdomain(subdomain);
-      
+
       if (existingOrg) {
-        res.json({ 
-          available: false, 
+        res.json({
+          available: false,
           organizationId: existingOrg.id,
-          message: "Subdomain is already taken" 
+          message: "Subdomain is already taken"
         });
       } else {
-        res.json({ 
-          available: true, 
-          message: "Subdomain is available" 
+        res.json({
+          available: true,
+          message: "Subdomain is available"
         });
       }
     } catch (error) {
@@ -7362,17 +7364,17 @@ Generate the complete prompt now:`;
       // For now, we'll store base64 encoded images directly
       // In production, you'd want to use cloud storage like S3 or Google Cloud Storage
       const { logo, type } = req.body; // type: "logo" or "favicon"
-      
+
       if (!logo || !type) {
         return res.status(400).json({ message: "Logo data and type are required" });
       }
 
-      const updateData = type === "favicon" 
+      const updateData = type === "favicon"
         ? { faviconUrl: logo }
         : { logoUrl: logo };
 
       const config = await storage.updateWhitelabelConfig(user.organizationId, updateData);
-      
+
       res.json({ success: true, url: type === "favicon" ? config.faviconUrl : config.logoUrl });
     } catch (error) {
       console.error("Error uploading logo:", error);
@@ -7530,11 +7532,11 @@ Generate the complete prompt now:`;
     try {
       const { packageId, amount } = req.body;
       const organizationId = req.user.organizationId;
-      
+
       // Check if Stripe is configured
       // Since we removed the stripe module, we'll use unified payment instead
-      return res.status(400).json({ 
-        error: 'This endpoint has been deprecated. Please use /api/unified-payments/create-payment-intent instead.' 
+      return res.status(400).json({
+        error: 'This endpoint has been deprecated. Please use /api/unified-payments/create-payment-intent instead.'
       });
     } catch (error) {
       console.error("Error creating payment intent:", error);
@@ -7545,8 +7547,8 @@ Generate the complete prompt now:`;
   app.post("/api/payments/confirm", isAuthenticated, async (req: any, res) => {
     try {
       // This endpoint has been deprecated in favor of unified payments
-      return res.status(400).json({ 
-        error: 'This endpoint has been deprecated. Please use unified payment endpoints instead.' 
+      return res.status(400).json({
+        error: 'This endpoint has been deprecated. Please use unified payment endpoints instead.'
       });
     } catch (error) {
       console.error("Error confirming payment:", error);
@@ -7559,10 +7561,10 @@ Generate the complete prompt now:`;
       const { priceId } = req.body;
       const organizationId = req.user.organizationId;
       const email = req.user.email;
-      
+
       // This endpoint has been deprecated in favor of unified payments
-      return res.status(400).json({ 
-        error: 'This endpoint has been deprecated. Please use unified payment endpoints instead.' 
+      return res.status(400).json({
+        error: 'This endpoint has been deprecated. Please use unified payment endpoints instead.'
       });
     } catch (error) {
       console.error("Error creating subscription:", error);
@@ -7602,7 +7604,7 @@ Generate the complete prompt now:`;
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ error: "Only agency admins can create Connect accounts" });
       }
-      
+
       req.body.organizationId = user.organizationId;
       await unifiedPayment.createStripeConnectAccount(req, res);
     } catch (error) {
@@ -7743,7 +7745,7 @@ Generate the complete prompt now:`;
     try {
       const { agentId, connectionType = "webrtc" } = req.body; // Default to WebRTC (2025 standard)
       const userId = req.user.id;
-      
+
       console.log("Starting playground session:");
       console.log("  Connection Type:", connectionType);
 
@@ -7799,9 +7801,9 @@ Generate the complete prompt now:`;
         url = `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${elevenLabsAgentId}`;
         expectedField = 'signed_url';
       }
-      
+
       console.log("Calling EchoSensei API:", url);
-      
+
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -7811,13 +7813,13 @@ Generate the complete prompt now:`;
       });
 
       const responseText = await response.text();
-      
+
       if (!response.ok) {
         console.error("ElevenLabs API error:");
         console.error("  Status:", response.status);
         console.error("  Response:", responseText);
         console.error("  Agent ID sent:", elevenLabsAgentId);
-        
+
         // Parse error message
         let errorMessage = "Failed to start conversation session";
         try {
@@ -7832,7 +7834,7 @@ Generate the complete prompt now:`;
         } catch (e) {
           errorMessage = responseText || `ElevenLabs API returned ${response.status}`;
         }
-        
+
         // Provide specific error messages
         if (response.status === 401) {
           errorMessage = "Invalid API key. Please check your ElevenLabs API key in the Integrations tab.";
@@ -7841,8 +7843,8 @@ Generate the complete prompt now:`;
         } else if (response.status === 403) {
           errorMessage = "Access denied. Your API key may not have permission to access this agent.";
         }
-        
-        return res.status(response.status).json({ 
+
+        return res.status(response.status).json({
           message: errorMessage
         });
       }
@@ -7854,25 +7856,25 @@ Generate the complete prompt now:`;
         console.error("Failed to parse ElevenLabs response:", responseText);
         return res.status(500).json({ message: "Invalid response from ElevenLabs API" });
       }
-      
+
       console.log("ElevenLabs response:", data);
-      
+
       // Validate the response has the required fields
       if (!data[expectedField]) {
         console.error(`No ${expectedField} in response:`, data);
         return res.status(500).json({ message: `Invalid response from ElevenLabs API: missing ${expectedField}` });
       }
-      
+
       // Return connection details based on type
       if (connectionType === 'webrtc') {
-        res.json({ 
+        res.json({
           conversationToken: data.conversation_token,
           connectionType: 'webrtc',
           sessionId: data.conversation_id || null,
           message: "WebRTC session ready"
         });
       } else {
-        res.json({ 
+        res.json({
           signedUrl: data.signed_url,
           connectionType: 'websocket',
           sessionId: data.conversation_id || null,
@@ -7881,7 +7883,7 @@ Generate the complete prompt now:`;
       }
     } catch (error: any) {
       console.error("Error starting playground session:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: error.message || "Failed to start session"
       });
     }
@@ -7907,7 +7909,7 @@ Generate the complete prompt now:`;
 
       const apiKey = decryptApiKey(integration.apiKey);
       const { agent_id, user_id, page = 1, limit = 20 } = req.query;
-      
+
       // Build query parameters
       const queryParams = new URLSearchParams();
       if (agent_id) queryParams.append('agent_id', agent_id);
@@ -8312,7 +8314,7 @@ Generate the complete prompt now:`;
       // Return a mock response for avatar creation
       // Note: ElevenLabs doesn't have a dedicated widget avatar API endpoint
       const avatarData = req.body;
-      
+
       // Mock response with the provided avatar data
       const avatarResponse = {
         ...avatarData,
@@ -9086,7 +9088,7 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user.organizationId;
       const userId = req.user.id;
-      
+
       const batchCallData = insertBatchCallSchema.parse({
         ...req.body,
         organizationId,
@@ -9110,14 +9112,14 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user.organizationId;
       const batchCall = await storage.getBatchCall(req.params.id, organizationId);
-      
+
       if (!batchCall) {
         return res.status(404).json({ error: "Batch call not found" });
       }
 
       // Get recipients for this batch call
       const recipients = await storage.getBatchCallRecipients(req.params.id);
-      
+
       res.json({ ...batchCall, recipients });
     } catch (error: any) {
       console.error("Error fetching batch call:", error);
@@ -9129,7 +9131,7 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user.organizationId;
       const batchCall = await storage.getBatchCall(req.params.id, organizationId);
-      
+
       if (!batchCall) {
         return res.status(404).json({ error: "Batch call not found" });
       }
@@ -9155,7 +9157,7 @@ Generate the complete prompt now:`;
       });
 
       const createdRecipients = await storage.createBatchCallRecipients(recipientData);
-      
+
       // Update batch call with total recipients count
       await storage.updateBatchCall(req.params.id, organizationId, {
         totalRecipients: createdRecipients.length,
@@ -9172,13 +9174,13 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user.organizationId;
       const { phoneNumber } = req.body;
-      
+
       if (!phoneNumber) {
         return res.status(400).json({ error: "Phone number is required for test call" });
       }
-      
+
       const batchCall = await storage.getBatchCall(req.params.id, organizationId);
-      
+
       if (!batchCall) {
         return res.status(404).json({ error: "Batch call not found" });
       }
@@ -9186,8 +9188,8 @@ Generate the complete prompt now:`;
       // Get the integration
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || integration.status !== "ACTIVE") {
-        return res.status(400).json({ 
-          error: "ElevenLabs integration not configured or active" 
+        return res.status(400).json({
+          error: "ElevenLabs integration not configured or active"
         });
       }
 
@@ -9223,8 +9225,8 @@ Generate the complete prompt now:`;
         integration.id
       );
 
-      res.json({ 
-        message: "Test call initiated successfully", 
+      res.json({
+        message: "Test call initiated successfully",
         conversationId: response.conversation_id || response.id,
         status: response.status
       });
@@ -9238,7 +9240,7 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user.organizationId;
       const batchCall = await storage.getBatchCall(req.params.id, organizationId);
-      
+
       if (!batchCall) {
         return res.status(404).json({ error: "Batch call not found" });
       }
@@ -9246,8 +9248,8 @@ Generate the complete prompt now:`;
       // Get the integration
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || integration.status !== "ACTIVE") {
-        return res.status(400).json({ 
-          error: "ElevenLabs integration not configured or active" 
+        return res.status(400).json({
+          error: "ElevenLabs integration not configured or active"
         });
       }
 
@@ -9274,7 +9276,7 @@ Generate the complete prompt now:`;
           const recipientData: any = {
             phone_number: r.phoneNumber,
           };
-          
+
           // Add all variables including overrides
           if (r.variables && typeof r.variables === 'object') {
             // Include all fields from the CSV, ElevenLabs will handle overrides
@@ -9285,7 +9287,7 @@ Generate the complete prompt now:`;
               }
             });
           }
-          
+
           return recipientData;
         }),
       };
@@ -9306,9 +9308,9 @@ Generate the complete prompt now:`;
         startedAt: new Date(),
       });
 
-      res.json({ 
-        message: "Batch call submitted successfully", 
-        batchId: response.batch_id || response.id 
+      res.json({
+        message: "Batch call submitted successfully",
+        batchId: response.batch_id || response.id
       });
     } catch (error: any) {
       console.error("Error submitting batch call:", error);
@@ -9339,7 +9341,7 @@ Generate the complete prompt now:`;
   });
 
   // Agency User Management Routes
-  
+
   // Get organization users
   app.get("/api/agency/users", isAuthenticated, async (req: any, res) => {
     try {
@@ -9347,9 +9349,9 @@ Generate the complete prompt now:`;
       if (!organizationId) {
         return res.status(400).json({ error: "No organization found" });
       }
-      
+
       const users = await storage.getOrganizationUsers(organizationId);
-      
+
       // Format user data for frontend
       const formattedUsers = users.map(user => ({
         id: user.id,
@@ -9363,17 +9365,17 @@ Generate the complete prompt now:`;
         permissions: user.permissions || [],
         assignedAgentIds: [] as string[]  // Will be populated later
       }));
-      
+
       // Get assigned agents for all users in a single query (prevents N+1)
       const userIds = formattedUsers.map(u => u.id);
       const userAgentsMap = await storage.getUsersWithAssignedAgents(userIds, organizationId);
-      
+
       // Assign agents to each user
       for (const user of formattedUsers) {
         const assignedAgents = userAgentsMap.get(user.id) || [];
         user.assignedAgentIds = assignedAgents.map(a => a.id);
       }
-      
+
       res.json(formattedUsers);
     } catch (error) {
       console.error("Error fetching organization users:", error);
@@ -9388,34 +9390,34 @@ Generate the complete prompt now:`;
       if (!organizationId) {
         return res.status(400).json({ error: "No organization found" });
       }
-      
+
       const { userId } = req.params;
       let { role, status, permissions } = req.body;
-      
+
       // Get current user to check their role
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Agency users can only set role to 'user'
       if (currentUser?.role === 'agency' && role && role !== 'user') {
-        return res.status(403).json({ 
-          error: "Agency users can only assign 'User - Limited access' role" 
+        return res.status(403).json({
+          error: "Agency users can only assign 'User - Limited access' role"
         });
       }
-      
+
       let updatedUser;
-      
+
       if (role) {
         updatedUser = await storage.updateUserRole(userId, organizationId, role);
       }
-      
+
       if (permissions) {
         updatedUser = await storage.updateUserPermissions(userId, organizationId, permissions);
       }
-      
+
       if (status) {
         updatedUser = await storage.toggleUserStatus(userId, status);
       }
-      
+
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user:", error);
@@ -9430,10 +9432,10 @@ Generate the complete prompt now:`;
       if (!organizationId) {
         return res.status(400).json({ error: "No organization found" });
       }
-      
+
       const { userId } = req.params;
       await storage.removeUserFromOrganization(userId, organizationId);
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error removing user:", error);
@@ -9448,12 +9450,12 @@ Generate the complete prompt now:`;
       if (!organizationId) {
         return res.status(400).json({ error: "No organization found" });
       }
-      
+
       const { userId } = req.params;
       const { agentIds } = req.body;
-      
+
       await storage.assignAgentsToUser(userId, organizationId, agentIds);
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error assigning agents:", error);
@@ -9468,9 +9470,9 @@ Generate the complete prompt now:`;
       if (!organizationId) {
         return res.status(400).json({ error: "No organization found" });
       }
-      
+
       const invitations = await storage.getOrganizationInvitations(organizationId);
-      
+
       const formattedInvitations = invitations.map(inv => ({
         id: inv.id,
         email: inv.email,
@@ -9480,7 +9482,7 @@ Generate the complete prompt now:`;
         expiresAt: inv.expiresAt?.toISOString(),
         permissions: inv.permissions || []
       }));
-      
+
       res.json(formattedInvitations);
     } catch (error) {
       console.error("Error fetching invitations:", error);
@@ -9493,33 +9495,33 @@ Generate the complete prompt now:`;
     try {
       const organizationId = req.user?.organizationId;
       const invitedBy = req.user?.id;
-      
+
       if (!organizationId || !invitedBy) {
         return res.status(400).json({ error: "No organization or user found" });
       }
-      
+
       let { email, role, permissions } = req.body;
-      
+
       // Get current user to check their role
       const currentUser = await storage.getUser(req.user.id);
-      
+
       // Agency users can only invite users with 'user' role
       if (currentUser?.role === 'agency' && role && role !== 'user') {
-        return res.status(403).json({ 
-          error: "Agency users can only invite users with 'User - Limited access' role" 
+        return res.status(403).json({
+          error: "Agency users can only invite users with 'User - Limited access' role"
         });
       }
-      
+
       // Check if user already exists in organization
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser && existingUser.organizationId === organizationId) {
         return res.status(400).json({ error: "User already exists in organization" });
       }
-      
+
       // Create invitation with expiry date (7 days)
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
-      
+
       const invitation = await storage.createInvitation({
         organizationId,
         email,
@@ -9557,7 +9559,7 @@ Generate the complete prompt now:`;
   app.post("/api/agency/invitations/:invitationId/resend", isAuthenticated, async (req: any, res) => {
     try {
       const { invitationId } = req.params;
-      
+
       // Update expiry date
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -9592,9 +9594,9 @@ Generate the complete prompt now:`;
   app.delete("/api/agency/invitations/:invitationId", isAuthenticated, async (req: any, res) => {
     try {
       const { invitationId } = req.params;
-      
+
       await storage.deleteInvitation(invitationId);
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error canceling invitation:", error);
@@ -9606,30 +9608,30 @@ Generate the complete prompt now:`;
   app.post("/api/invitations/accept", async (req: any, res) => {
     try {
       const { code } = req.body;
-      
+
       if (!code) {
         return res.status(400).json({ error: "Invitation code required" });
       }
-      
+
       const invitation = await storage.getInvitationByCode(code);
       if (!invitation) {
         return res.status(404).json({ error: "Invalid invitation code" });
       }
-      
+
       if (invitation.status !== "pending") {
         return res.status(400).json({ error: "Invitation already used or expired" });
       }
-      
+
       if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
         return res.status(400).json({ error: "Invitation has expired" });
       }
-      
+
       // If user is authenticated, accept the invitation
       if (req.isAuthenticated()) {
         await storage.acceptInvitation(invitation.id, req.user.id);
         return res.json({ success: true, message: "Invitation accepted" });
       }
-      
+
       // Otherwise, return invitation details for signup
       res.json({
         email: invitation.email,
@@ -9646,25 +9648,25 @@ Generate the complete prompt now:`;
   // ========================================
   // Agency Payment Processor Management Routes
   // ========================================
-  
+
   // Configure payment processor (Stripe or PayPal)
   app.post("/api/agency/payment-processors", isAuthenticated, async (req: any, res) => {
     try {
       const { provider, credentials, metadata } = req.body;
       const organizationId = req.user.organizationId;
-      
+
       // Validate input
       if (!provider || !credentials) {
         return res.status(400).json({ error: "Provider and credentials are required" });
       }
-      
+
       if (!['stripe', 'paypal'].includes(provider)) {
         return res.status(400).json({ error: "Invalid provider. Must be 'stripe' or 'paypal'" });
       }
-      
+
       // Validate credentials based on provider
       let validationResult = { valid: false, error: "" };
-      
+
       if (provider === 'stripe') {
         if (!credentials.secretKey || !credentials.publishableKey) {
           return res.status(400).json({ error: "Stripe requires secretKey and publishableKey" });
@@ -9698,10 +9700,10 @@ Generate the complete prompt now:`;
         }
         // Basic PayPal validation
         try {
-          const baseUrl = (credentials.mode || 'sandbox') === 'sandbox' 
+          const baseUrl = (credentials.mode || 'sandbox') === 'sandbox'
             ? 'https://api-m.sandbox.paypal.com'
             : 'https://api-m.paypal.com';
-          
+
           const auth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
           const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
             method: 'POST',
@@ -9711,13 +9713,13 @@ Generate the complete prompt now:`;
             },
             body: 'grant_type=client_credentials',
           });
-          
+
           if (response.ok) {
             validationResult = { valid: true, error: '' };
           } else {
-            validationResult = { 
-              valid: false, 
-              error: 'Invalid PayPal credentials' 
+            validationResult = {
+              valid: false,
+              error: 'Invalid PayPal credentials'
             };
           }
         } catch (error: any) {
@@ -9727,17 +9729,17 @@ Generate the complete prompt now:`;
           };
         }
       }
-      
+
       if (!validationResult?.valid) {
-        return res.status(400).json({ 
-          error: "Invalid credentials", 
-          details: validationResult?.error 
+        return res.status(400).json({
+          error: "Invalid credentials",
+          details: validationResult?.error
         });
       }
-      
+
       // Encrypt credentials
       const encryptedCredentials = encryptCredentials(credentials);
-      
+
       // Save to database
       const processor = await storage.createAgencyPaymentProcessor({
         organizationId,
@@ -9750,7 +9752,7 @@ Generate the complete prompt now:`;
           mode: provider === 'paypal' ? (credentials.mode || 'sandbox') : undefined,
         },
       });
-      
+
       res.json({
         id: processor.id,
         provider: processor.provider,
@@ -9763,13 +9765,13 @@ Generate the complete prompt now:`;
       res.status(500).json({ error: "Failed to configure payment processor" });
     }
   });
-  
+
   // Get configured payment processors (without exposing keys)
   app.get("/api/agency/payment-processors", isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user.organizationId;
       const processors = await storage.getAgencyPaymentProcessors(organizationId);
-      
+
       // Remove encrypted credentials from response
       const safeProcessors = processors.map(p => ({
         id: p.id,
@@ -9780,31 +9782,31 @@ Generate the complete prompt now:`;
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       }));
-      
+
       res.json(safeProcessors);
     } catch (error) {
       console.error("Error fetching payment processors:", error);
       res.status(500).json({ error: "Failed to fetch payment processors" });
     }
   });
-  
+
   // Test payment processor credentials
   app.post("/api/agency/test-payment-processor", isAuthenticated, async (req: any, res) => {
     try {
       const { provider } = req.body;
       const organizationId = req.user.organizationId;
-      
+
       if (!provider) {
         return res.status(400).json({ error: "Provider is required" });
       }
-      
+
       const processor = await storage.getAgencyPaymentProcessor(organizationId, provider);
       if (!processor) {
         return res.status(404).json({ error: "Payment processor not configured" });
       }
-      
+
       const credentials = decryptCredentials(processor.encryptedCredentials);
-      
+
       let validationResult = { valid: false, error: "" };
       if (provider === 'stripe') {
         try {
@@ -9830,10 +9832,10 @@ Generate the complete prompt now:`;
         }
       } else if (provider === 'paypal') {
         try {
-          const baseUrl = (processor.metadata?.mode || 'sandbox') === 'sandbox' 
+          const baseUrl = (processor.metadata?.mode || 'sandbox') === 'sandbox'
             ? 'https://api-m.sandbox.paypal.com'
             : 'https://api-m.paypal.com';
-          
+
           const auth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
           const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
             method: 'POST',
@@ -9843,13 +9845,13 @@ Generate the complete prompt now:`;
             },
             body: 'grant_type=client_credentials',
           });
-          
+
           if (response.ok) {
             validationResult = { valid: true, error: '' };
           } else {
-            validationResult = { 
-              valid: false, 
-              error: 'Invalid PayPal credentials' 
+            validationResult = {
+              valid: false,
+              error: 'Invalid PayPal credentials'
             };
           }
         } catch (error: any) {
@@ -9859,16 +9861,16 @@ Generate the complete prompt now:`;
           };
         }
       }
-      
+
       if (validationResult?.valid) {
         // Update last validated timestamp
         await storage.updateAgencyPaymentProcessor(processor.id, {
           lastValidatedAt: new Date(),
           status: 'active',
         });
-        
-        res.json({ 
-          valid: true, 
+
+        res.json({
+          valid: true,
           message: "Payment processor credentials are valid",
           ...('accountInfo' in validationResult && validationResult.accountInfo ? { accountInfo: validationResult.accountInfo } : {}),
         });
@@ -9878,10 +9880,10 @@ Generate the complete prompt now:`;
           status: 'invalid',
           validationError: validationResult?.error,
         });
-        
-        res.status(400).json({ 
-          valid: false, 
-          error: validationResult?.error || "Invalid credentials" 
+
+        res.status(400).json({
+          valid: false,
+          error: validationResult?.error || "Invalid credentials"
         });
       }
     } catch (error) {
@@ -9889,13 +9891,13 @@ Generate the complete prompt now:`;
       res.status(500).json({ error: "Failed to test payment processor" });
     }
   });
-  
+
   // Delete payment processor
   app.delete("/api/agency/payment-processors/:provider", isAuthenticated, async (req: any, res) => {
     try {
       const { provider } = req.params;
       const organizationId = req.user.organizationId;
-      
+
       await storage.deleteAgencyPaymentProcessor(organizationId, provider);
       res.json({ success: true });
     } catch (error) {
@@ -9903,17 +9905,17 @@ Generate the complete prompt now:`;
       res.status(500).json({ error: "Failed to delete payment processor" });
     }
   });
-  
+
   // ========================================
   // Agency Billing Plans Management Routes
   // ========================================
-  
+
   // Get agency billing plans
   app.get("/api/agency/billing-plans", isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user.organizationId;
       const includeInactive = req.query.includeInactive === 'true';
-      
+
       const plans = await storage.getAgencyBillingPlans(organizationId, includeInactive);
       res.json(plans);
     } catch (error) {
@@ -9921,26 +9923,26 @@ Generate the complete prompt now:`;
       res.status(500).json({ error: "Failed to fetch billing plans" });
     }
   });
-  
+
   // Create billing plan
   app.post("/api/agency/billing-plans", isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user.organizationId;
       const planData = req.body;
-      
+
       // Validate required fields
       if (!planData.name || !planData.price || !planData.billingCycle) {
-        return res.status(400).json({ 
-          error: "Name, price, and billing cycle are required" 
+        return res.status(400).json({
+          error: "Name, price, and billing cycle are required"
         });
       }
-      
+
       // Create plan in database
       const plan = await storage.createAgencyBillingPlan({
         ...planData,
         organizationId,
       });
-      
+
       // Try to create Stripe product if configured
       const stripeProcessor = await storage.getAgencyPaymentProcessor(organizationId, 'stripe');
       if (stripeProcessor && stripeProcessor.status === 'active') {
@@ -9950,13 +9952,13 @@ Generate the complete prompt now:`;
           const stripe = new Stripe(credentials.secretKey, {
             apiVersion: '2025-08-27.basil' as Stripe.LatestApiVersion,
           });
-          
+
           // Create product
           const product = await stripe.products.create({
             name: plan.name,
             description: plan.description || undefined,
           });
-          
+
           // Create price
           const price = await stripe.prices.create({
             product: product.id,
@@ -9966,7 +9968,7 @@ Generate the complete prompt now:`;
               interval: plan.billingCycle === 'annual' ? 'year' : 'month',
             } : undefined,
           });
-          
+
           await storage.updateAgencyBillingPlan(plan.id, {
             stripeProductId: product.id,
             stripePriceId: price.id,
@@ -9976,32 +9978,32 @@ Generate the complete prompt now:`;
           // Continue without Stripe product - not a critical failure
         }
       }
-      
+
       // TODO: Create PayPal plan if configured
-      
+
       res.json(plan);
     } catch (error) {
       console.error("Error creating billing plan:", error);
       res.status(500).json({ error: "Failed to create billing plan" });
     }
   });
-  
+
   // Update billing plan
   app.patch("/api/agency/billing-plans/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
       const organizationId = req.user.organizationId;
-      
+
       // Get existing plan to verify ownership
       const existingPlan = await storage.getAgencyBillingPlan(id);
       if (!existingPlan || existingPlan.organizationId !== organizationId) {
         return res.status(404).json({ error: "Billing plan not found" });
       }
-      
+
       // Update plan
       const updatedPlan = await storage.updateAgencyBillingPlan(id, updates);
-      
+
       // Update Stripe product if needed
       if (existingPlan.stripeProductId && (updates.name || updates.description)) {
         const stripeProcessor = await storage.getAgencyPaymentProcessor(organizationId, 'stripe');
@@ -10012,7 +10014,7 @@ Generate the complete prompt now:`;
             const stripe = new Stripe(credentials.secretKey, {
               apiVersion: '2025-08-27.basil',
             });
-            
+
             await stripe.products.update(existingPlan.stripeProductId, {
               ...(updates.name ? { name: updates.name } : {}),
               ...(updates.description ? { description: updates.description } : {}),
@@ -10022,38 +10024,38 @@ Generate the complete prompt now:`;
           }
         }
       }
-      
+
       res.json(updatedPlan);
     } catch (error) {
       console.error("Error updating billing plan:", error);
       res.status(500).json({ error: "Failed to update billing plan" });
     }
   });
-  
+
   // Delete billing plan
   app.delete("/api/agency/billing-plans/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       const organizationId = req.user.organizationId;
-      
+
       // Get existing plan to verify ownership
       const existingPlan = await storage.getAgencyBillingPlan(id);
       if (!existingPlan || existingPlan.organizationId !== organizationId) {
         return res.status(404).json({ error: "Billing plan not found" });
       }
-      
+
       // Check if plan has active subscriptions
       const subscriptions = await storage.getCustomerSubscriptions(organizationId);
-      const hasActiveSubscriptions = subscriptions.some(s => 
+      const hasActiveSubscriptions = subscriptions.some(s =>
         s.planId === id && s.status === 'active'
       );
-      
+
       if (hasActiveSubscriptions) {
-        return res.status(400).json({ 
-          error: "Cannot delete plan with active subscriptions" 
+        return res.status(400).json({
+          error: "Cannot delete plan with active subscriptions"
         });
       }
-      
+
       // Archive Stripe product if exists
       if (existingPlan.stripeProductId) {
         const stripeProcessor = await storage.getAgencyPaymentProcessor(organizationId, 'stripe');
@@ -10064,7 +10066,7 @@ Generate the complete prompt now:`;
             const stripe = new Stripe(credentials.secretKey, {
               apiVersion: '2025-08-27.basil',
             });
-            
+
             await stripe.products.update(existingPlan.stripeProductId, {
               active: false,
             });
@@ -10073,23 +10075,23 @@ Generate the complete prompt now:`;
           }
         }
       }
-      
+
       // Soft delete by marking as inactive
       await storage.updateAgencyBillingPlan(id, { isActive: false });
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting billing plan:", error);
       res.status(500).json({ error: "Failed to delete billing plan" });
     }
   });
-  
+
   // Get agency subscriptions
   app.get("/api/agency/subscriptions", isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user.organizationId;
       const subscriptions = await storage.getCustomerSubscriptions(organizationId);
-      
+
       res.json(subscriptions);
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
@@ -10154,7 +10156,7 @@ Generate the complete prompt now:`;
   app.delete("/api/testing/scenarios/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      
+
       // Find and remove the scenario
       for (const [agentId, scenarios] of Array.from(testScenarios.entries())) {
         const index = scenarios.findIndex((s: any) => s.id === id);
@@ -10194,7 +10196,7 @@ Generate the complete prompt now:`;
 
       // Simulate test execution
       const startTime = Date.now();
-      
+
       // Create simulated transcript
       const transcript = scenario.testMessages.map((msg: string, idx: number) => ({
         role: idx % 2 === 0 ? "user" : "agent",

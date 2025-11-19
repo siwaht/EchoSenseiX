@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AudioPlayer } from "@/components/ui/audio-player";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -510,7 +511,7 @@ export default function AgentTesting() {
         {/* Results Tab */}
         <TabsContent value="results" className="space-y-6">
           <h2 className="text-lg font-semibold">Test Results</h2>
-          
+
           <div className="grid gap-4">
             {results.length === 0 ? (
               <Card className="p-6">
@@ -583,11 +584,10 @@ export default function AgentTesting() {
                         {result.transcript.map((msg, idx) => (
                           <div
                             key={idx}
-                            className={`text-sm p-2 rounded ${
-                              msg.role === "user"
-                                ? "bg-blue-50 dark:bg-blue-950 ml-8"
-                                : "bg-gray-50 dark:bg-gray-900 mr-8"
-                            }`}
+                            className={`text-sm p-2 rounded ${msg.role === "user"
+                              ? "bg-blue-50 dark:bg-blue-950 ml-8"
+                              : "bg-gray-50 dark:bg-gray-900 mr-8"
+                              }`}
                           >
                             <p className="font-medium text-xs mb-1">
                               {msg.role === "user" ? "User" : "Agent"}
@@ -597,15 +597,6 @@ export default function AgentTesting() {
                         ))}
                       </div>
                     </details>
-
-                    {/* Audio Recording */}
-                    {result.audioUrl && (
-                      <div className="mt-4">
-                        <audio controls className="w-full">
-                          <source src={result.audioUrl} type="audio/mpeg" />
-                        </audio>
-                      </div>
-                    )}
                   </Card>
                 );
               })
@@ -614,17 +605,17 @@ export default function AgentTesting() {
         </TabsContent>
 
         {/* Automation Tab */}
-        <TabsContent value="automation" className="space-y-6">
+        < TabsContent value="automation" className="space-y-6" >
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Test Automation</h2>
-            
+
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">Continuous Testing</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Run tests automatically on a schedule or when changes are made
                 </p>
-                
+
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="schedule">Test Schedule</Label>

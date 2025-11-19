@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
-import { 
+import {
   Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX,
-  Loader2, Activity, Circle, AlertCircle, Send, MessageSquare, 
+  Loader2, Activity, Circle, AlertCircle, Send, MessageSquare,
   Bot, User, Sparkles, RefreshCw, Trash2, FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,9 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useAgentContext } from "@/contexts/agent-context";
 import { useAuth } from "@/hooks/useAuth";
+import { VoiceButton } from "@/components/ui/voice-button";
+import { Waveform } from "@/components/ui/waveform";
+import { AudioPlayer } from "@/components/ui/audio-player";
 
 interface ConversationMessage {
   role: "assistant" | "user";
@@ -39,7 +42,7 @@ export default function Playground() {
   // Check if user has WebRTC permission
   const hasWebRTCPermission = user?.permissions?.includes('use_webrtc') || user?.isAdmin || false;
   const [connectionType, setConnectionType] = useState<'websocket' | 'webrtc'>('websocket');
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -50,7 +53,7 @@ export default function Playground() {
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  
+
   const { toast } = useToast();
 
   // Get loading state for agents from context
@@ -148,15 +151,15 @@ export default function Playground() {
     if (!integration) {
       const isAdmin = user?.isAdmin || user?.permissions?.includes('manage_integrations');
       toast({
-        title: "API not configured", 
-        description: isAdmin 
+        title: "API not configured",
+        description: isAdmin
           ? "Please add your EchoSensei API key in the Integrations tab"
           : "EchoSensei API key not configured. Please contact your administrator.",
         variant: "destructive",
       });
       return;
     }
-    
+
     // Handle permission denied case for non-admin users
     if (integration.permissionDenied) {
       // For non-admin users, we can't check the integration status
@@ -164,7 +167,7 @@ export default function Playground() {
       console.log('Non-admin user, proceeding with call attempt');
     } else if (integration.status !== "ACTIVE") {
       toast({
-        title: "API integration inactive", 
+        title: "API integration inactive",
         description: "Please test your API key in the Integrations tab to activate it",
         variant: "destructive",
       });
@@ -172,7 +175,7 @@ export default function Playground() {
     }
 
     setIsConnecting(true);
-    
+
     try {
       // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -218,287 +221,134 @@ export default function Playground() {
           title: "WebRTC Ready",
           description: "Using enhanced WebRTC connection for better audio quality",
         });
-        
+
         // TODO: Implement full WebRTC connection with voice AI SDK
         // For now, we'll prepare for WebRTC but need the proper SDK integration
         throw new Error('WebRTC connection requires voice AI React SDK. Please use WebSocket for now.');
       }
-      
-      // Connect to EchoSensei WebSocket (legacy support)
-      if (!signedUrl) {
-        throw new Error('No connection URL received from server');
-      }
-      
+
+      // Connect to WebSocket
       const ws = new WebSocket(signedUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // WebSocket connected, sending initialization message
-        
-        // Send a simple initialization message without overrides
-        // Overrides often fail due to agent security settings in voice platform
-        const initMessage = {
-          type: "conversation_initiation_client_data"
-        };
-        
-        // Sending init message
-        ws.send(JSON.stringify(initMessage));
+        console.log('WebSocket connected');
+        setIsConnecting(false);
+        setIsCallActive(true);
+
+        // Start sending audio
+        startAudioStreaming(stream, ws);
+
+        toast({
+          title: "Connected",
+          description: `Connected to ${selectedAgent.name}`,
+        });
       };
 
       ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          // WebSocket message received
-          
-          // Handle different message formats from EchoSensei
-          if (data.type === "conversation_initiation_metadata") {
-            // Conversation metadata received
-            
-            // Now we're ready to start the conversation
-            setIsConnecting(false);
-            setIsCallActive(true);
-            
-            // Start audio streaming after successful initialization
-            if (mediaStreamRef.current) {
-              // Starting audio stream to WebSocket
-              startAudioStreaming(mediaStreamRef.current, ws);
-            }
-            
-            toast({
-              title: "Call started",
-              description: `Connected to ${selectedAgent?.name}`,
-            });
-            
-            // Send a small audio chunk to trigger the agent to speak first
-            // This is a workaround for agents that don't automatically start
-            setTimeout(() => {
-              if (ws.readyState === WebSocket.OPEN) {
-                // Send a tiny silence to trigger agent response
-                const silentAudio = new Int16Array(160); // 10ms of silence at 16kHz
-                const uint8 = new Uint8Array(silentAudio.buffer);
-                const binaryString = Array.from(uint8)
-                  .map(byte => String.fromCharCode(byte))
-                  .join('');
-                const base64Audio = btoa(binaryString);
-                
-                ws.send(JSON.stringify({
-                  user_audio_chunk: base64Audio
-                }));
-                // Sent trigger audio to start conversation
-              }
-            }, 500);
-          } else if (data.audio || data.audio_event) {
-            // Agent audio response - queue it for sequential playback
-            const audioData = data.audio || data.audio_event?.audio_base_64 || data.audio_event?.audio || data.audio_base_64;
-            if (audioData && isSpeakerOn) {
-              // Queueing agent audio
-              queueAudio(audioData);
-            } else if (audioData) {
-              // Received audio but speaker is off
-            }
-          } else if (data.audio_base_64) {
-            // Some agents send audio directly as audio_base_64
-            if (isSpeakerOn) {
-              // Queueing agent audio (direct)
-              queueAudio(data.audio_base_64);
-            }
-          } else if (data.user_transcription_event) {
-            // Handle user transcript - voice API sends user_transcript field
-            const userTranscript = data.user_transcription_event.user_transcript;
-            if (userTranscript) {
-              // User transcript received
-              setTranscript(prev => [...prev, {
-                role: "user",
-                message: userTranscript,
-                timestamp: new Date()
-              }]);
-            }
-          } else if (data.agent_response_event) {
-            // Handle agent response - voice API sends agent_response field
-            const agentResponse = data.agent_response_event.agent_response;
-            if (agentResponse) {
-              // Agent response received
-              setTranscript(prev => [...prev, {
-                role: "assistant",
-                message: agentResponse,
-                timestamp: new Date()
-              }]);
-            }
-          } else if (data.message) {
-            // Simple text message from agent
-            // Agent message received
+        const message = JSON.parse(event.data);
+
+        if (message.type === 'audio') {
+          // Handle incoming audio
+          if (message.audio_event?.audio_base_64) {
+            queueAudio(message.audio_event.audio_base_64);
+          }
+        } else if (message.type === 'agent_response') {
+          // Handle transcript
+          if (message.agent_response_event?.agent_response) {
             setTranscript(prev => [...prev, {
-              role: "assistant",
-              message: data.message,
+              role: 'assistant',
+              message: message.agent_response_event.agent_response,
               timestamp: new Date()
             }]);
-          } else if (data.ping_event) {
-            // Keep alive - respond with pong
-            const pongMessage = {
-              type: "pong_event",
-              event_id: data.ping_event.event_id
-            };
-            ws.send(JSON.stringify(pongMessage));
-            // Sent pong response
-          } else if (data.error || data.error_event) {
-            const errorInfo = data.error || data.error_event;
-            console.error('Voice service error:', errorInfo);
-            toast({
-              title: "Agent Error",
-              description: errorInfo.message || errorInfo.error || "Connection error occurred",
-              variant: "destructive",
-            });
-            endCall();
-          } else if (data.interruption_event) {
-            // User interrupted agent
-          } else if (data.agent_response_correction_event) {
-            // Agent response correction
-          } else {
-            // Unhandled message type
           }
-        } catch (error) {
-          console.error("Error handling WebSocket message:", error, "Raw data:", event.data);
+        } else if (message.type === 'user_transcript') {
+          // Handle user transcript
+          if (message.user_transcript_event?.user_transcript) {
+            setTranscript(prev => [...prev, {
+              role: 'user',
+              message: message.user_transcript_event.user_transcript,
+              timestamp: new Date()
+            }]);
+          }
+        } else if (message.type === 'interruption') {
+          // Handle interruption - clear audio queue
+          audioQueueRef.current = [];
+          if (currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current = null;
+          }
+          isPlayingRef.current = false;
         }
       };
 
       ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        console.error('WebSocket error:', error);
         toast({
-          title: "Connection error",
-          description: "Failed to connect to agent",
+          title: "Connection Error",
+          description: "Failed to connect to voice server",
           variant: "destructive",
         });
         endCall();
       };
 
-      ws.onclose = (event) => {
-        // WebSocket closed
-        
-        // Only show error if not a normal closure (1000 or 1001 are normal closures)
-        if (!event.wasClean && event.code !== 1000 && event.code !== 1001) {
-          // Check if this is an unexpected closure and we haven't already ended the call
-          if (wsRef.current === ws && isCallActive) {
-            toast({
-              title: "Connection lost",
-              description: `Connection closed unexpectedly (Code: ${event.code})`,
-              variant: "destructive",
-            });
-            endCall();
-          }
-        } else if (event.code === 1000 || event.code === 1001) {
-          // Normal closure, just cleanup
-          if (wsRef.current === ws) {
-            wsRef.current = null;
-          }
-        }
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+        endCall();
       };
 
-      // Audio streaming will start after conversation initialization
-
     } catch (error) {
-      console.error("Error starting call:", error);
+      console.error('Error starting call:', error);
       toast({
-        title: "Failed to start call",
-        description: error instanceof Error ? error.message : "Please check your microphone permissions",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start call",
         variant: "destructive",
       });
       setIsConnecting(false);
+      endCall();
     }
   };
 
   const endCall = () => {
-    // Ending call immediately
-    
-    // Save duration before resetting
-    const finalDuration = callDuration;
-    
-    // Immediately update UI state
-    setIsCallActive(false);
-    setIsConnecting(false);
-    setCallDuration(0);
-    setTranscript([]);
-    setAudioLevel(0);
-    
-    // Clear audio queue and stop playback
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
-    
-    // Stop any currently playing audio
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.src = '';
-      currentAudioRef.current = null;
-    }
-    
-    // Stop all audio elements on page
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      audio.pause();
-      audio.src = '';
-      audio.remove();
-    });
-    
-    // Close WebSocket immediately with normal closure code
     if (wsRef.current) {
-      // Disconnect audio processor if it exists
-      const ws: any = wsRef.current;
-      if (ws.audioProcessor) {
-        ws.audioProcessor.disconnect();
-        ws.audioProcessor = null;
-      }
-      if (ws.audioContext && ws.audioContext.state !== 'closed') {
-        try {
-          ws.audioContext.close();
-        } catch (e) {
-          console.error('Error closing audio context from ws:', e);
-        }
-        ws.audioContext = null;
-      }
-      
-      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-        try {
-          wsRef.current.close(1000, 'User ended call');
-        } catch (e) {
-          console.error('Error closing WebSocket:', e);
-        }
-      }
+      wsRef.current.close();
       wsRef.current = null;
     }
-    
-    // Stop media stream tracks immediately
+
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
-      });
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
 
-    // Close audio context immediately
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      try {
-        audioContextRef.current.close();
-      } catch (e) {
-        console.error('Error closing audio context:', e);
-      }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    
-    toast({
-      title: "Call ended",
-      description: `Duration: ${formatDuration(finalDuration)}`,
-    });
-    
-    // Call ended successfully
+
+    if (callTimerRef.current) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+
+    setIsCallActive(false);
+    setIsConnecting(false);
+    setAudioLevel(0);
+
+    // Clear audio queue
+    audioQueueRef.current = [];
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    isPlayingRef.current = false;
   };
 
   const toggleMute = () => {
     if (mediaStreamRef.current) {
-      const audioTrack = mediaStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = isMuted;
-        setIsMuted(!isMuted);
-      }
+      mediaStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+      });
+      setIsMuted(!isMuted);
     }
   };
 
@@ -510,68 +360,68 @@ export default function Playground() {
     if (!analyserRef.current) return;
 
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    
+
     const checkAudioLevel = () => {
       if (!analyserRef.current || !isCallActive) return;
-      
+
       analyserRef.current.getByteFrequencyData(dataArray);
       const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
       setAudioLevel(average / 255); // Normalize to 0-1
-      
+
       requestAnimationFrame(checkAudioLevel);
     };
-    
+
     checkAudioLevel();
   };
 
   const startAudioStreaming = (stream: MediaStream, ws: WebSocket) => {
     // Starting audio streaming to WebSocket
-    
+
     // Create audio context at 16kHz as required by voice service
     const audioContext = new AudioContext({ sampleRate: 16000 });
     const source = audioContext.createMediaStreamSource(stream);
     const processor = audioContext.createScriptProcessor(4096, 1, 1); // Larger buffer for better performance
-    
+
     let chunkCount = 0;
     let audioBuffer: number[] = [];
     let lastSendTime = Date.now();
-    
+
     processor.onaudioprocess = (e) => {
       if (ws.readyState === WebSocket.OPEN && !isMuted) {
         const inputData = e.inputBuffer.getChannelData(0);
-        
+
         // Convert float32 to PCM 16-bit and add to buffer
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]));
           const sample = s < 0 ? s * 0x8000 : s * 0x7FFF;
           audioBuffer.push(sample);
         }
-        
+
         // Send chunks every 250ms as recommended by voice service
         const now = Date.now();
         if (now - lastSendTime >= 250 && audioBuffer.length > 0) {
           // Convert buffer to Int16Array
           const pcm16 = new Int16Array(audioBuffer);
-          
+
           // Convert to base64
           const uint8 = new Uint8Array(pcm16.buffer);
           const binaryString = Array.from(uint8)
             .map(byte => String.fromCharCode(byte))
             .join('');
           const base64Audio = btoa(binaryString);
-          
+
           // Send audio chunk
           const message = {
             user_audio_chunk: base64Audio
           };
-          
+
           ws.send(JSON.stringify(message));
           chunkCount++;
-          
+
           // Clear buffer and update time
           audioBuffer = [];
           lastSendTime = now;
-          
+
           // Log every 10th chunk to avoid spam
           if (chunkCount % 10 === 0) {
             // Sent audio chunks (250ms intervals)
@@ -579,14 +429,14 @@ export default function Playground() {
         }
       }
     };
-    
+
     source.connect(processor);
     processor.connect(audioContext.destination);
-    
+
     // Store for cleanup
     (ws as any).audioProcessor = processor;
     (ws as any).audioContext = audioContext;
-    
+
     // Audio streaming setup complete with 250ms chunking
   };
 
@@ -595,26 +445,26 @@ export default function Playground() {
     audioQueueRef.current.push(audioData);
     processAudioQueue();
   };
-  
+
   const processAudioQueue = async () => {
     if (isPlayingRef.current || audioQueueRef.current.length === 0 || !isSpeakerOn) {
       return;
     }
-    
+
     isPlayingRef.current = true;
     const audioData = audioQueueRef.current.shift()!;
-    
+
     try {
       // EchoSensei sends PCM 16-bit audio at 16kHz encoded in base64
       // We need to convert it to a playable format
-      
+
       // Decode base64 to binary
       const binaryString = atob(audioData);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      
+
       // Check if we have valid data
       if (bytes.length === 0 || bytes.length % 2 !== 0) {
         console.warn('Invalid audio data length:', bytes.length);
@@ -622,22 +472,22 @@ export default function Playground() {
         processAudioQueue();
         return;
       }
-      
+
       // Convert bytes to Int16Array (PCM 16-bit)
       const pcmData = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
-      
+
       // Create WAV format for playback
       const wavBuffer = createWavFromPcm(pcmData, 16000); // 16kHz sample rate
-      
+
       // Create blob and play
       const blob = new Blob([wavBuffer], { type: 'audio/wav' });
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
-      
+
       // Set volume to max
       audio.volume = 1.0;
       currentAudioRef.current = audio;
-      
+
       // When audio ends, process next in queue
       audio.addEventListener('ended', () => {
         URL.revokeObjectURL(audioUrl);
@@ -645,7 +495,7 @@ export default function Playground() {
         currentAudioRef.current = null;
         processAudioQueue(); // Process next audio in queue
       });
-      
+
       audio.addEventListener('error', (e) => {
         console.error('Audio playback error:', e);
         URL.revokeObjectURL(audioUrl);
@@ -653,7 +503,7 @@ export default function Playground() {
         currentAudioRef.current = null;
         processAudioQueue(); // Continue with next audio even on error
       });
-      
+
       // Use play() with catch to handle autoplay issues
       const playPromise = audio.play();
       if (playPromise !== undefined) {
@@ -671,20 +521,20 @@ export default function Playground() {
       processAudioQueue(); // Continue processing queue on error
     }
   };
-  
+
   // Helper function to create WAV header for PCM data
   const createWavFromPcm = (pcmData: Int16Array, sampleRate: number): ArrayBuffer => {
     const length = pcmData.length * 2; // 2 bytes per sample
     const arrayBuffer = new ArrayBuffer(44 + length);
     const view = new DataView(arrayBuffer);
-    
+
     // WAV header
     const writeString = (offset: number, str: string) => {
       for (let i = 0; i < str.length; i++) {
         view.setUint8(offset + i, str.charCodeAt(i));
       }
     };
-    
+
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + length, true);
     writeString(8, 'WAVE');
@@ -698,303 +548,259 @@ export default function Playground() {
     view.setUint16(34, 16, true); // bits per sample
     writeString(36, 'data');
     view.setUint32(40, length, true);
-    
+
     // Copy PCM data with proper byte order
     for (let i = 0; i < pcmData.length; i++) {
       view.setInt16(44 + i * 2, pcmData[i], true); // little-endian
     }
-    
+
     return arrayBuffer;
   };
 
-
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Agent Playground</h1>
-        <p className="text-muted-foreground">
-          Test your voice AI agents with real-time voice conversations
-        </p>
+    <div className="container mx-auto px-4 py-6 max-w-7xl h-[calc(100vh-4rem)] flex flex-col">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
+            Agent Playground
+          </h1>
+          <p className="text-muted-foreground">
+            Test your voice AI agents with real-time voice conversations
+          </p>
+        </div>
+        {isCallActive && (
+          <Badge variant="outline" className="animate-pulse border-primary text-primary">
+            <Activity className="w-3 h-3 mr-1" />
+            Live Session
+          </Badge>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Agent Selection */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="p-4 shadow-lg border-0">
-            <h3 className="font-semibold mb-3">Select Agent</h3>
-            
-            {/* Connection Type Toggle - Only show if user has permission */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+        {/* Left Sidebar - Controls */}
+        <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto">
+          {/* Agent Selection Card */}
+          <Card className="p-6 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Bot className="w-4 h-4 text-primary" />
+              Configuration
+            </h3>
+
+            {/* Connection Type Toggle */}
             {hasWebRTCPermission && (
-              <div className="mb-4">
-                <label className="text-sm font-medium mb-2 block">Connection Type</label>
+              <div className="mb-6 p-3 bg-muted/50 rounded-lg">
+                <label className="text-xs font-medium mb-2 block text-muted-foreground uppercase tracking-wider">Connection</label>
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={() => setConnectionType('webrtc')}
-                    variant={connectionType === 'webrtc' ? "default" : "outline"}
+                    variant={connectionType === 'webrtc' ? "default" : "ghost"}
                     size="sm"
                     disabled={isCallActive}
-                    data-testid="button-webrtc-mode"
-                    className="text-xs flex-1"
+                    className="flex-1"
                   >
                     WebRTC
                   </Button>
                   <Button
                     onClick={() => setConnectionType('websocket')}
-                    variant={connectionType === 'websocket' ? "default" : "outline"}
+                    variant={connectionType === 'websocket' ? "default" : "ghost"}
                     size="sm"
                     disabled={isCallActive}
-                    data-testid="button-websocket-mode"
-                    className="text-xs flex-1"
+                    className="flex-1"
                   >
                     WebSocket
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {connectionType === 'webrtc' 
-                    ? 'Enhanced audio quality with WebRTC' 
-                    : 'Standard WebSocket connection'}
-                </p>
               </div>
             )}
-            
-            <Select 
-              value={selectedAgent?.id || ""} 
-              onValueChange={(value) => {
-                const agent = agents.find(a => a.id === value);
-                if (agent) setSelectedAgent(agent);
-              }} 
-              disabled={isCallActive}>
-              <SelectTrigger data-testid="select-agent">
-                <SelectValue placeholder="Choose an agent to test" />
-              </SelectTrigger>
-              <SelectContent>
-                {agentsLoading ? (
-                  <div className="p-2 text-center">
-                    <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                  </div>
-                ) : agents.length > 0 ? (
-                  agents.map((agent: Agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="p-2 text-center text-muted-foreground">
-                    No agents configured
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
 
-            {selectedAgent && (
-              <div className="mt-4 space-y-2">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Description:</span>
-                  <p className="mt-1">
-                    {selectedAgent.description || "No description"}
-                  </p>
-                </div>
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Voice:</span>
-                  <p className="mt-1">
-                    {selectedAgent.voiceId || "Default voice"}
-                  </p>
-                </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Agent</Label>
+                <Select
+                  value={selectedAgent?.id || ""}
+                  onValueChange={(value) => {
+                    const agent = agents.find(a => a.id === value);
+                    if (agent) setSelectedAgent(agent);
+                  }}
+                  disabled={isCallActive}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose an agent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agentsLoading ? (
+                      <div className="p-2 text-center">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                      </div>
+                    ) : agents.length > 0 ? (
+                      agents.map((agent: Agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-center text-muted-foreground">
+                        No agents configured
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </Card>
 
-          {/* Call Status */}
-          <Card className="p-4 shadow-lg border-0">
-            <h3 className="font-semibold mb-3">Call Status</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status</span>
-                {isCallActive ? (
-                  <Badge className="bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-700 dark:text-green-300 shadow-sm">
-                    <Circle className="w-2 h-2 fill-current mr-1 animate-pulse" />
-                    Active
-                  </Badge>
-                ) : isConnecting ? (
-                  <Badge variant="outline">
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    Connecting
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">Idle</Badge>
-                )}
-              </div>
-              
-              {isCallActive && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Duration</span>
-                    <span className="font-mono text-sm">{formatDuration(callDuration)}</span>
+              {selectedAgent && (
+                <div className="p-4 rounded-lg bg-muted/30 space-y-3 text-sm border">
+                  <div>
+                    <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Description</span>
+                    <p className="line-clamp-2">{selectedAgent.description || "No description"}</p>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Audio Level</span>
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-1 h-3 rounded-full transition-colors ${
-                            audioLevel > (i / 5) ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Voice ID</span>
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{selectedAgent.voiceId || "Default"}</code>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </Card>
 
-          {/* Notice */}
-          <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-amber-600/10 dark:from-amber-500/20 dark:to-amber-600/20 border-amber-500/20 dark:border-amber-400/30 shadow-lg">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Test Environment</p>
-                <p className="text-xs text-muted-foreground">
-                  This playground uses your EchoSensei API key. Voice calls will consume your API credits.
-                </p>
-              </div>
+          {/* Session Controls */}
+          <Card className="p-6 shadow-lg border-0 bg-card/50 backdrop-blur-sm flex-1 flex flex-col justify-center items-center text-center space-y-6">
+            <div className="relative">
+              <VoiceButton
+                isRecording={isCallActive}
+                onStartRecording={startCall}
+                onStopRecording={endCall}
+                disabled={isConnecting || !selectedAgent}
+              />
+              {isConnecting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )}
             </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">
+                {isCallActive ? "Session Active" : isConnecting ? "Connecting..." : "Start Session"}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-[200px] mx-auto">
+                {isCallActive
+                  ? `Connected to ${selectedAgent?.name}`
+                  : "Click the microphone to start a voice conversation"}
+              </p>
+            </div>
+
+            {isCallActive && (
+              <div className="flex items-center gap-4 w-full justify-center pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={isMuted ? "bg-destructive/10 text-destructive border-destructive/20" : ""}
+                  onClick={toggleMute}
+                >
+                  {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                <div className="font-mono text-lg font-medium w-20">
+                  {formatDuration(callDuration)}
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={!isSpeakerOn ? "text-muted-foreground" : ""}
+                  onClick={toggleSpeaker}
+                >
+                  {isSpeakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
 
-        {/* Voice Call Interface */}
-        <div className="lg:col-span-2">
-          <Card className="h-[calc(100vh-12rem)] flex flex-col shadow-xl border-0 dark:bg-slate-800/50 backdrop-blur">
-
-            {/* Visualization Area */}
-            <div className="flex items-center justify-center p-8">
-              {/* Show error state if integration is not configured and user can see it */}
-              {integrationLoading ? (
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                  <p className="text-muted-foreground">Loading...</p>
-                </div>
-              ) : (!integration || integration.error) && !integration?.permissionDenied ? (
-                <div className="text-center bg-red-50 dark:bg-red-950 p-8 rounded-lg">
-                  <AlertCircle className="w-12 h-12 text-red-600 dark:text-red-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">API not configured</h3>
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    {user?.isAdmin || user?.permissions?.includes('manage_integrations')
-                      ? "Please add your EchoSensei API key in the Integrations tab"
-                      : "EchoSensei API key not configured. Please contact your administrator."}
-                  </p>
-                </div>
-              ) : (
-                <div className="relative">
-                  {/* Circular Visualization */}
-                  <div className="relative w-64 h-64 rounded-full flex items-center justify-center">
-                    {/* Animated rings when active */}
-                    {isCallActive && (
-                      <>
-                        <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-30" />
-                        <div className="absolute inset-4 rounded-full border-2 border-primary animate-ping animation-delay-200 opacity-20" />
-                        <div className="absolute inset-8 rounded-full border-2 border-primary animate-ping animation-delay-400 opacity-15" />
-                      </>
-                    )}
-                    
-                    {/* Static rings */}
-                    <div className="absolute inset-0 rounded-full border border-gray-300 dark:border-gray-700" />
-                    <div className="absolute inset-4 rounded-full border border-gray-300 dark:border-gray-700" />
-                    <div className="absolute inset-8 rounded-full border border-gray-300 dark:border-gray-700" />
-                    
-                    {/* Center button */}
-                    <Button
-                      size="lg"
-                      variant={isCallActive ? "destructive" : "default"}
-                      className={`relative z-10 rounded-full w-32 h-32 transition-all duration-200 hover:scale-105 shadow-2xl ${
-                        isConnecting || !selectedAgent ? "opacity-50 cursor-not-allowed" : ""
-                      } ${!isCallActive ? "gradient-purple hover:opacity-90" : ""}`}
-                      onClick={isCallActive ? endCall : startCall}
-                      disabled={isConnecting || !selectedAgent}
-                      data-testid="button-call"
-                    >
-                      {isConnecting ? (
-                        <Loader2 className="w-8 h-8 animate-spin" />
-                      ) : isCallActive ? (
-                        <PhoneOff className="w-8 h-8" />
-                      ) : (
-                        <div className="text-center">
-                          <Phone className="w-8 h-8 mx-auto mb-2" />
-                          <span className="text-sm font-medium">Try a call</span>
-                        </div>
-                      )}
-                    </Button>
+        {/* Right Side - Visualization & Transcript */}
+        <div className="lg:col-span-8 flex flex-col gap-6 min-h-0">
+          {/* Audio Visualization */}
+          <Card className="p-6 shadow-lg border-0 bg-gradient-to-br from-card to-muted/20 flex flex-col justify-center items-center min-h-[200px]">
+            <div className="w-full max-w-2xl flex flex-col items-center gap-8">
+              <div className="w-full flex items-center justify-center h-32">
+                {isCallActive ? (
+                  <Waveform active={true} bars={40} className="h-24 gap-1 text-primary" />
+                ) : (
+                  <div className="flex items-center gap-4 text-muted-foreground/50">
+                    <div className="h-1 w-12 bg-current rounded-full" />
+                    <div className="h-1 w-8 bg-current rounded-full" />
+                    <div className="h-1 w-16 bg-current rounded-full" />
+                    <div className="h-1 w-10 bg-current rounded-full" />
+                    <div className="h-1 w-12 bg-current rounded-full" />
                   </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className={`w-2 h-2 rounded-full ${isCallActive ? "bg-green-500 animate-pulse" : "bg-gray-300"}`} />
+                {isCallActive ? "Voice Activity Detected" : "Ready to connect"}
+              </div>
+            </div>
+          </Card>
 
-                  {/* Audio level indicator */}
-                  {isCallActive && (
-                    <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-                      <Activity className="w-6 h-6 text-green-500" />
-                    </div>
-                  )}
-                </div>
+          {/* Transcript */}
+          <Card className="flex-1 shadow-lg border-0 bg-card/50 backdrop-blur-sm flex flex-col min-h-0 overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between bg-muted/30">
+              <h3 className="font-semibold flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" />
+                Live Transcript
+              </h3>
+              {transcript.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTranscript([])}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Clear
+                </Button>
               )}
             </div>
 
-            {/* Controls */}
-            {isCallActive && (
-              <div className="border-t p-4">
-                <div className="flex justify-center gap-4">
-                  <Button
-                    variant={isMuted ? "destructive" : "outline"}
-                    size="icon"
-                    onClick={toggleMute}
-                    data-testid="button-mute"
-                  >
-                    {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  </Button>
-                  
-                  <Button
-                    variant={!isSpeakerOn ? "destructive" : "outline"}
-                    size="icon"
-                    onClick={toggleSpeaker}
-                    data-testid="button-speaker"
-                  >
-                    {isSpeakerOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <ScrollArea className="flex-1 p-4" ref={transcriptScrollRef}>
+              <div className="space-y-4" ref={transcriptEndRef}>
+                {transcript.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-12 opacity-50">
+                    <FileText className="w-12 h-12 mb-4" />
+                    <p>Transcript will appear here...</p>
+                  </div>
+                ) : (
+                  transcript.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"
+                        }`}
+                    >
+                      {msg.role === "assistant" && (
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-primary" />
+                        </div>
+                      )}
 
-            {/* Transcript */}
-            <div className="border-t flex-1 flex flex-col overflow-hidden">
-              <div className="p-3 border-b bg-gradient-to-r from-muted/30 to-muted/50">
-                <h4 className="text-sm font-medium">Call Transcript</h4>
-              </div>
-              <ScrollArea ref={transcriptScrollRef} className="flex-1 w-full">
-                <div className="p-4 space-y-3 w-full overflow-hidden">
-                  {transcript.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Transcript will appear here when you start a call
-                    </p>
-                  ) : (
-                    transcript.map((msg, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={msg.role === "assistant" ? "default" : "secondary"} className="text-xs">
-                            {msg.role === "assistant" ? "Assistant" : "You"}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {msg.timestamp.toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div className="text-sm pl-2 overflow-x-auto max-w-full">
-                          <p className="whitespace-pre-wrap">{msg.message}</p>
-                        </div>
+                      <div
+                        className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-tr-none"
+                            : "bg-muted rounded-tl-none"
+                          }`}
+                      >
+                        <p>{msg.message}</p>
+                        <span className="text-[10px] opacity-50 mt-1 block">
+                          {msg.timestamp.toLocaleTimeString()}
+                        </span>
                       </div>
-                    ))
-                  )}
-                  <div ref={transcriptEndRef} />
-                </div>
-              </ScrollArea>
-            </div>
+
+                      {msg.role === "user" && (
+                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </Card>
         </div>
       </div>

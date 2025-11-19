@@ -41,19 +41,23 @@ const AgencyBillingSettings = lazy(() => import("@/pages/agency-billing-settings
 // Removed AgencyCheckout - using unified-checkout component instead
 
 // Loading fallback component with elegant brand gradient ring
+// Loading fallback component with elegant brand gradient ring
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-64">
-      <div className="relative w-12 h-12">
-        <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
-        <div 
+      <div className="relative w-16 h-16">
+        <div className="absolute inset-0 rounded-full border-4 border-secondary/30"></div>
+        <div
           className="absolute inset-0 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderTopColor: 'var(--primary)',
-            borderRightColor: 'var(--primary)',
-            filter: 'drop-shadow(0 0 8px color-mix(in hsl, var(--primary) 40%, transparent))'
+            borderTopColor: 'hsl(var(--primary))',
+            borderRightColor: 'hsl(var(--primary))',
+            filter: 'drop-shadow(0 0 8px hsl(var(--primary) / 0.4))'
           }}
         ></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+        </div>
       </div>
     </div>
   );
@@ -69,7 +73,7 @@ function AgencyRouter() {
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="relative w-16 h-16">
           <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
-          <div 
+          <div
             className="absolute inset-0 rounded-full border-4 border-transparent animate-spin"
             style={{
               borderTopColor: 'var(--primary)',
@@ -92,60 +96,60 @@ function AgencyRouter() {
       <AppShell>
         <Suspense fallback={<PageLoader />}>
           <Switch>
-          <Route path="/agency/:subdomain" component={Dashboard} />
-          <Route path="/agency/:subdomain/agents">
-            <PermissionGuard><Agents /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/agents/:id">
-            <PermissionGuard><AgentSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/agent-settings">
-            <PermissionGuard><AgentSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/agent-testing" component={AgentTesting} />
-          <Route path="/agency/:subdomain/voices">
-            <PermissionGuard><Voices /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/phone-numbers">
-            <PermissionGuard><PhoneNumbers /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/outbound-calling">
-            <PermissionGuard><OutboundCalling /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/tools">
-            <PermissionGuard><Tools /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/knowledge-base">
-            <PermissionGuard><KnowledgeBase /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/playground">
-            <PermissionGuard><Playground /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/history">
-            <PermissionGuard><History /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/integrations">
-            <PermissionGuard><Integrations /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/billing">
-            <PermissionGuard><Billing /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/settings" component={Settings} />
-          <Route path="/agency/:subdomain/admin">
-            <PermissionGuard permission="manage_users"><Admin /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/whitelabel-settings">
-            <PermissionGuard><WhitelabelSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/agency-users">
-            <PermissionGuard><AgencyUsers /></PermissionGuard>
-          </Route>
-          <Route path="/agency/:subdomain/agency-billing-settings">
-            <PermissionGuard><AgencyBillingSettings /></PermissionGuard>
-          </Route>
-        </Switch>
-      </Suspense>
-    </AppShell>
+            <Route path="/agency/:subdomain" component={Dashboard} />
+            <Route path="/agency/:subdomain/agents">
+              <PermissionGuard><Agents /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/agents/:id">
+              <PermissionGuard><AgentSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/agent-settings">
+              <PermissionGuard><AgentSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/agent-testing" component={AgentTesting} />
+            <Route path="/agency/:subdomain/voices">
+              <PermissionGuard><Voices /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/phone-numbers">
+              <PermissionGuard><PhoneNumbers /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/outbound-calling">
+              <PermissionGuard><OutboundCalling /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/tools">
+              <PermissionGuard><Tools /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/knowledge-base">
+              <PermissionGuard><KnowledgeBase /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/playground">
+              <PermissionGuard><Playground /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/history">
+              <PermissionGuard><History /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/integrations">
+              <PermissionGuard><Integrations /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/billing">
+              <PermissionGuard><Billing /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/settings" component={Settings} />
+            <Route path="/agency/:subdomain/admin">
+              <PermissionGuard permission="manage_users"><Admin /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/whitelabel-settings">
+              <PermissionGuard><WhitelabelSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/agency-users">
+              <PermissionGuard><AgencyUsers /></PermissionGuard>
+            </Route>
+            <Route path="/agency/:subdomain/agency-billing-settings">
+              <PermissionGuard><AgencyBillingSettings /></PermissionGuard>
+            </Route>
+          </Switch>
+        </Suspense>
+      </AppShell>
     </AgentProvider>
   );
 }
@@ -166,7 +170,7 @@ function Router() {
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="relative w-16 h-16">
           <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
-          <div 
+          <div
             className="absolute inset-0 rounded-full border-4 border-transparent animate-spin"
             style={{
               borderTopColor: 'var(--primary)',
@@ -189,61 +193,61 @@ function Router() {
       <AppShell>
         <Suspense fallback={<PageLoader />}>
           <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/agents">
-            <PermissionGuard><Agents /></PermissionGuard>
-          </Route>
-          <Route path="/agents/:id">
-            <PermissionGuard><AgentSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agent-settings">
-            <PermissionGuard><AgentSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agent-testing" component={AgentTesting} />
-          <Route path="/voices">
-            <PermissionGuard><Voices /></PermissionGuard>
-          </Route>
-          <Route path="/phone-numbers">
-            <PermissionGuard><PhoneNumbers /></PermissionGuard>
-          </Route>
-          <Route path="/outbound-calling">
-            <PermissionGuard><OutboundCalling /></PermissionGuard>
-          </Route>
-          <Route path="/tools">
-            <PermissionGuard><Tools /></PermissionGuard>
-          </Route>
-          <Route path="/knowledge-base">
-            <PermissionGuard><KnowledgeBase /></PermissionGuard>
-          </Route>
-          <Route path="/playground">
-            <PermissionGuard><Playground /></PermissionGuard>
-          </Route>
-          <Route path="/history">
-            <PermissionGuard><History /></PermissionGuard>
-          </Route>
-          <Route path="/integrations">
-            <PermissionGuard><Integrations /></PermissionGuard>
-          </Route>
-          <Route path="/billing">
-            <PermissionGuard><Billing /></PermissionGuard>
-          </Route>
-          <Route path="/settings" component={Settings} />
-          <Route path="/admin">
-            <PermissionGuard permission="manage_users"><Admin /></PermissionGuard>
-          </Route>
-          <Route path="/whitelabel-settings">
-            <PermissionGuard><WhitelabelSettings /></PermissionGuard>
-          </Route>
-          <Route path="/agency-users">
-            <PermissionGuard><AgencyUsers /></PermissionGuard>
-          </Route>
-          <Route path="/agency-billing-settings">
-            <PermissionGuard><AgencyBillingSettings /></PermissionGuard>
-          </Route>
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
-    </AppShell>
+            <Route path="/" component={Dashboard} />
+            <Route path="/agents">
+              <PermissionGuard><Agents /></PermissionGuard>
+            </Route>
+            <Route path="/agents/:id">
+              <PermissionGuard><AgentSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agent-settings">
+              <PermissionGuard><AgentSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agent-testing" component={AgentTesting} />
+            <Route path="/voices">
+              <PermissionGuard><Voices /></PermissionGuard>
+            </Route>
+            <Route path="/phone-numbers">
+              <PermissionGuard><PhoneNumbers /></PermissionGuard>
+            </Route>
+            <Route path="/outbound-calling">
+              <PermissionGuard><OutboundCalling /></PermissionGuard>
+            </Route>
+            <Route path="/tools">
+              <PermissionGuard><Tools /></PermissionGuard>
+            </Route>
+            <Route path="/knowledge-base">
+              <PermissionGuard><KnowledgeBase /></PermissionGuard>
+            </Route>
+            <Route path="/playground">
+              <PermissionGuard><Playground /></PermissionGuard>
+            </Route>
+            <Route path="/history">
+              <PermissionGuard><History /></PermissionGuard>
+            </Route>
+            <Route path="/integrations">
+              <PermissionGuard><Integrations /></PermissionGuard>
+            </Route>
+            <Route path="/billing">
+              <PermissionGuard><Billing /></PermissionGuard>
+            </Route>
+            <Route path="/settings" component={Settings} />
+            <Route path="/admin">
+              <PermissionGuard permission="manage_users"><Admin /></PermissionGuard>
+            </Route>
+            <Route path="/whitelabel-settings">
+              <PermissionGuard><WhitelabelSettings /></PermissionGuard>
+            </Route>
+            <Route path="/agency-users">
+              <PermissionGuard><AgencyUsers /></PermissionGuard>
+            </Route>
+            <Route path="/agency-billing-settings">
+              <PermissionGuard><AgencyBillingSettings /></PermissionGuard>
+            </Route>
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </AppShell>
     </AgentProvider>
   );
 }

@@ -5,6 +5,7 @@ import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocke
 import { setupVite, serveStatic, log } from "./vite";
 import { rateLimiters } from "./middleware/rate-limiter";
 import { config } from "./config";
+import { initializeProviders } from "./services/providers";
 
 const app = express();
 
@@ -29,7 +30,7 @@ app.use(compression({
 
 // Increase body size limit to 10MB for image uploads
 // Also increase timeout for large uploads
-app.use(express.json({ 
+app.use(express.json({
   limit: '10mb',
   verify: (req, res, buf) => {
     // Store raw body for debugging if needed
@@ -87,7 +88,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      
+
       // Only add response details in development
       if (config.isDevelopment && capturedJsonResponse) {
         const responseStr = JSON.stringify(capturedJsonResponse);
@@ -106,6 +107,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await initializeProviders();
   const server = await registerRoutes(app);
 
   // Setup WebSocket routes for real-time sync
@@ -115,7 +117,7 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    
+
     console.error(`Error ${status}: ${message}`, err);
     res.status(status).json({ message });
   });

@@ -5,16 +5,16 @@ import { useAgencyPath } from "@/hooks/useAgencyPath";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@shared/schema";
-import { 
-  Mic, 
-  LayoutDashboard, 
-  Bot, 
+import {
+  Mic,
+  LayoutDashboard,
+  Bot,
   History,
-  Plug, 
-  CreditCard, 
-  Settings, 
-  Menu, 
-  Moon, 
+  Plug,
+  CreditCard,
+  Settings,
+  Menu,
+  Moon,
   Sun,
   LogOut,
   Shield,
@@ -61,22 +61,22 @@ export default function AppShell({ children }: AppShellProps) {
   const { user } = useAuth();
   const { buildPath } = useAgencyPath();
   const [elevated, setElevated] = useState(false);
-  
+
   // Get user permissions and role
   const typedUser = user as User | null;
   const userPermissions = typedUser?.permissions || [];
   const isAdmin = typedUser?.isAdmin || false;
   const userRole = typedUser?.role || 'user';
-  
+
   // Fetch organization details to check if it's an agency
   const { data: organization } = useQuery<{ organizationType?: string; agencyPermissions?: string[] }>({
     queryKey: ["/api/organization/current"],
     enabled: !!user,
   });
-  
+
   const isAgency = organization?.organizationType === "agency";
   const orgPermissions = organization?.agencyPermissions || [];
-  
+
   // Fetch whitelabel configuration
   const { data: whitelabelConfig } = useQuery<{
     appName?: string;
@@ -89,7 +89,7 @@ export default function AppShell({ children }: AppShellProps) {
     queryKey: ["/api/whitelabel"],
     enabled: !!user,
   });
-  
+
   // Apply whitelabel settings to document
   useEffect(() => {
     if (whitelabelConfig) {
@@ -97,7 +97,7 @@ export default function AppShell({ children }: AppShellProps) {
       if (whitelabelConfig.appName) {
         document.title = whitelabelConfig.appName;
       }
-      
+
       // Update favicon
       if (whitelabelConfig.faviconUrl) {
         const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
@@ -131,18 +131,18 @@ export default function AppShell({ children }: AppShellProps) {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-  
+
   // Filter navigation based on permissions
   const filteredNavigation = navigation.filter(item => {
     // Admin users can see everything
     if (isAdmin) return true;
-    
+
     // Agency owners can see all agency features
     if (userRole === 'agency' && isAgency) return true;
-    
+
     // Dashboard is always visible
     if (!item.permission) return true;
-    
+
     // Check if user has the required permission OR organization has it
     return userPermissions.includes(item.permission) || orgPermissions.includes(item.permission);
   });
@@ -150,46 +150,46 @@ export default function AppShell({ children }: AppShellProps) {
   const getPageTitle = () => {
     // Remove agency prefix from location if present
     const cleanLocation = location.replace(/^\/agency\/[a-z0-9-]+/, '');
-    
+
     const currentNav = filteredNavigation.find(item => item.href === cleanLocation || item.href === '/' && cleanLocation === '');
     if (currentNav) return currentNav.name;
-    
+
     // Check for dynamic agent settings route
     if (cleanLocation.startsWith("/agents/")) return "Agent Settings";
-    
+
     // Check for admin route
     if (cleanLocation === "/admin") return "Admin";
-    
+
     // Check for settings route
     if (cleanLocation === "/settings") return "Settings";
-    
+
     // Check for checkout route
     if (cleanLocation === "/checkout") return "Checkout";
-    
+
     // Check for voices route
     if (cleanLocation === "/voices") return "Voices";
-    
+
     // Check for voice configuration route
     if (cleanLocation === "/voice-configuration") return "Voice Configuration";
-    
+
     // Check for phone numbers route
     if (cleanLocation === "/phone-numbers") return "Phone Numbers";
-    
+
     // Check for outbound calling route
     if (cleanLocation === "/outbound-calling") return "Outbound Calling";
-    
+
     // Check for tools route
     if (cleanLocation === "/tools") return "Tools";
-    
+
     // Check for conversations route
     if (cleanLocation === "/conversations") return "Conversations";
-    
+
     // Check for whitelabel settings route
     if (cleanLocation === "/whitelabel-settings") return "Whitelabel Settings";
-    
+
     // Check for agency users route
     if (cleanLocation === "/agency-users") return "User Management";
-    
+
     // Default to "Page Not Found" for unknown routes
     return "Page Not Found";
   };
@@ -198,7 +198,7 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -212,10 +212,10 @@ export default function AppShell({ children }: AppShellProps) {
         <div className="flex items-center h-16 px-4 lg:px-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-2 lg:space-x-3">
             {whitelabelConfig?.logoUrl ? (
-              <img 
-                src={whitelabelConfig.logoUrl} 
-                alt="Logo" 
-                className="w-8 h-8 object-contain rounded" 
+              <img
+                src={whitelabelConfig.logoUrl}
+                alt="Logo"
+                className="w-8 h-8 object-contain rounded"
               />
             ) : (
               <div className="w-8 h-8 brand-gradient rounded-lg flex items-center justify-center shadow-lg">
@@ -240,15 +240,18 @@ export default function AppShell({ children }: AppShellProps) {
                   href={buildPath(item.href)}
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
-                    "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-250 group hover-lift-subtle",
+                    "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
                     isActive
-                      ? "brand-gradient text-white shadow-lg ring-accent"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/80 dark:hover:bg-gray-800/80 hover:shadow-md"
+                      ? "text-white shadow-md"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/80 dark:hover:bg-gray-800/80"
                   )}
                   data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}
                 >
-                  <Icon className={cn("w-5 h-5 transition-transform duration-250", isActive && "scale-110")} />
-                  <span>{item.name}</span>
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-purple-600 opacity-100" />
+                  )}
+                  <Icon className={cn("w-5 h-5 transition-transform duration-200 relative z-10", isActive && "scale-110")} />
+                  <span className="relative z-10">{item.name}</span>
                 </Link>
               );
             })}
@@ -354,7 +357,7 @@ export default function AppShell({ children }: AppShellProps) {
               {getPageTitle()}
             </h1>
           </div>
-          
+
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="ghost"
@@ -365,7 +368,7 @@ export default function AppShell({ children }: AppShellProps) {
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
-            
+
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="w-7 h-7 sm:w-8 sm:h-8 brand-gradient rounded-full flex items-center justify-center shadow-lg ring-2 ring-primary/20 transition-all duration-250 hover:ring-primary/40 hover:scale-105">
                 <span className="text-white text-xs sm:text-sm font-medium" data-testid="text-user-initials">
@@ -386,7 +389,7 @@ export default function AppShell({ children }: AppShellProps) {
                 onClick={async () => {
                   // Call logout endpoint then redirect to home page
                   try {
-                    await fetch("/api/logout", { 
+                    await fetch("/api/logout", {
                       method: "GET",
                       credentials: "same-origin"
                     });

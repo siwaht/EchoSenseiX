@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Plus, Trash2, Eye, Play, RefreshCw, ExternalLink, HelpCircle, Settings, FlaskConical } from "lucide-react";
+import { Bot, Plus, Trash2, Play, RefreshCw, Settings, FlaskConical, Sparkles } from "lucide-react";
 import { AddAgentModal } from "@/components/modals/add-agent-modal";
 import { AgentDetailModal } from "@/components/modals/agent-detail-modal";
 import { useToast } from "@/hooks/use-toast";
@@ -41,12 +41,12 @@ export default function Agents() {
         method: "DELETE",
         credentials: "include",
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to delete agent");
       }
-      
+
       return await response.json();
     },
     onSuccess: () => {
@@ -79,12 +79,12 @@ export default function Agents() {
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to sync agents");
       }
-      
+
       return await response.json();
     },
     onSuccess: (data) => {
@@ -105,25 +105,20 @@ export default function Agents() {
     },
   });
 
-  const getStatusColor = (isActive: boolean) => {
-    return isActive ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" : 
-                     "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
-  };
-
   const getStatusText = (isActive: boolean) => {
     return isActive ? "Active" : "Inactive";
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
-          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          <div className="h-10 w-full sm:w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+          <div className="h-10 w-full sm:w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+            <div key={i} className="h-72 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -132,256 +127,198 @@ export default function Agents() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-page-title">
-            Voice Agents
-          </h2>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400" data-testid="text-page-description">
-            Manage your conversational voice AI agents
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            onClick={() => syncMutation.mutate()} 
-            variant="outline"
-            disabled={syncMutation.isPending}
-            className="w-full sm:w-auto" 
-            data-testid="button-sync-agents"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncMutation.isPending ? 'Syncing...' : 'Sync Agents'}
-          </Button>
-          <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto" data-testid="button-add-agent">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Agent
-          </Button>
-        </div>
-      </div>
-
-      {/* Agents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!agents || agents.length === 0 ? (
-          <Card className="col-span-full p-12">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-                <Bot className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2" data-testid="text-no-agents-title">
-                No agents available
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto" data-testid="text-no-agents-description">
-                {agents !== undefined && agents.length === 0 ? 
-                  "You don't have any agents assigned yet. Contact your administrator to get access to agents." :
-                  "Connect your voice agents to monitor conversations, manage settings, and track performance."
-                }
-              </p>
-              
-              {/* Quick Setup Steps */}
-              <div className="max-w-md mx-auto mb-6 text-left space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-semibold">1</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Create an agent in your voice platform</p>
-                    <p className="text-xs text-muted-foreground">Set up your conversational AI in your voice platform</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-semibold">2</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Get your Agent ID</p>
-                    <p className="text-xs text-muted-foreground">Find it in your agent's settings page</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-semibold">3</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Add to your dashboard</p>
-                    <p className="text-xs text-muted-foreground">Click below and enter your Agent ID</p>
-                  </div>
-                </div>
-              </div>
-              
-              <Button onClick={() => setShowAddModal(true)} data-testid="button-add-first-agent" size="lg">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Agent
-              </Button>
-            </div>
-          </Card>
-        ) : (
-          agents.map((agent) => (
-            <Card 
-              key={agent.id} 
-              className="group relative flex flex-col h-full p-6 border-0 shadow-lg card-hover hover:shadow-2xl transition-all cursor-pointer overflow-hidden"
-              onClick={() => setSelectedAgent(agent)}
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6">
+          <div className="space-y-1">
+            <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400" data-testid="text-page-title">
+              Voice Agents
+            </h2>
+            <p className="text-muted-foreground text-lg" data-testid="text-page-description">
+              Manage and monitor your conversational AI assistants
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => syncMutation.mutate()}
+              variant="outline"
+              disabled={syncMutation.isPending}
+              className="w-full sm:w-auto border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800"
+              data-testid="button-sync-agents"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0 shadow-md group-hover:scale-110 transition-transform">
-                  <Bot className="w-6 h-6 text-white" />
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? 'Syncing...' : 'Sync Agents'}
+            </Button>
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="w-full sm:w-auto btn-brand-premium shadow-lg shadow-primary/20"
+              data-testid="button-add-agent"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Agent
+            </Button>
+          </div>
+        </div>
+
+        {/* Agents Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {!agents || agents.length === 0 ? (
+            <Card className="col-span-full p-16 border-dashed border-2 bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="text-center space-y-6">
+                <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center ring-8 ring-primary/5">
+                  <Bot className="w-10 h-10 text-primary" />
                 </div>
-                <div className="flex flex-col gap-2 items-end">
-                  {/* Platform Badge */}
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {agent.platform || 'elevenlabs'}
-                  </Badge>
-                  {/* Status Badge */}
-                  <Badge className={cn(
-                    "shadow-sm",
-                    agent.isActive
-                      ? "bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-700 dark:text-green-300 border-green-500/30"
-                      : "bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
-                  )} data-testid={`badge-status-${agent.id}`}>
-                    {getStatusText(agent.isActive)}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-2" data-testid={`text-agent-name-${agent.id}`}>
-                  {agent.name}
-                </h3>
-                
-                {agent.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2" data-testid={`text-agent-description-${agent.id}`}>
-                    {agent.description}
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold" data-testid="text-no-agents-title">
+                    No agents configured
+                  </h3>
+                  <p className="text-muted-foreground max-w-lg mx-auto text-lg" data-testid="text-no-agents-description">
+                    Get started by creating your first voice agent to handle conversations automatically.
                   </p>
-                )}
-                
-                <div className="space-y-3 text-sm">
-                  <div className="flex flex-col space-y-1 min-w-0">
-                    <span className="text-gray-600 dark:text-gray-400 text-xs">Agent ID:</span>
-                    <div className="font-medium font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded overflow-hidden" data-testid={`text-agent-id-${agent.id}`}>
-                      <span className="block truncate">{agent.externalAgentId || agent.elevenLabsAgentId}</span>
-                    </div>
-                  </div>
-                  {/* Show configured providers if any */}
-                  {agent.providers && Object.keys(agent.providers).length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {agent.providers.llm && (
-                        <Badge variant="secondary" className="text-xs">LLM: {agent.providers.llm}</Badge>
-                      )}
-                      {agent.providers.tts && (
-                        <Badge variant="secondary" className="text-xs">TTS: {agent.providers.tts}</Badge>
-                      )}
-                      {agent.providers.stt && (
-                        <Badge variant="secondary" className="text-xs">STT: {agent.providers.stt}</Badge>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-400">Created:</span>
-                  <span className="font-medium" data-testid={`text-agent-created-${agent.id}`}>
-                    {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : "Unknown"}
-                  </span>
                 </div>
-                </div>
+
+                <Button onClick={() => setShowAddModal(true)} data-testid="button-add-first-agent" size="lg" className="btn-brand-premium px-8">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Create First Agent
+                </Button>
               </div>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full hover:bg-primary/10 hover:text-primary hover:border-primary transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation(`/agents/${agent.id}`);
-                  }}
-                  data-testid={`button-settings-${agent.id}`}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Agent Settings
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-600 dark:hover:bg-blue-950 dark:hover:text-blue-400 dark:hover:border-blue-400 transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation(`/agent-testing?agentId=${agent.id}`);
-                  }}
-                  data-testid={`button-test-${agent.id}`}
-                >
-                  <FlaskConical className="w-4 h-4 mr-2" />
-                  Test Agent
-                </Button>
-                <div className="flex gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLocation(`/playground?agentId=${agent.id}`);
-                        }}
-                        data-testid={`button-test-${agent.id}`}
-                      >
-                        <Play className="w-4 h-4 mr-1" />
-                        Test
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Test this agent in the playground</p>
-                    </TooltipContent>
-                  </Tooltip>
+            </Card>
+          ) : (
+            agents.map((agent) => (
+              <Card
+                key={agent.id}
+                className="group relative flex flex-col h-full border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800 hover:ring-primary/50 hover:-translate-y-1"
+                onClick={() => setSelectedAgent(agent)}
+              >
+                {/* Card Header Gradient */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+                      <Bot className="w-7 h-7 text-primary" />
+                    </div>
+                    <Badge className={cn(
+                      "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                      agent.isActive
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                        : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
+                    )} data-testid={`badge-status-${agent.id}`}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full mr-2 inline-block", agent.isActive ? "bg-emerald-500" : "bg-yellow-500")} />
+                      {getStatusText(agent.isActive)}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2 mb-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary transition-colors" data-testid={`text-agent-name-${agent.id}`}>
+                      {agent.name}
+                    </h3>
+
+                    {agent.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed" data-testid={`text-agent-description-${agent.id}`}>
+                        {agent.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-auto space-y-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
+                      <span>Agent ID</span>
+                      <code className="font-mono font-medium text-primary/80">{agent.externalAgentId?.slice(0, 8)}...</code>
+                    </div>
+
+                    {agent.providers && Object.keys(agent.providers).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {agent.providers.llm && (
+                          <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                            {agent.providers.llm}
+                          </Badge>
+                        )}
+                        {agent.providers.tts && (
+                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                            {agent.providers.tts}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Footer */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 hover:bg-white dark:hover:bg-gray-700 shadow-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocation(`/agents/${agent.id}`);
+                    }}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 btn-brand-premium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocation(`/agent-testing?agentId=${agent.id}`);
+                    }}
+                  >
+                    <FlaskConical className="w-4 h-4 mr-2" />
+                    Test
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                     onClick={(e) => {
                       e.stopPropagation();
                       setAgentToDelete(agent);
                     }}
-                    data-testid={`button-delete-${agent.id}`}
                   >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
+              </Card>
+            ))
+          )}
+        </div>
 
-            </Card>
-          ))
-        )}
+        <AddAgentModal
+          open={showAddModal}
+          onOpenChange={setShowAddModal}
+        />
+
+        <AgentDetailModal
+          agent={selectedAgent}
+          open={!!selectedAgent}
+          onOpenChange={(open) => !open && setSelectedAgent(null)}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!agentToDelete} onOpenChange={(open) => !open && setAgentToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Agent</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove <strong>{agentToDelete?.name}</strong>?
+                This action cannot be undone. Call logs associated with this agent will be preserved.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => agentToDelete && deleteMutation.mutate(agentToDelete.id)}
+                disabled={deleteMutation.isPending}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deleteMutation.isPending ? "Removing..." : "Remove Agent"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      <AddAgentModal 
-        open={showAddModal} 
-        onOpenChange={setShowAddModal}
-      />
-      
-      <AgentDetailModal
-        agent={selectedAgent}
-        open={!!selectedAgent}
-        onOpenChange={(open) => !open && setSelectedAgent(null)}
-      />
-      
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!agentToDelete} onOpenChange={(open) => !open && setAgentToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Agent</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove <strong>{agentToDelete?.name}</strong>? 
-              This action cannot be undone. Call logs associated with this agent will be preserved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => agentToDelete && deleteMutation.mutate(agentToDelete.id)}
-              disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleteMutation.isPending ? "Removing..." : "Remove Agent"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
     </TooltipProvider>
   );
 }

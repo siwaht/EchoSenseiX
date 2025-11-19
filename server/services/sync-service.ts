@@ -1,15 +1,17 @@
 /**
- * Sync Service - Handles synchronization of data from ElevenLabs API
+ * Sync Service - Handles synchronization of data from Voice Providers
  * 
  * This service provides reliable sync functionality with:
  * - Deduplication to prevent duplicate call logs
  * - Comprehensive error handling
  * - Detailed logging and statistics
  * - Retry logic for transient failures
+ * - Platform-agnostic provider integration
  */
 
 import { storage } from "../storage";
-import ElevenLabsService, { createElevenLabsClient } from "./elevenlabs";
+import { providerRegistry } from "./providers/registry";
+import { IConversationalAIProvider } from "./providers/types";
 import type { InsertCallLog, InsertAgent } from "@shared/schema";
 
 export interface SyncResult {
@@ -30,12 +32,12 @@ export interface SyncOptions {
 
 export class SyncService {
   /**
-   * Sync call logs from ElevenLabs
+   * Sync call logs from Provider
    */
   static async syncCallLogs(options: SyncOptions): Promise<SyncResult> {
     const startTime = Date.now();
     const { organizationId, agentId, limit = 100, includeTranscripts = true } = options;
-    
+
     let syncedCount = 0;
     let updatedCount = 0;
     let errorCount = 0;
@@ -43,39 +45,33 @@ export class SyncService {
 
     try {
       console.log(`[SYNC] Starting call log sync for organization ${organizationId}`);
-      
-      // Get ElevenLabs integration
+
+      // Get ElevenLabs integration (currently hardcoded to elevenlabs, but ready for others)
+      // TODO: Make this dynamic based on available integrations
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
         throw new Error("ElevenLabs integration not configured");
       }
 
-      // Validate API key before proceeding
-      let client;
-      try {
-        client = createElevenLabsClient(integration.apiKey);
-        // Test API connectivity
-        const testResult = await client.getUser();
-        if (!testResult.success) {
-          throw new Error(`API key validation failed: ${testResult.error}`);
-        }
-        console.log(`[SYNC] API key validated successfully`);
-      } catch (apiError: any) {
-        throw new Error(`Failed to validate ElevenLabs API key: ${apiError.message}`);
+      // Get provider from registry
+      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+      if (!provider) {
+        throw new Error("ElevenLabs provider not found in registry");
       }
 
-      // Fetch conversations from ElevenLabs
-      console.log(`[SYNC] Fetching conversations from ElevenLabs...`);
-      const conversationsResult = await client.getConversations({
+      // Initialize provider with API key
+      await provider.initialize({ apiKey: integration.apiKey });
+      console.log(`[SYNC] Provider initialized successfully`);
+
+      // Fetch conversations from Provider
+      console.log(`[SYNC] Fetching conversations from provider...`);
+      const conversationsResult = await provider.getConversations({
         agent_id: agentId,
         page_size: limit,
       });
 
-      if (!conversationsResult.success || !conversationsResult.data) {
-        throw new Error(conversationsResult.error || "Failed to fetch conversations");
-      }
-
-      const conversations = conversationsResult.data.conversations || conversationsResult.data || [];
+      // Handle provider response structure (adapter should normalize this, but being safe)
+      const conversations = conversationsResult.conversations || conversationsResult || [];
       console.log(`[SYNC] Found ${conversations.length} conversations`);
 
       // Process each conversation
@@ -98,60 +94,56 @@ export class SyncService {
           // Fetch detailed conversation data to get accurate duration and cost
           let detailedConversation = conversation;
           try {
-            const detailResult = await client.getConversation(conversation.conversation_id);
-            if (detailResult.success && detailResult.data) {
-              detailedConversation = detailResult.data;
+            const detailResult = await provider.getConversation(conversation.conversation_id);
+            if (detailResult) {
+              detailedConversation = detailResult;
               console.log(`[SYNC] Fetched detailed data for ${conversation.conversation_id}`);
-            } else {
-              console.warn(`[SYNC] Failed to fetch detailed data for ${conversation.conversation_id}: ${detailResult.error}`);
             }
           } catch (detailError: any) {
             console.warn(`[SYNC] Could not fetch detailed data for ${conversation.conversation_id}:`, detailError.message);
             // Continue with list data
           }
 
-          // Look up the local agent using the ElevenLabs agent ID
-          const elevenLabsAgentId = detailedConversation.agent_id || agentId;
+          // Look up the local agent using the Provider agent ID
+          const providerAgentId = detailedConversation.agent_id || agentId;
           let localAgentId = null;
-          
-          if (elevenLabsAgentId) {
+
+          if (providerAgentId) {
             try {
-              const localAgent = await storage.getAgentByElevenLabsId(elevenLabsAgentId, organizationId);
+              const localAgent = await storage.getAgentByElevenLabsId(providerAgentId, organizationId);
               if (localAgent) {
                 localAgentId = localAgent.id;
-                console.log(`[SYNC] Mapped ElevenLabs agent ${elevenLabsAgentId} to local agent ${localAgentId}`);
+                console.log(`[SYNC] Mapped provider agent ${providerAgentId} to local agent ${localAgentId}`);
               } else {
-                console.warn(`[SYNC] No local agent found for ElevenLabs agent ID: ${elevenLabsAgentId}. Call log will be created without agent reference.`);
+                console.warn(`[SYNC] No local agent found for provider agent ID: ${providerAgentId}. Call log will be created without agent reference.`);
               }
             } catch (agentLookupError: any) {
-              console.warn(`[SYNC] Failed to lookup local agent for ${elevenLabsAgentId}:`, agentLookupError.message);
+              console.warn(`[SYNC] Failed to lookup local agent for ${providerAgentId}:`, agentLookupError.message);
             }
           }
 
-          // Extract duration from conversation_initiation_client_data.dynamic_variables or other sources
+          // Extract duration
           const duration = detailedConversation.conversation_initiation_client_data?.dynamic_variables?.system__call_duration_secs ||
-                         detailedConversation.dynamic_variables?.system__call_duration_secs || 
-                         detailedConversation.duration_seconds || 0;
-          
-          // Fetch transcript explicitly from ElevenLabs API
+            detailedConversation.dynamic_variables?.system__call_duration_secs ||
+            detailedConversation.duration_seconds || 0;
+
+          // Fetch transcript explicitly
           let transcript = null;
           if (includeTranscripts) {
             try {
               console.log(`[SYNC] Fetching transcript for ${conversation.conversation_id}`);
-              const transcriptResult = await client.getConversationTranscript(conversation.conversation_id);
-              
-              if (transcriptResult.success && transcriptResult.data) {
+              const transcriptData = await provider.getConversationTranscript(conversation.conversation_id);
+
+              if (transcriptData) {
                 // Store transcript as JSON string
-                transcript = JSON.stringify(transcriptResult.data);
+                transcript = JSON.stringify(transcriptData);
                 console.log(`[SYNC] Successfully fetched transcript for ${conversation.conversation_id}`);
-              } else {
-                console.log(`[SYNC] No transcript available for ${conversation.conversation_id}: ${transcriptResult.error || 'Unknown error'}`);
               }
             } catch (transcriptError: any) {
               console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}:`, transcriptError.message);
             }
           }
-          
+
           // Prepare call log data using detailed conversation info
           const callLogData: Partial<InsertCallLog> = {
             organizationId,
@@ -171,36 +163,15 @@ export class SyncService {
             const updatedLog = await storage.updateCallLog(existingLog.id, organizationId, callLogData);
             updatedCount++;
             console.log(`[SYNC] Updated call log ${existingLog.id}`);
-            
-            // Note: Summary generation now handled by ElevenLabs webhook
-            // No longer auto-generating summaries with Mistral during sync
-            if (updatedLog && updatedLog.transcript && !updatedLog.summary) {
-              console.log(`[SYNC] Call ${existingLog.id} has transcript but no summary - waiting for ElevenLabs webhook`);
-            }
-            
+
             // Auto-fetch audio recording if available and not already fetched
             if (updatedLog && updatedLog.conversationId && !updatedLog.audioStorageKey) {
-              try {
-                console.log(`[SYNC] Auto-fetching recording for updated call: ${existingLog.id}`);
-                const { default: AudioStorageService } = await import('./audio-storage-service');
-                const audioStorage = new AudioStorageService();
-                
-                const audioResult = await client.fetchAndStoreAudio(
-                  updatedLog.conversationId,
-                  updatedLog.id,
-                  audioStorage,
-                  storage,
-                  organizationId
-                );
-                
-                if (audioResult.success) {
-                  console.log(`[SYNC] Recording auto-fetched for updated call: ${existingLog.id}`);
-                } else {
-                  console.log(`[SYNC] Recording not available for updated call ${existingLog.id}: ${audioResult.error}`);
-                }
-              } catch (audioError: any) {
-                console.error(`[SYNC] Failed to auto-fetch recording for updated call ${existingLog.id}:`, audioError.message);
-              }
+              await this.fetchAndStoreAudio(
+                provider,
+                updatedLog.conversationId,
+                updatedLog.id,
+                organizationId
+              );
             }
           } else {
             // Create new call log
@@ -210,36 +181,15 @@ export class SyncService {
             } as InsertCallLog);
             syncedCount++;
             console.log(`[SYNC] Created new call log for conversation ${conversation.conversation_id}`);
-            
-            // Note: Summary generation now handled by ElevenLabs webhook
-            // No longer auto-generating summaries with Mistral during sync
-            if (newCallLog && newCallLog.transcript && !newCallLog.summary) {
-              console.log(`[SYNC] Call ${newCallLog.id} has transcript but no summary - waiting for ElevenLabs webhook`);
-            }
-            
+
             // Auto-fetch audio recording if available
             if (newCallLog && newCallLog.conversationId && !newCallLog.audioStorageKey) {
-              try {
-                console.log(`[SYNC] Auto-fetching recording for new call: ${newCallLog.id}`);
-                const { default: AudioStorageService } = await import('./audio-storage-service');
-                const audioStorage = new AudioStorageService();
-                
-                const audioResult = await client.fetchAndStoreAudio(
-                  newCallLog.conversationId,
-                  newCallLog.id,
-                  audioStorage,
-                  storage,
-                  organizationId
-                );
-                
-                if (audioResult.success) {
-                  console.log(`[SYNC] Recording auto-fetched for new call: ${newCallLog.id}`);
-                } else {
-                  console.log(`[SYNC] Recording not available for new call ${newCallLog.id}: ${audioResult.error}`);
-                }
-              } catch (audioError: any) {
-                console.error(`[SYNC] Failed to auto-fetch recording for new call ${newCallLog.id}:`, audioError.message);
-              }
+              await this.fetchAndStoreAudio(
+                provider,
+                newCallLog.conversationId,
+                newCallLog.id,
+                organizationId
+              );
             }
           }
         } catch (error: any) {
@@ -267,7 +217,7 @@ export class SyncService {
     } catch (error: any) {
       const duration = Date.now() - startTime;
       console.error(`[SYNC] Failed after ${duration}ms:`, error);
-      
+
       return {
         success: false,
         syncedCount,
@@ -280,7 +230,7 @@ export class SyncService {
   }
 
   /**
-   * Sync agents from ElevenLabs
+   * Sync agents from Provider
    */
   static async syncAgents(organizationId: string): Promise<SyncResult> {
     const startTime = Date.now();
@@ -291,80 +241,46 @@ export class SyncService {
 
     try {
       console.log(`[SYNC] Starting agent sync for organization ${organizationId}`);
-      
+
       // Get ElevenLabs integration
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
         throw new Error("ElevenLabs integration not configured");
       }
 
-      // Validate API key before proceeding
-      let client;
-      try {
-        client = createElevenLabsClient(integration.apiKey);
-        // Test API connectivity
-        const testResult = await client.getUser();
-        if (!testResult.success) {
-          throw new Error(`API key validation failed: ${testResult.error}`);
-        }
-        console.log(`[SYNC] API key validated successfully for agent sync`);
-      } catch (apiError: any) {
-        throw new Error(`Failed to validate ElevenLabs API key: ${apiError.message}`);
+      // Get provider from registry
+      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
+      if (!provider) {
+        throw new Error("ElevenLabs provider not found in registry");
       }
 
-      // Fetch agents from ElevenLabs
-      console.log(`[SYNC] Fetching agents from ElevenLabs...`);
-      const agentsResult = await client.getAgents();
+      // Initialize provider
+      await provider.initialize({ apiKey: integration.apiKey });
+      console.log(`[SYNC] Provider initialized for agent sync`);
 
-      console.log(`[SYNC] Agents API response:`, {
-        success: agentsResult.success,
-        hasData: !!agentsResult.data,
-        error: agentsResult.error,
-        statusCode: agentsResult.statusCode
-      });
-
-      if (!agentsResult.success) {
-        throw new Error(`Failed to fetch agents: ${agentsResult.error}`);
-      }
-
-      if (!agentsResult.data) {
-        throw new Error("No data returned from agents API");
-      }
-
-      // Handle different response structures
-      let agents = [];
-      if (Array.isArray(agentsResult.data)) {
-        agents = agentsResult.data;
-      } else if (agentsResult.data.agents && Array.isArray(agentsResult.data.agents)) {
-        agents = agentsResult.data.agents;
-      } else if (agentsResult.data.data && Array.isArray(agentsResult.data.data)) {
-        agents = agentsResult.data.data;
-      } else {
-        console.log(`[SYNC] Unexpected agents data structure:`, agentsResult.data);
-        agents = [];
-      }
-
+      // Fetch agents from Provider
+      console.log(`[SYNC] Fetching agents from provider...`);
+      const agents = await provider.getAgents();
       console.log(`[SYNC] Found ${agents.length} agents`);
 
       // Process each agent
       for (const agent of agents) {
         try {
           // Validate agent data
-          if (!agent.agent_id) {
+          if (!agent.agent_id && !agent.id) {
             console.warn(`[SYNC] Skipping agent without ID:`, agent);
             errorCount++;
             errors.push(`Agent missing ID: ${JSON.stringify(agent)}`);
             continue;
           }
 
-          // Check if agent already exists
           const agentId = agent.agent_id || agent.id;
           const existingAgent = await storage.getAgentByElevenLabsId(agentId, organizationId);
 
-          // Extract agent data with better error handling
+          // Extract agent data
           const agentData: Partial<InsertAgent> = {
             organizationId,
-            elevenLabsAgentId: agent.agent_id || agent.id,
+            elevenLabsAgentId: agentId,
             name: agent.name || agent.agent_name || "Unnamed Agent",
             voiceId: agent.conversation_config?.voice?.voice_id || agent.voice_id || null,
             systemPrompt: agent.prompt?.prompt || agent.system_prompt || agent.prompt || null,
@@ -391,7 +307,7 @@ export class SyncService {
             // Create new agent
             await storage.createAgent(agentData as InsertAgent);
             syncedCount++;
-            console.log(`[SYNC] Created new agent ${agent.agent_id}`);
+            console.log(`[SYNC] Created new agent ${agentId}`);
           }
         } catch (error: any) {
           errorCount++;
@@ -415,7 +331,7 @@ export class SyncService {
     } catch (error: any) {
       const duration = Date.now() - startTime;
       console.error(`[SYNC] Agent sync failed after ${duration}ms:`, error);
-      
+
       return {
         success: false,
         syncedCount,
@@ -438,7 +354,7 @@ export class SyncService {
   }> {
     const startTime = Date.now();
     const SYNC_TIMEOUT = 60000; // 60 seconds timeout
-    
+
     console.log(`[SYNC] Starting comprehensive dashboard sync for organization ${organizationId}`);
 
     try {
@@ -458,7 +374,7 @@ export class SyncService {
     } catch (error: any) {
       const totalDuration = Date.now() - startTime;
       console.error(`[SYNC] Dashboard sync failed after ${totalDuration}ms:`, error.message);
-      
+
       // Return error result
       const errorResult: SyncResult = {
         success: false,
@@ -503,6 +419,87 @@ export class SyncService {
       totalDuration,
     };
   }
+  /**
+   * Fetch and store audio for a conversation
+   */
+  public static async fetchAndStoreAudio(
+    provider: IConversationalAIProvider,
+    conversationId: string,
+    callId: string,
+    organizationId: string
+  ): Promise<{ success: boolean; storageKey?: string; recordingUrl?: string; error?: string }> {
+    try {
+      console.log(`[FETCH-STORE-AUDIO] Starting fetch for conversation ${conversationId}, callId ${callId}`);
+
+      // Import AudioStorageService dynamically to avoid circular dependencies if any
+      const { default: AudioStorageService } = await import('./audio-storage-service');
+      const audioStorage = new AudioStorageService();
+
+      // Step 1: Download audio from Provider
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Downloading audio from Provider...`);
+      const audioResult = await provider.getConversationAudio(conversationId);
+
+      if (!audioResult.buffer) {
+        if (audioResult.notFound) {
+          console.log(`[FETCH-STORE-AUDIO] Step 1: Audio not found (404), updating status to 'unavailable'`);
+          await storage.updateCallAudioStatus(callId, organizationId, {
+            audioFetchStatus: 'unavailable',
+            audioFetchedAt: new Date(),
+          });
+          return { success: false, error: 'Audio not available for this conversation' };
+        } else {
+          console.log(`[FETCH-STORE-AUDIO] Step 1: Provider error - ${audioResult.error}, updating status to 'failed'`);
+          await storage.updateCallAudioStatus(callId, organizationId, {
+            audioFetchStatus: 'failed',
+            audioFetchedAt: new Date(),
+          });
+          return { success: false, error: `Failed to fetch audio: ${audioResult.error}` };
+        }
+      }
+
+      console.log(`[FETCH-STORE-AUDIO] Step 1: Successfully downloaded ${audioResult.buffer.length} bytes`);
+
+      // Step 2: Store the audio
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Uploading audio to local storage...`);
+      const { storageKey } = await audioStorage.uploadAudio(conversationId, audioResult.buffer, {
+        callId,
+        organizationId,
+      });
+      console.log(`[FETCH-STORE-AUDIO] Step 2: Audio uploaded with storageKey: ${storageKey}`);
+
+      // Step 3: Generate signed URL
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Generating signed URL...`);
+      const recordingUrl = audioStorage.getSignedUrl(storageKey);
+      console.log(`[FETCH-STORE-AUDIO] Step 3: Generated signed URL: ${recordingUrl}`);
+
+      // Step 4: Update database
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Updating database with storageKey=${storageKey}, recordingUrl=${recordingUrl}, status='available'`);
+      const updated = await storage.updateCallAudioStatus(callId, organizationId, {
+        audioStorageKey: storageKey,
+        audioFetchStatus: 'available',
+        recordingUrl,
+        audioFetchedAt: new Date(),
+      });
+      console.log(`[FETCH-STORE-AUDIO] Step 4: Database update result:`, updated ? 'SUCCESS' : 'FAILED');
+
+      console.log(`[FETCH-STORE-AUDIO] ✅ Complete success for conversation ${conversationId}: ${storageKey}`);
+      return { success: true, storageKey, recordingUrl };
+    } catch (error: any) {
+      console.error(`[FETCH-STORE-AUDIO] ❌ Error in fetchAndStoreAudio for ${conversationId}:`, error);
+
+      try {
+        await storage.updateCallAudioStatus(callId, organizationId, {
+          audioFetchStatus: 'failed',
+          audioFetchedAt: new Date(),
+        });
+      } catch (dbError: any) {
+        console.error(`[FETCH-STORE-AUDIO] Failed to update status after error:`, dbError);
+      }
+
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export default SyncService;
+
