@@ -60,7 +60,8 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
     // Optional: Verify webhook signature
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     if (webhookSecret) {
-      const signature = req.headers["x-elevenlabs-signature"] as string;
+      // ElevenLabs uses 'elevenlabs-signature' header (case-insensitive in Express)
+      const signature = req.headers["elevenlabs-signature"] as string;
       const payload = JSON.stringify(req.body);
       
       if (!signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
@@ -124,7 +125,7 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
  */
 export async function handlePostCallWebhook(req: Request, res: Response) {
   let transaction: any = null;
-  
+
   try {
     const {
       conversation_id,
@@ -141,7 +142,11 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       end_reason,
       metadata,
       timestamp,
-      analysis
+      analysis,
+      // New fields added in Aug 2025 webhook format update
+      has_audio,
+      has_user_audio,
+      has_response_audio
     } = req.body;
 
     console.log("📊 Post-call webhook received:", {
@@ -150,6 +155,9 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       call_duration_seconds,
       call_status,
       end_reason,
+      has_audio: has_audio ?? 'not provided',
+      has_user_audio: has_user_audio ?? 'not provided',
+      has_response_audio: has_response_audio ?? 'not provided',
       timestamp: new Date(timestamp || Date.now()).toISOString()
     });
 
@@ -162,7 +170,8 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     // Optional: Verify webhook signature
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     if (webhookSecret) {
-      const signature = req.headers["x-elevenlabs-signature"] as string;
+      // ElevenLabs uses 'elevenlabs-signature' header (case-insensitive in Express)
+      const signature = req.headers["elevenlabs-signature"] as string;
       const payload = JSON.stringify(req.body);
       
       if (!signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
@@ -351,9 +360,10 @@ export async function handleEventsWebhook(req: Request, res: Response) {
     // Optional: Verify webhook signature
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     if (webhookSecret) {
-      const signature = req.headers["x-elevenlabs-signature"] as string;
+      // ElevenLabs uses 'elevenlabs-signature' header (case-insensitive in Express)
+      const signature = req.headers["elevenlabs-signature"] as string;
       const payload = JSON.stringify(req.body);
-      
+
       if (!signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.error("❌ Invalid webhook signature");
         return res.status(401).json({ error: "Invalid signature" });

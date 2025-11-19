@@ -664,13 +664,171 @@ class ElevenLabsService {
       body: JSON.stringify(settings),
     });
   }
+
+  // Workflow endpoints (2025 feature)
+  async getWorkflows(agentId: string) {
+    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`);
+  }
+
+  async createWorkflow(agentId: string, workflowData: any) {
+    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows`, {
+      method: "POST",
+      body: JSON.stringify(workflowData),
+    });
+  }
+
+  async updateWorkflow(agentId: string, workflowId: string, updates: any) {
+    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteWorkflow(agentId: string, workflowId: string) {
+    return this.makeRequest<any>(`/v1/convai/agents/${agentId}/workflows/${workflowId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Pronunciation dictionary endpoints (2025 feature)
+  async getPronunciationDictionaries() {
+    return this.makeRequest<any>("/v1/pronunciation-dictionaries");
+  }
+
+  async createPronunciationDictionary(dictionaryData: any) {
+    return this.makeRequest<any>("/v1/pronunciation-dictionaries", {
+      method: "POST",
+      body: JSON.stringify(dictionaryData),
+    });
+  }
+
+  async addPronunciationRule(dictionaryId: string, rule: any) {
+    return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}/add-rules`, {
+      method: "POST",
+      body: JSON.stringify(rule),
+    });
+  }
+
+  async deletePronunciationDictionary(dictionaryId: string) {
+    return this.makeRequest<any>(`/v1/pronunciation-dictionaries/${dictionaryId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Knowledge base endpoints for RAG (2025 feature)
+  async getKnowledgeBases(agentId?: string) {
+    const endpoint = agentId
+      ? `/v1/convai/knowledge-base?agent_id=${agentId}`
+      : "/v1/convai/knowledge-base";
+    return this.makeRequest<any>(endpoint);
+  }
+
+  async createKnowledgeBase(knowledgeBaseData: any) {
+    return this.makeRequest<any>("/v1/convai/knowledge-base", {
+      method: "POST",
+      body: JSON.stringify(knowledgeBaseData),
+    });
+  }
+
+  async updateKnowledgeBase(knowledgeBaseId: string, updates: any) {
+    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteKnowledgeBase(knowledgeBaseId: string) {
+    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async addDocumentToKnowledgeBase(knowledgeBaseId: string, documentData: any) {
+    return this.makeRequest<any>(`/v1/convai/knowledge-base/${knowledgeBaseId}/documents`, {
+      method: "POST",
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  // Service account API keys endpoints (2025 feature)
+  async getServiceAccountKeys() {
+    return this.makeRequest<any>("/v1/service-account-keys");
+  }
+
+  async createServiceAccountKey(keyData: any) {
+    return this.makeRequest<any>("/v1/service-account-keys", {
+      method: "POST",
+      body: JSON.stringify(keyData),
+    });
+  }
+
+  async deleteServiceAccountKey(keyId: string) {
+    return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async updateServiceAccountKey(keyId: string, updates: any) {
+    return this.makeRequest<any>(`/v1/service-account-keys/${keyId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  }
 }
 
 /**
- * Helper functions to handle API key encryption/decryption with backward compatibility.
+ * ElevenLabs API Service - Comprehensive v1 API Wrapper
+ *
+ * This service provides a complete, production-ready wrapper for the ElevenLabs API v1.
+ *
+ * 2025 API Features & Conversational AI 2.0:
+ * ==========================================
+ * Core Functionality:
+ * - Agent management (CRUD, cloning, testing)
+ * - Conversation handling with real-time transcripts
+ * - Voice management and text-to-speech
+ * - Phone number integration (Twilio, SIP)
+ * - WebRTC/WebSocket session support
+ * - Audio recording and playback
+ *
+ * Advanced 2025 Features:
+ * - Workflows with complex expressions and conditional logic
+ * - Knowledge bases for RAG (Retrieval-Augmented Generation)
+ * - Pronunciation dictionaries for custom word handling
+ * - Service account API key management
+ * - Multi-character mode support
+ * - Hosted LLMs (lower latency, runs on ElevenLabs infrastructure)
+ * - Automatic language detection
+ * - Batch calling capabilities
+ * - MCP (Model Context Protocol) server integration
+ * - Evaluation criteria and results tracking
+ * - Privacy and compliance settings
+ *
+ * Webhook Support (Aug 2025 format):
+ * - Conversation initiation webhooks
+ * - Post-call webhooks with transcript and analysis
+ * - Real-time event webhooks
+ * - Enhanced audio availability fields (has_audio, has_user_audio, has_response_audio)
+ * - HMAC-SHA256 signature verification
+ *
+ * Enterprise Features:
+ * - HIPAA compliance support
+ * - EU data residency options
+ * - Workspace and team member management
+ * - Concurrency settings and limits
+ * - LLM usage tracking and analytics
+ *
+ * Security & Reliability:
+ * - AES-256-CBC encryption for API keys with scrypt key derivation
+ * - Exponential backoff retry logic (3 retries, 1s-8s delays)
+ * - API key sanitization (removes non-ASCII characters)
+ * - Backward compatible with plaintext and legacy encrypted keys
+ *
+ * Helper Functions:
  * - decryptApiKey: Accepts both plaintext and encrypted values. Never throws on malformed input,
  *   instead falls back to treating the input as plaintext to avoid blocking API calls.
  * - encryptApiKey: AES-256-CBC with scrypt-derived key and random IV. Format: ivHex:encryptedHex
+ * - createElevenLabsClient: Factory function for creating authenticated client instances
  */
 export function decryptApiKey(encryptedApiKey: string): string {
   if (!encryptedApiKey) {
