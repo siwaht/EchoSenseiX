@@ -111,7 +111,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: Partial<User>): Promise<User>;
-  
+
   // Agency user management operations
   getOrganizationUsers(organizationId: string): Promise<User[]>;
   updateUserPermissions(userId: string, organizationId: string, permissions: string[]): Promise<User>;
@@ -120,7 +120,7 @@ export interface IStorage {
   assignAgentsToUser(userId: string, organizationId: string, agentIds: string[]): Promise<void>;
   getUserAssignedAgents(userId: string, organizationId: string): Promise<Agent[]>;
   getUsersWithAssignedAgents(userIds: string[], organizationId: string): Promise<Map<string, Agent[]>>;
-  
+
   // User invitation operations
   createInvitation(invitation: InsertUserInvitation): Promise<UserInvitation>;
   getOrganizationInvitations(organizationId: string): Promise<UserInvitation[]>;
@@ -139,16 +139,18 @@ export interface IStorage {
 
   // Integration operations
   getIntegration(organizationId: string, provider: string): Promise<Integration | undefined>;
+  getIntegrations(organizationId: string): Promise<Integration[]>;
   getAllIntegrations(): Promise<Integration[]>;
   upsertIntegration(integration: InsertIntegration): Promise<Integration>;
+  updateIntegration(id: string, updates: Partial<InsertIntegration>): Promise<Integration>;
   updateIntegrationStatus(id: string, status: "ACTIVE" | "INACTIVE" | "ERROR" | "PENDING_APPROVAL", lastTested?: Date): Promise<void>;
-  
+
   // Whitelabel configuration operations
   getWhitelabelConfig(organizationId: string): Promise<WhitelabelConfig | undefined>;
   getAllWhitelabelConfigs(): Promise<WhitelabelConfig[]>;
   createWhitelabelConfig(config: InsertWhitelabelConfig): Promise<WhitelabelConfig>;
   updateWhitelabelConfig(organizationId: string, config: Partial<InsertWhitelabelConfig>): Promise<WhitelabelConfig>;
-  
+
   // Admin task operations
   createAdminTask(task: InsertAdminTask): Promise<AdminTask>;
   getAdminTasks(status?: "pending" | "in_progress" | "completed" | "rejected"): Promise<AdminTask[]>;
@@ -192,7 +194,7 @@ export interface IStorage {
     activeAgents: number;
     lastSync?: Date;
   }>;
-  
+
   // Admin operations
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
@@ -221,7 +223,7 @@ export interface IStorage {
       usedCredits?: number;
     }>;
   }>;
-  
+
   // Billing operations
   getBillingPackages(): Promise<BillingPackage[]>;
   getBillingPackage(id: string): Promise<BillingPackage | undefined>;
@@ -239,14 +241,14 @@ export interface IStorage {
   getAgencyPaymentConfig(organizationId: string): Promise<AgencyPaymentConfig | undefined>;
   createAgencyPaymentConfig(config: InsertAgencyPaymentConfig): Promise<AgencyPaymentConfig>;
   updateAgencyPaymentConfig(organizationId: string, updates: Partial<InsertAgencyPaymentConfig>): Promise<AgencyPaymentConfig>;
-  
+
   // Agency Pricing Plan operations
   getAgencyPricingPlans(organizationId: string): Promise<AgencyPricingPlan[]>;
   getAgencyPricingPlan(id: string): Promise<AgencyPricingPlan | undefined>;
   createAgencyPricingPlan(plan: InsertAgencyPricingPlan): Promise<AgencyPricingPlan>;
   updateAgencyPricingPlan(id: string, updates: Partial<InsertAgencyPricingPlan>): Promise<AgencyPricingPlan>;
   deleteAgencyPricingPlan(id: string): Promise<void>;
-  
+
   // Agency Subscription operations
   getAgencySubscriptions(agencyOrganizationId: string): Promise<AgencySubscription[]>;
   getAgencySubscription(id: string): Promise<AgencySubscription | undefined>;
@@ -254,7 +256,7 @@ export interface IStorage {
   createAgencySubscription(subscription: InsertAgencySubscription): Promise<AgencySubscription>;
   updateAgencySubscription(id: string, updates: Partial<InsertAgencySubscription>): Promise<AgencySubscription>;
   cancelAgencySubscription(id: string): Promise<void>;
-  
+
   // Agency Transaction operations
   getAgencyTransactions(agencyOrganizationId: string, limit?: number): Promise<AgencyTransaction[]>;
   getAgencyTransaction(id: string): Promise<AgencyTransaction | undefined>;
@@ -304,38 +306,38 @@ export interface IStorage {
   createSystemTemplate(template: InsertSystemTemplate): Promise<SystemTemplate>;
   updateSystemTemplate(id: string, updates: Partial<InsertSystemTemplate>): Promise<SystemTemplate>;
   deleteSystemTemplate(id: string): Promise<void>;
-  
+
   // Quick Action Button operations
   getQuickActionButtons(organizationId?: string): Promise<QuickActionButton[]>;
   getQuickActionButton(id: string): Promise<QuickActionButton | undefined>;
   createQuickActionButton(button: InsertQuickActionButton): Promise<QuickActionButton>;
   updateQuickActionButton(id: string, updates: Partial<InsertQuickActionButton>): Promise<QuickActionButton>;
   deleteQuickActionButton(id: string): Promise<void>;
-  
+
   // Batch call recipient operations
   getBatchCallRecipients(batchCallId: string): Promise<BatchCallRecipient[]>;
   createBatchCallRecipients(recipients: InsertBatchCallRecipient[]): Promise<BatchCallRecipient[]>;
   updateBatchCallRecipient(id: string, data: Partial<BatchCallRecipient>): Promise<BatchCallRecipient>;
-  
+
   // Unified Billing Plan operations
   getUnifiedBillingPlans(organizationType?: string): Promise<UnifiedBillingPlan[]>;
   getUnifiedBillingPlan(id: string): Promise<UnifiedBillingPlan | undefined>;
   createUnifiedBillingPlan(plan: InsertUnifiedBillingPlan): Promise<UnifiedBillingPlan>;
   updateUnifiedBillingPlan(id: string, updates: Partial<InsertUnifiedBillingPlan>): Promise<UnifiedBillingPlan>;
   deleteUnifiedBillingPlan(id: string): Promise<void>;
-  
+
   // Payment Split operations
   getPaymentSplits(paymentId: string): Promise<PaymentSplit[]>;
   createPaymentSplit(split: InsertPaymentSplit): Promise<PaymentSplit>;
   updatePaymentSplit(id: string, updates: Partial<InsertPaymentSplit>): Promise<PaymentSplit>;
-  
+
   // Unified Subscription operations
   getUnifiedSubscriptions(organizationId: string): Promise<UnifiedSubscription[]>;
   getUnifiedSubscription(id: string): Promise<UnifiedSubscription | undefined>;
   createUnifiedSubscription(subscription: InsertUnifiedSubscription): Promise<UnifiedSubscription>;
   updateUnifiedSubscription(id: string, updates: Partial<InsertUnifiedSubscription>): Promise<UnifiedSubscription>;
   cancelUnifiedSubscription(id: string): Promise<void>;
-  
+
   // Approval webhook operations
   getApprovalWebhooks(): Promise<ApprovalWebhook[]>;
   getApprovalWebhook(id: string): Promise<ApprovalWebhook | undefined>;
@@ -399,7 +401,7 @@ export class DatabaseStorage implements IStorage {
 
     // If no organization exists for this user, create one
     let organizationId = userData.organizationId;
-    
+
     if (!organizationId) {
       const [org] = await db().insert(organizations).values({
         name: userData.email?.split('@')[0] || 'Personal Organization'
@@ -498,7 +500,7 @@ export class DatabaseStorage implements IStorage {
     await db()
       .delete(userAgents)
       .where(eq(userAgents.userId, userId));
-    
+
     // Then add new assignments
     if (agentIds.length > 0) {
       await db()
@@ -516,20 +518,20 @@ export class DatabaseStorage implements IStorage {
         eq(userAgents.userId, userId),
         eq(agents.organizationId, organizationId)
       ));
-    
+
     return result.map((r: { agent: Agent }) => r.agent);
   }
-  
+
   // Batch method to fetch assigned agents for multiple users at once (prevents N+1 queries)
   async getUsersWithAssignedAgents(userIds: string[], organizationId: string): Promise<Map<string, Agent[]>> {
     if (userIds.length === 0) {
       return new Map();
     }
-    
+
     const result = await db()
-      .select({ 
+      .select({
         userId: userAgents.userId,
-        agent: agents 
+        agent: agents
       })
       .from(userAgents)
       .innerJoin(agents, eq(userAgents.agentId, agents.id))
@@ -537,7 +539,7 @@ export class DatabaseStorage implements IStorage {
         inArray(userAgents.userId, userIds),
         eq(agents.organizationId, organizationId)
       ));
-    
+
     // Group agents by userId
     const userAgentsMap = new Map<string, Agent[]>();
     for (const row of result) {
@@ -546,14 +548,14 @@ export class DatabaseStorage implements IStorage {
       }
       userAgentsMap.get(row.userId)!.push(row.agent);
     }
-    
+
     // Ensure all userIds have an entry (even if empty)
     for (const userId of userIds) {
       if (!userAgentsMap.has(userId)) {
         userAgentsMap.set(userId, []);
       }
     }
-    
+
     return userAgentsMap;
   }
 
@@ -561,7 +563,7 @@ export class DatabaseStorage implements IStorage {
   async createInvitation(invitation: InsertUserInvitation): Promise<UserInvitation> {
     const crypto = require('crypto');
     const code = crypto.randomBytes(16).toString('hex');
-    
+
     const [inv] = await db()
       .insert(userInvitations)
       .values({ ...invitation, code })
@@ -612,7 +614,7 @@ export class DatabaseStorage implements IStorage {
   async acceptInvitation(invitationId: string, userId: string): Promise<void> {
     const invitation = await this.getInvitation(invitationId);
     if (!invitation) throw new Error("Invitation not found");
-    
+
     // Update user's organization and permissions
     await db()
       .update(users)
@@ -623,9 +625,9 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));
-    
+
     // Mark invitation as accepted
-    await this.updateInvitation(invitationId, { 
+    await this.updateInvitation(invitationId, {
       status: "accepted",
       acceptedAt: new Date(),
       acceptedBy: userId
@@ -684,6 +686,13 @@ export class DatabaseStorage implements IStorage {
       .from(integrations);
   }
 
+  async getIntegrations(organizationId: string): Promise<Integration[]> {
+    return await db()
+      .select()
+      .from(integrations)
+      .where(eq(integrations.organizationId, organizationId));
+  }
+
   async upsertIntegration(integrationData: InsertIntegration): Promise<Integration> {
     console.log("Database upsertIntegration called with:", {
       organizationId: integrationData.organizationId,
@@ -691,7 +700,7 @@ export class DatabaseStorage implements IStorage {
       status: integrationData.status,
       apiKeyLength: integrationData.apiKey?.length
     });
-    
+
     const [integration] = await db()
       .insert(integrations)
       .values(integrationData)
@@ -703,8 +712,19 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
-    
+
     console.log("Database upsertIntegration result:", integration?.id);
+    return integration;
+  }
+
+  async updateIntegration(id: string, updates: Partial<InsertIntegration>): Promise<Integration> {
+    const [integration] = await db()
+      .update(integrations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(integrations.id, id))
+      .returning();
+
+    if (!integration) throw new Error("Integration not found");
     return integration;
   }
 
@@ -764,7 +784,7 @@ export class DatabaseStorage implements IStorage {
     return agent;
   }
 
-  async deleteAgent(organizationId: string, id: string): Promise<void> {
+  async deleteAgent(id: string, organizationId: string): Promise<void> {
     await db()
       .delete(agents)
       .where(and(eq(agents.id, id), eq(agents.organizationId, organizationId)));
@@ -788,7 +808,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(agents)
       .leftJoin(organizations, eq(agents.organizationId, organizations.id));
-    
+
     return result.map((r: { agent: Agent; organization: Organization | null }) => ({
       ...r.agent,
       organizationName: r.organization?.name || 'Unknown',
@@ -799,18 +819,18 @@ export class DatabaseStorage implements IStorage {
     // Update the agent's organization
     const [agent] = await db()
       .update(agents)
-      .set({ 
+      .set({
         organizationId: newOrganizationId,
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
       .where(eq(agents.id, agentId))
       .returning();
-    
+
     // Also clear any user assignments for this agent since it's moving to a new org
     await db()
       .delete(userAgents)
       .where(eq(userAgents.agentId, agentId));
-    
+
     return agent;
   }
 
@@ -819,7 +839,7 @@ export class DatabaseStorage implements IStorage {
       .select({ id: agents.id })
       .from(agents)
       .where(eq(agents.organizationId, organizationId));
-    
+
     return agentList.map((a: { id: string }) => a.id);
   }
 
@@ -827,9 +847,9 @@ export class DatabaseStorage implements IStorage {
   async getAgentsForUser(userId: string, organizationId: string): Promise<Agent[]> {
     const user = await this.getUser(userId);
     if (!user) return [];
-    
+
     console.log(`Getting agents for user ${user.email} (isAdmin: ${user.isAdmin}, role: ${user.role})`);
-    
+
     // Admins and agencies can see all agents in their org
     if (user.isAdmin || user.role === 'agency') {
       // For agencies, also include agents from child organizations
@@ -847,7 +867,7 @@ export class DatabaseStorage implements IStorage {
       // Regular admins see all agents in their org
       return this.getAgents(organizationId);
     }
-    
+
     // Regular users only see agents assigned to them
     const assignedAgents = await db()
       .select({
@@ -856,12 +876,12 @@ export class DatabaseStorage implements IStorage {
       .from(userAgents)
       .innerJoin(agents, eq(userAgents.agentId, agents.id))
       .where(eq(userAgents.userId, userId));
-    
+
     console.log(`Found ${assignedAgents.length} assigned agents for user ${user.email}`);
     assignedAgents.forEach((a: { agent: Agent }) => {
       console.log(`  - ${a.agent.name} (${a.agent.id})`);
     });
-    
+
     return assignedAgents.map((row: { agent: Agent }) => row.agent);
   }
 
@@ -894,7 +914,7 @@ export class DatabaseStorage implements IStorage {
 
   async bulkAssignAgentsToUser(userId: string, agentIds: string[], assignedBy?: string): Promise<void> {
     if (agentIds.length === 0) return;
-    
+
     const assignments = agentIds.map(agentId => ({ userId, agentId, assignedBy }));
     await db()
       .insert(userAgents)
@@ -925,13 +945,13 @@ export class DatabaseStorage implements IStorage {
     // Get total count for pagination
     const countQuery = agentId
       ? db()
-          .select({ count: count() })
-          .from(callLogs)
-          .where(and(eq(callLogs.organizationId, organizationId), eq(callLogs.agentId, agentId)))
+        .select({ count: count() })
+        .from(callLogs)
+        .where(and(eq(callLogs.organizationId, organizationId), eq(callLogs.agentId, agentId)))
       : db()
-          .select({ count: count() })
-          .from(callLogs)
-          .where(eq(callLogs.organizationId, organizationId));
+        .select({ count: count() })
+        .from(callLogs)
+        .where(eq(callLogs.organizationId, organizationId));
 
     const [countResult] = await countQuery;
     const data = await query;
@@ -995,13 +1015,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCallAudioStatus(
-    callId: string, 
-    organizationId: string, 
-    updates: { 
-      audioStorageKey?: string; 
-      audioFetchStatus?: string; 
-      recordingUrl?: string; 
-      audioFetchedAt?: Date 
+    callId: string,
+    organizationId: string,
+    updates: {
+      audioStorageKey?: string;
+      audioFetchStatus?: string;
+      recordingUrl?: string;
+      audioFetchedAt?: Date
     }
   ): Promise<CallLog> {
     const [callLog] = await db()
@@ -1037,7 +1057,7 @@ export class DatabaseStorage implements IStorage {
     lastSync?: Date;
   }> {
     // Build where conditions for call logs
-    const callLogsConditions = agentId 
+    const callLogsConditions = agentId
       ? and(eq(callLogs.organizationId, organizationId), eq(callLogs.agentId, agentId))
       : eq(callLogs.organizationId, organizationId);
 
@@ -1115,12 +1135,12 @@ export class DatabaseStorage implements IStorage {
     if (orgUsers.length > 0) {
       throw new Error("Cannot delete organization with existing users");
     }
-    
+
     // Delete related data
     await db().delete(integrations).where(eq(integrations.organizationId, id));
     await db().delete(agents).where(eq(agents.organizationId, id));
     await db().delete(callLogs).where(eq(callLogs.organizationId, id));
-    
+
     // Finally delete the organization
     await db().delete(organizations).where(eq(organizations.id, id));
   }
@@ -1140,9 +1160,9 @@ export class DatabaseStorage implements IStorage {
   async toggleOrganizationStatus(id: string, isActive: boolean): Promise<Organization> {
     const [updatedOrg] = await db()
       .update(organizations)
-      .set({ 
-        billingStatus: isActive ? 'active' : 'inactive', 
-        updatedAt: new Date() 
+      .set({
+        billingStatus: isActive ? 'active' : 'inactive',
+        updatedAt: new Date()
       })
       .where(eq(organizations.id, id))
       .returning();
@@ -1174,9 +1194,9 @@ export class DatabaseStorage implements IStorage {
     // Get total counts
     const [userCount] = await db().select({ count: count(users.id) }).from(users);
     const [orgCount] = await db().select({ count: count(organizations.id) }).from(organizations);
-    const [callCount] = await db().select({ 
+    const [callCount] = await db().select({
       count: count(callLogs.id),
-      totalCost: sum(callLogs.cost) 
+      totalCost: sum(callLogs.cost)
     }).from(callLogs);
 
     // Get organization-specific data
@@ -1311,7 +1331,7 @@ export class DatabaseStorage implements IStorage {
     }
     return updated;
   }
-  
+
   // Agency Pricing Plan operations
   async getAgencyPricingPlans(organizationId: string): Promise<AgencyPricingPlan[]> {
     return await db()
@@ -1349,7 +1369,7 @@ export class DatabaseStorage implements IStorage {
   async deleteAgencyPricingPlan(id: string): Promise<void> {
     await db().delete(agencyPricingPlans).where(eq(agencyPricingPlans.id, id));
   }
-  
+
   // Agency Subscription operations
   async getAgencySubscriptions(agencyOrganizationId: string): Promise<AgencySubscription[]> {
     return await db()
@@ -1399,14 +1419,14 @@ export class DatabaseStorage implements IStorage {
   async cancelAgencySubscription(id: string): Promise<void> {
     await db()
       .update(agencySubscriptions)
-      .set({ 
+      .set({
         status: "canceled" as const,
         canceledAt: new Date(),
         updatedAt: new Date()
       })
       .where(eq(agencySubscriptions.id, id));
   }
-  
+
   // Agency Transaction operations
   async getAgencyTransactions(agencyOrganizationId: string, limit?: number): Promise<AgencyTransaction[]> {
     let query = db()
@@ -1414,11 +1434,11 @@ export class DatabaseStorage implements IStorage {
       .from(agencyTransactions)
       .where(eq(agencyTransactions.agencyOrganizationId, agencyOrganizationId))
       .orderBy(desc(agencyTransactions.createdAt));
-    
+
     if (limit) {
       query = query.limit(limit) as any;
     }
-    
+
     return await query;
   }
 
@@ -1455,7 +1475,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(agencyPaymentProcessors.organizationId, organizationId));
     return processors;
   }
-  
+
   async getAgencyPaymentProcessor(organizationId: string, provider: string): Promise<AgencyPaymentProcessor | undefined> {
     const [processor] = await db()
       .select()
@@ -1468,7 +1488,7 @@ export class DatabaseStorage implements IStorage {
       );
     return processor;
   }
-  
+
   async createAgencyPaymentProcessor(processor: InsertAgencyPaymentProcessor): Promise<AgencyPaymentProcessor> {
     const [newProcessor] = await db()
       .insert(agencyPaymentProcessors)
@@ -1476,7 +1496,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return newProcessor;
   }
-  
+
   async updateAgencyPaymentProcessor(id: string, updates: Partial<InsertAgencyPaymentProcessor>): Promise<AgencyPaymentProcessor> {
     const [updated] = await db()
       .update(agencyPaymentProcessors)
@@ -1485,7 +1505,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
-  
+
   async deleteAgencyPaymentProcessor(organizationId: string, provider: string): Promise<void> {
     await db()
       .delete(agencyPaymentProcessors)
@@ -1496,22 +1516,22 @@ export class DatabaseStorage implements IStorage {
         )
       );
   }
-  
+
   // Agency Billing Plan implementations (new schema)
   async getAgencyBillingPlans(organizationId: string, includeInactive: boolean = false): Promise<AgencyBillingPlan[]> {
     let query = db()
       .select()
       .from(agencyBillingPlans)
       .where(eq(agencyBillingPlans.organizationId, organizationId));
-    
+
     if (!includeInactive) {
       query = query.where(eq(agencyBillingPlans.isActive, true));
     }
-    
+
     const plans = await query.orderBy(agencyBillingPlans.displayOrder);
     return plans;
   }
-  
+
   async getAgencyBillingPlan(id: string): Promise<AgencyBillingPlan | undefined> {
     const [plan] = await db()
       .select()
@@ -1519,7 +1539,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(agencyBillingPlans.id, id));
     return plan;
   }
-  
+
   async createAgencyBillingPlan(plan: InsertAgencyBillingPlan): Promise<AgencyBillingPlan> {
     const [newPlan] = await db()
       .insert(agencyBillingPlans)
@@ -1527,7 +1547,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return newPlan;
   }
-  
+
   async updateAgencyBillingPlan(id: string, updates: Partial<InsertAgencyBillingPlan>): Promise<AgencyBillingPlan> {
     const [updated] = await db()
       .update(agencyBillingPlans)
@@ -1536,13 +1556,13 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
-  
+
   async deleteAgencyBillingPlan(id: string): Promise<void> {
     await db()
       .delete(agencyBillingPlans)
       .where(eq(agencyBillingPlans.id, id));
   }
-  
+
   // Customer Subscription implementations
   async getCustomerSubscriptions(agencyOrganizationId: string): Promise<CustomerSubscription[]> {
     const subscriptions = await db()
@@ -1552,7 +1572,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(customerSubscriptions.createdAt));
     return subscriptions;
   }
-  
+
   async getCustomerSubscription(id: string): Promise<CustomerSubscription | undefined> {
     const [subscription] = await db()
       .select()
@@ -1560,7 +1580,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customerSubscriptions.id, id));
     return subscription;
   }
-  
+
   async getCustomerSubscriptionByCustomer(customerOrganizationId: string): Promise<CustomerSubscription | undefined> {
     const [subscription] = await db()
       .select()
@@ -1573,7 +1593,7 @@ export class DatabaseStorage implements IStorage {
       );
     return subscription;
   }
-  
+
   async createCustomerSubscription(subscription: InsertCustomerSubscription): Promise<CustomerSubscription> {
     const [newSubscription] = await db()
       .insert(customerSubscriptions)
@@ -1581,7 +1601,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return newSubscription;
   }
-  
+
   async updateCustomerSubscription(id: string, updates: Partial<InsertCustomerSubscription>): Promise<CustomerSubscription> {
     const [updated] = await db()
       .update(customerSubscriptions)
@@ -1590,7 +1610,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
-  
+
   async cancelCustomerSubscription(id: string): Promise<void> {
     await db()
       .update(customerSubscriptions)
@@ -1601,7 +1621,7 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(customerSubscriptions.id, id));
   }
-  
+
   // Customer Payment Method implementations
   async getCustomerPaymentMethods(customerOrganizationId: string): Promise<CustomerPaymentMethod[]> {
     const methods = await db()
@@ -1611,7 +1631,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(customerPaymentMethods.isDefault), desc(customerPaymentMethods.createdAt));
     return methods;
   }
-  
+
   async getCustomerPaymentMethod(id: string): Promise<CustomerPaymentMethod | undefined> {
     const [method] = await db()
       .select()
@@ -1619,7 +1639,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customerPaymentMethods.id, id));
     return method;
   }
-  
+
   async createCustomerPaymentMethod(method: InsertCustomerPaymentMethod): Promise<CustomerPaymentMethod> {
     const [newMethod] = await db()
       .insert(customerPaymentMethods)
@@ -1627,7 +1647,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return newMethod;
   }
-  
+
   async updateCustomerPaymentMethod(id: string, updates: Partial<InsertCustomerPaymentMethod>): Promise<CustomerPaymentMethod> {
     const [updated] = await db()
       .update(customerPaymentMethods)
@@ -1636,20 +1656,20 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
-  
+
   async deleteCustomerPaymentMethod(id: string): Promise<void> {
     await db()
       .delete(customerPaymentMethods)
       .where(eq(customerPaymentMethods.id, id));
   }
-  
+
   async setDefaultPaymentMethod(customerOrganizationId: string, methodId: string): Promise<void> {
     // First, unset all defaults for this customer
     await db()
       .update(customerPaymentMethods)
       .set({ isDefault: false })
       .where(eq(customerPaymentMethods.customerOrganizationId, customerOrganizationId));
-    
+
     // Then set the new default
     await db()
       .update(customerPaymentMethods)
@@ -2011,7 +2031,7 @@ export class DatabaseStorage implements IStorage {
   async createAgencyInvitation(invitation: InsertAgencyInvitation): Promise<AgencyInvitation> {
     // Generate unique invitation code
     const invitationCode = `INV-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-    
+
     const [result] = await db()
       .insert(agencyInvitations)
       .values({
@@ -2038,7 +2058,7 @@ export class DatabaseStorage implements IStorage {
   // Credit package operations
   async getCreditPackages(targetAudience?: "agency" | "end_customer"): Promise<CreditPackage[]> {
     let query = db().select().from(creditPackages).where(eq(creditPackages.isActive, true));
-    
+
     if (targetAudience) {
       const result = await db()
         .select()
@@ -2050,7 +2070,7 @@ export class DatabaseStorage implements IStorage {
         .orderBy(creditPackages.sortOrder);
       return result;
     }
-    
+
     const result = await db()
       .select()
       .from(creditPackages)
@@ -2219,7 +2239,7 @@ export class DatabaseStorage implements IStorage {
     const currentBalance = Number(org.creditBalance || 0);
     const monthlyCredits = org.monthlyCredits || 0;
     const totalAvailable = currentBalance + monthlyCredits;
-    
+
     if (totalAvailable === 0) return;
 
     const percentage = (currentBalance / totalAvailable) * 100;
@@ -2307,7 +2327,7 @@ export class DatabaseStorage implements IStorage {
       ));
     return config;
   }
-  
+
   async getAllWhitelabelConfigs(): Promise<WhitelabelConfig[]> {
     const configs = await db()
       .select()
@@ -2334,12 +2354,12 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(whitelabelConfigs.organizationId, organizationId))
       .returning();
-    
+
     if (!result) {
       // If no config exists, create one
       return this.createWhitelabelConfig({ organizationId, ...config });
     }
-    
+
     return result;
   }
 
@@ -2415,7 +2435,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(unifiedBillingPlans.organizationType, organizationType as any));
     }
     conditions.push(eq(unifiedBillingPlans.isActive, true));
-    
+
     return await db()
       .select()
       .from(unifiedBillingPlans)

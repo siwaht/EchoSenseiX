@@ -30,6 +30,7 @@ import {
   handlePostCallWebhook,
   handleEventsWebhook
 } from "./webhooks/elevenlabs-webhooks";
+import { encryptCredentials, decryptCredentials, encryptApiKey, decryptApiKey } from "./utils/encryption";
 
 // Authentication middleware
 const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -50,109 +51,7 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
 
 
 
-// Encryption helpers
-// Generic encryption function for credentials
-function encryptCredentials(data: any): string {
-  const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
-  const algorithm = "aes-256-cbc";
-  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-  const iv = crypto.randomBytes(16);
-
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  let encrypted = cipher.update(dataStr, "utf8", "hex");
-  encrypted += cipher.final("hex");
-
-  return `${iv.toString("hex")}:${encrypted}`;
-}
-
-// Generic decryption function for credentials
-function decryptCredentials(encryptedData: string): any {
-  try {
-    const algorithm = "aes-256-cbc";
-    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-
-    // Handle both old and new encryption formats
-    if (!encryptedData.includes(":")) {
-      // Old format detected - use legacy decryption (deprecated method)
-      // TODO: Migrate all old encrypted data to new format and remove this code path
-      console.warn("WARNING: Old encryption format detected. Please re-save credentials to use secure encryption.");
-
-      // Using deprecated createDecipher for backward compatibility only
-      // This should be migrated to createDecipheriv
-      const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
-      let decrypted = decipher.update(encryptedData, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-      try {
-        return JSON.parse(decrypted);
-      } catch {
-        return decrypted;
-      }
-    }
-
-    // New format
-    const [ivHex, encrypted] = encryptedData.split(":");
-    const iv = Buffer.from(ivHex, "hex");
-
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-
-    try {
-      return JSON.parse(decrypted);
-    } catch {
-      return decrypted;
-    }
-  } catch (error) {
-    console.error("Decryption failed:", error);
-    throw new Error("Failed to decrypt credentials. Please re-enter your credentials.");
-  }
-}
-
-function encryptApiKey(apiKey: string): string {
-  const algorithm = "aes-256-cbc";
-  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-  const iv = crypto.randomBytes(16);
-
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  let encrypted = cipher.update(apiKey, "utf8", "hex");
-  encrypted += cipher.final("hex");
-
-  return `${iv.toString("hex")}:${encrypted}`;
-}
-
-function decryptApiKey(encryptedApiKey: string): string {
-  try {
-    const algorithm = "aes-256-cbc";
-    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || "default-key", "salt", 32);
-
-    // Handle both old and new encryption formats
-    if (!encryptedApiKey.includes(":")) {
-      // Old format detected - use legacy decryption (deprecated method)
-      // TODO: Migrate all old encrypted data to new format and remove this code path
-      console.warn("WARNING: Old encryption format detected. Please re-save API key to use secure encryption.");
-
-      // Using deprecated createDecipher for backward compatibility only
-      // This should be migrated to createDecipheriv
-      const decipher = crypto.createDecipher("aes-256-cbc", process.env.ENCRYPTION_KEY || "default-key");
-      let decrypted = decipher.update(encryptedApiKey, "hex", "utf8");
-      decrypted += decipher.final("utf8");
-      return decrypted;
-    }
-
-    // New format
-    const [ivHex, encrypted] = encryptedApiKey.split(":");
-    const iv = Buffer.from(ivHex, "hex");
-
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-
-    return decrypted;
-  } catch (error) {
-    console.error("Decryption failed:", error);
-    throw new Error("Failed to decrypt API key. Please re-enter your API key.");
-  }
-}
+// Encryption helpers moved to server/utils/encryption.ts
 
 // Cost calculation helper with updated ElevenLabs pricing
 function calculateCallCost(durationSeconds: number, costData?: any): number {
@@ -509,6 +408,51 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error updating organization status:", error);
       res.status(500).json({ message: "Failed to update organization status" });
+    }
+  });
+
+  // Encryption Migration Route
+  app.post('/api/admin/migrate-encryption', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      console.log("Starting encryption migration...");
+      const integrations = await storage.getAllIntegrations();
+      let migratedCount = 0;
+      let errorCount = 0;
+
+      for (const integration of integrations) {
+        try {
+          // Check if apiKey needs migration (doesn't have IV prefix)
+          if (integration.apiKey && !integration.apiKey.includes(':')) {
+            // Decrypt with legacy method (handled automatically by decryptApiKey)
+            const decryptedKey = decryptApiKey(integration.apiKey);
+            // Re-encrypt with new method
+            const reEncryptedKey = encryptApiKey(decryptedKey);
+
+            // Update in DB
+            await storage.updateIntegration(integration.id, { apiKey: reEncryptedKey });
+            migratedCount++;
+            console.log(`Migrated API key for integration ${integration.id}`);
+          }
+
+          // Check credentials blob if it exists
+          if (integration.credentials) {
+            // This is more complex as credentials might be a JSON string or object
+            // For now, we focus on API keys as that's the primary concern
+          }
+        } catch (err) {
+          console.error(`Failed to migrate integration ${integration.id}:`, err);
+          errorCount++;
+        }
+      }
+
+      res.json({
+        message: "Migration completed",
+        migrated: migratedCount,
+        errors: errorCount
+      });
+    } catch (error) {
+      console.error("Encryption migration failed:", error);
+      res.status(500).json({ message: "Migration failed" });
     }
   });
 

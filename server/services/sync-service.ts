@@ -12,7 +12,7 @@
 import { storage } from "../storage";
 import { providerRegistry } from "./providers/registry";
 import { IConversationalAIProvider } from "./providers/types";
-import type { InsertCallLog, InsertAgent } from "@shared/schema";
+import type { InsertCallLog, InsertAgent, Integration } from "@shared/schema";
 
 export interface SyncResult {
   success: boolean;
@@ -46,162 +46,199 @@ export class SyncService {
     try {
       console.log(`[SYNC] Starting call log sync for organization ${organizationId}`);
 
-      // Get ElevenLabs integration (currently hardcoded to elevenlabs, but ready for others)
-      // TODO: Make this dynamic based on available integrations
-      const integration = await storage.getIntegration(organizationId, "elevenlabs");
-      if (!integration || !integration.apiKey) {
-        throw new Error("ElevenLabs integration not configured");
+      // Get all active integrations for this organization
+      const integrations = await storage.getIntegrations(organizationId);
+      const activeIntegrations = integrations.filter(i => i.status === 'ACTIVE' && i.apiKey);
+
+      if (activeIntegrations.length === 0) {
+        console.log(`[SYNC] No active integrations found for organization ${organizationId}`);
+        return {
+          success: true,
+          syncedCount: 0,
+          updatedCount: 0,
+          errorCount: 0,
+          errors: [],
+          duration: Date.now() - startTime
+        };
       }
 
-      // Get provider from registry
-      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
-      if (!provider) {
-        throw new Error("ElevenLabs provider not found in registry");
-      }
-
-      // Initialize provider with API key
-      await provider.initialize({ apiKey: integration.apiKey });
-      console.log(`[SYNC] Provider initialized successfully`);
-
-      // Fetch conversations from Provider
-      console.log(`[SYNC] Fetching conversations from provider...`);
-      const conversationsResult = await provider.getConversations({
-        agent_id: agentId,
-        page_size: limit,
-      });
-
-      // Handle provider response structure (adapter should normalize this, but being safe)
-      const conversations = conversationsResult.conversations || conversationsResult || [];
-      console.log(`[SYNC] Found ${conversations.length} conversations`);
-
-      // Process each conversation
-      for (const conversation of conversations) {
+      for (const integration of activeIntegrations) {
         try {
-          // Validate conversation data
-          if (!conversation.conversation_id) {
-            console.warn(`[SYNC] Skipping conversation without ID:`, conversation);
-            errorCount++;
-            errors.push(`Conversation missing ID: ${JSON.stringify(conversation)}`);
+          console.log(`[SYNC] Processing integration: ${integration.provider}`);
+
+          // Get provider from registry
+          const provider = providerRegistry.getProvider(integration.provider);
+          if (!provider) {
+            console.warn(`[SYNC] Provider ${integration.provider} not found in registry, skipping`);
             continue;
           }
 
-          // Check if call log already exists (deduplication)
-          const existingLog = await storage.getCallLogByConversationId(
-            organizationId,
-            conversation.conversation_id
-          );
-
-          // Fetch detailed conversation data to get accurate duration and cost
-          let detailedConversation = conversation;
-          try {
-            const detailResult = await provider.getConversation(conversation.conversation_id);
-            if (detailResult) {
-              detailedConversation = detailResult;
-              console.log(`[SYNC] Fetched detailed data for ${conversation.conversation_id}`);
-            }
-          } catch (detailError: any) {
-            console.warn(`[SYNC] Could not fetch detailed data for ${conversation.conversation_id}:`, detailError.message);
-            // Continue with list data
+          // Filter for conversational AI providers
+          if (provider.type !== "conversational_ai") {
+            continue;
           }
 
-          // Look up the local agent using the Provider agent ID
-          const providerAgentId = detailedConversation.agent_id || agentId;
-          let localAgentId = null;
+          const aiProvider = provider as IConversationalAIProvider;
+          if (!aiProvider.getConversations) {
+            console.log(`[SYNC] Provider ${integration.provider} does not support getConversations, skipping`);
+            continue;
+          }
 
-          if (providerAgentId) {
+          // Initialize provider with API key
+          await aiProvider.initialize({ apiKey: integration.apiKey });
+          console.log(`[SYNC] Provider ${integration.provider} initialized successfully`);
+
+          // Fetch conversations from Provider
+          console.log(`[SYNC] Fetching conversations from ${integration.provider}...`);
+          const conversationsResult = await aiProvider.getConversations({
+            agent_id: agentId,
+            page_size: limit,
+          });
+
+          // Handle provider response structure (adapter should normalize this, but being safe)
+          const conversations = conversationsResult.conversations || conversationsResult || [];
+          console.log(`[SYNC] Found ${conversations.length} conversations from ${integration.provider}`);
+
+          // Process each conversation
+          for (const conversation of conversations) {
             try {
-              const localAgent = await storage.getAgentByElevenLabsId(providerAgentId, organizationId);
-              if (localAgent) {
-                localAgentId = localAgent.id;
-                console.log(`[SYNC] Mapped provider agent ${providerAgentId} to local agent ${localAgentId}`);
+              // Validate conversation data
+              if (!conversation.conversation_id) {
+                console.warn(`[SYNC] Skipping conversation without ID:`, conversation);
+                errorCount++;
+                errors.push(`Conversation missing ID: ${JSON.stringify(conversation)}`);
+                continue;
+              }
+
+              // Check if call log already exists (deduplication)
+              const existingLog = await storage.getCallLogByConversationId(
+                organizationId,
+                conversation.conversation_id
+              );
+
+              // Fetch detailed conversation data to get accurate duration and cost
+              let detailedConversation = conversation;
+              try {
+                const detailResult = await aiProvider.getConversation(conversation.conversation_id);
+                if (detailResult) {
+                  detailedConversation = detailResult;
+                  console.log(`[SYNC] Fetched detailed data for ${conversation.conversation_id}`);
+                }
+              } catch (detailError: any) {
+                console.warn(`[SYNC] Could not fetch detailed data for ${conversation.conversation_id}:`, detailError.message);
+                // Continue with list data
+              }
+
+              // Look up the local agent using the Provider agent ID
+              const providerAgentId = detailedConversation.agent_id || agentId;
+              let localAgentId = null;
+
+              if (providerAgentId) {
+                try {
+                  // We need a way to find agent by provider-specific ID
+                  // The current getAgentByElevenLabsId is specific. 
+                  // We should probably have a generic method or use the same column for now if it maps 1:1
+                  // Assuming 'elevenLabsAgentId' column is used for the external ID for now.
+                  // TODO: Rename elevenLabsAgentId to externalAgentId in schema in future refactor
+                  const localAgent = await storage.getAgentByElevenLabsId(providerAgentId, organizationId);
+                  if (localAgent) {
+                    localAgentId = localAgent.id;
+                    console.log(`[SYNC] Mapped provider agent ${providerAgentId} to local agent ${localAgentId}`);
+                  } else {
+                    console.warn(`[SYNC] No local agent found for provider agent ID: ${providerAgentId}. Call log will be created without agent reference.`);
+                  }
+                } catch (agentLookupError: any) {
+                  console.warn(`[SYNC] Failed to lookup local agent for ${providerAgentId}:`, agentLookupError.message);
+                }
+              }
+
+              // Extract duration
+              const duration = detailedConversation.conversation_initiation_client_data?.dynamic_variables?.system__call_duration_secs ||
+                detailedConversation.dynamic_variables?.system__call_duration_secs ||
+                detailedConversation.duration_seconds || 0;
+
+              // Fetch transcript explicitly
+              let transcript = null;
+              if (includeTranscripts) {
+                try {
+                  console.log(`[SYNC] Fetching transcript for ${conversation.conversation_id}`);
+                  const transcriptData = await aiProvider.getConversationTranscript(conversation.conversation_id);
+
+                  if (transcriptData) {
+                    // Store transcript as JSON string
+                    transcript = JSON.stringify(transcriptData);
+                    console.log(`[SYNC] Successfully fetched transcript for ${conversation.conversation_id}`);
+                  }
+                } catch (transcriptError: any) {
+                  console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}:`, transcriptError.message);
+                }
+              }
+
+              // Prepare call log data using detailed conversation info
+              const callLogData: Partial<InsertCallLog> = {
+                organizationId,
+                conversationId: detailedConversation.conversation_id,
+                agentId: localAgentId,
+                elevenLabsCallId: detailedConversation.conversation_id, // This column might need renaming too, but using it for now
+                phoneNumber: detailedConversation.metadata?.caller_number || null,
+                status: detailedConversation.status || "completed",
+                duration: duration,
+                cost: detailedConversation.cost ? String(detailedConversation.cost) : null,
+                transcript: transcript,
+                audioUrl: detailedConversation.recording_url || null,
+              };
+
+              if (existingLog) {
+                // Update existing call log
+                const updatedLog = await storage.updateCallLog(existingLog.id, organizationId, callLogData);
+                updatedCount++;
+                console.log(`[SYNC] Updated call log ${existingLog.id}`);
+
+                // Auto-fetch audio recording if available and not already fetched
+                if (updatedLog && updatedLog.conversationId && !updatedLog.audioStorageKey) {
+                  await this.fetchAndStoreAudio(
+                    aiProvider,
+                    updatedLog.conversationId,
+                    updatedLog.id,
+                    organizationId
+                  );
+                }
               } else {
-                console.warn(`[SYNC] No local agent found for provider agent ID: ${providerAgentId}. Call log will be created without agent reference.`);
+                // Create new call log
+                const newCallLog = await storage.createCallLog({
+                  ...callLogData,
+                  createdAt: conversation.created_at ? new Date(conversation.created_at) : new Date(),
+                } as InsertCallLog);
+                syncedCount++;
+                console.log(`[SYNC] Created new call log for conversation ${conversation.conversation_id}`);
+
+                // Auto-fetch audio recording if available
+                if (newCallLog && newCallLog.conversationId && !newCallLog.audioStorageKey) {
+                  await this.fetchAndStoreAudio(
+                    aiProvider,
+                    newCallLog.conversationId,
+                    newCallLog.id,
+                    organizationId
+                  );
+                }
               }
-            } catch (agentLookupError: any) {
-              console.warn(`[SYNC] Failed to lookup local agent for ${providerAgentId}:`, agentLookupError.message);
+            } catch (error: any) {
+              errorCount++;
+              const errorMsg = `Failed to process conversation ${conversation?.conversation_id || 'unknown'} from ${integration.provider}: ${error.message}`;
+              errors.push(errorMsg);
+              console.error(`[SYNC] ${errorMsg}`, error);
             }
           }
 
-          // Extract duration
-          const duration = detailedConversation.conversation_initiation_client_data?.dynamic_variables?.system__call_duration_secs ||
-            detailedConversation.dynamic_variables?.system__call_duration_secs ||
-            detailedConversation.duration_seconds || 0;
+          // Update integration last sync time
+          await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
 
-          // Fetch transcript explicitly
-          let transcript = null;
-          if (includeTranscripts) {
-            try {
-              console.log(`[SYNC] Fetching transcript for ${conversation.conversation_id}`);
-              const transcriptData = await provider.getConversationTranscript(conversation.conversation_id);
-
-              if (transcriptData) {
-                // Store transcript as JSON string
-                transcript = JSON.stringify(transcriptData);
-                console.log(`[SYNC] Successfully fetched transcript for ${conversation.conversation_id}`);
-              }
-            } catch (transcriptError: any) {
-              console.warn(`[SYNC] Failed to fetch transcript for ${conversation.conversation_id}:`, transcriptError.message);
-            }
-          }
-
-          // Prepare call log data using detailed conversation info
-          const callLogData: Partial<InsertCallLog> = {
-            organizationId,
-            conversationId: detailedConversation.conversation_id,
-            agentId: localAgentId,
-            elevenLabsCallId: detailedConversation.conversation_id,
-            phoneNumber: detailedConversation.metadata?.caller_number || null,
-            status: detailedConversation.status || "completed",
-            duration: duration,
-            cost: detailedConversation.cost ? String(detailedConversation.cost) : null,
-            transcript: transcript,
-            audioUrl: detailedConversation.recording_url || null,
-          };
-
-          if (existingLog) {
-            // Update existing call log
-            const updatedLog = await storage.updateCallLog(existingLog.id, organizationId, callLogData);
-            updatedCount++;
-            console.log(`[SYNC] Updated call log ${existingLog.id}`);
-
-            // Auto-fetch audio recording if available and not already fetched
-            if (updatedLog && updatedLog.conversationId && !updatedLog.audioStorageKey) {
-              await this.fetchAndStoreAudio(
-                provider,
-                updatedLog.conversationId,
-                updatedLog.id,
-                organizationId
-              );
-            }
-          } else {
-            // Create new call log
-            const newCallLog = await storage.createCallLog({
-              ...callLogData,
-              createdAt: conversation.created_at ? new Date(conversation.created_at) : new Date(),
-            } as InsertCallLog);
-            syncedCount++;
-            console.log(`[SYNC] Created new call log for conversation ${conversation.conversation_id}`);
-
-            // Auto-fetch audio recording if available
-            if (newCallLog && newCallLog.conversationId && !newCallLog.audioStorageKey) {
-              await this.fetchAndStoreAudio(
-                provider,
-                newCallLog.conversationId,
-                newCallLog.id,
-                organizationId
-              );
-            }
-          }
-        } catch (error: any) {
+        } catch (integrationError: any) {
+          console.error(`[SYNC] Error processing integration ${integration.provider}:`, integrationError);
           errorCount++;
-          const errorMsg = `Failed to process conversation ${conversation?.conversation_id || 'unknown'}: ${error.message}`;
-          errors.push(errorMsg);
-          console.error(`[SYNC] ${errorMsg}`, error);
+          errors.push(`Integration ${integration.provider} failed: ${integrationError.message}`);
         }
       }
-
-      // Update integration last sync time
-      await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
 
       const duration = Date.now() - startTime;
       console.log(`[SYNC] Completed in ${duration}ms: ${syncedCount} new, ${updatedCount} updated, ${errorCount} errors`);
@@ -242,78 +279,105 @@ export class SyncService {
     try {
       console.log(`[SYNC] Starting agent sync for organization ${organizationId}`);
 
-      // Get ElevenLabs integration
-      const integration = await storage.getIntegration(organizationId, "elevenlabs");
-      if (!integration || !integration.apiKey) {
-        throw new Error("ElevenLabs integration not configured");
+      // Get all active integrations
+      const integrations = await storage.getIntegrations(organizationId);
+      const activeIntegrations = integrations.filter(i => i.status === 'ACTIVE' && i.apiKey);
+
+      if (activeIntegrations.length === 0) {
+        console.log(`[SYNC] No active integrations found for organization ${organizationId}`);
+        return {
+          success: true,
+          syncedCount: 0,
+          updatedCount: 0,
+          errorCount: 0,
+          errors: [],
+          duration: Date.now() - startTime
+        };
       }
 
-      // Get provider from registry
-      const provider = providerRegistry.getProvider("elevenlabs") as IConversationalAIProvider;
-      if (!provider) {
-        throw new Error("ElevenLabs provider not found in registry");
-      }
-
-      // Initialize provider
-      await provider.initialize({ apiKey: integration.apiKey });
-      console.log(`[SYNC] Provider initialized for agent sync`);
-
-      // Fetch agents from Provider
-      console.log(`[SYNC] Fetching agents from provider...`);
-      const agents = await provider.getAgents();
-      console.log(`[SYNC] Found ${agents.length} agents`);
-
-      // Process each agent
-      for (const agent of agents) {
+      for (const integration of activeIntegrations) {
         try {
-          // Validate agent data
-          if (!agent.agent_id && !agent.id) {
-            console.warn(`[SYNC] Skipping agent without ID:`, agent);
-            errorCount++;
-            errors.push(`Agent missing ID: ${JSON.stringify(agent)}`);
+          console.log(`[SYNC] Processing integration for agents: ${integration.provider}`);
+
+          // Get provider from registry
+          const provider = providerRegistry.getProvider(integration.provider);
+          if (!provider) {
+            console.warn(`[SYNC] Provider ${integration.provider} not found in registry, skipping`);
             continue;
           }
 
-          const agentId = agent.agent_id || agent.id;
-          const existingAgent = await storage.getAgentByElevenLabsId(agentId, organizationId);
-
-          // Extract agent data
-          const agentData: Partial<InsertAgent> = {
-            organizationId,
-            elevenLabsAgentId: agentId,
-            name: agent.name || agent.agent_name || "Unnamed Agent",
-            voiceId: agent.conversation_config?.voice?.voice_id || agent.voice_id || null,
-            systemPrompt: agent.prompt?.prompt || agent.system_prompt || agent.prompt || null,
-            firstMessage: agent.conversation_config?.first_message || agent.first_message || null,
-            language: agent.conversation_config?.language || agent.language || "en",
-            isActive: true, // Set imported agents as active by default
-          };
-
-          console.log(`[SYNC] Processing agent:`, {
-            id: agentData.elevenLabsAgentId,
-            name: agentData.name,
-            hasVoice: !!agentData.voiceId,
-            hasPrompt: !!agentData.systemPrompt,
-            hasFirstMessage: !!agentData.firstMessage,
-            language: agentData.language
-          });
-
-          if (existingAgent) {
-            // Update existing agent
-            await storage.updateAgent(existingAgent.id, organizationId, agentData);
-            updatedCount++;
-            console.log(`[SYNC] Updated agent ${existingAgent.id}`);
-          } else {
-            // Create new agent
-            await storage.createAgent(agentData as InsertAgent);
-            syncedCount++;
-            console.log(`[SYNC] Created new agent ${agentId}`);
+          const aiProvider = provider as IConversationalAIProvider;
+          if (!aiProvider.getAgents) {
+            console.log(`[SYNC] Provider ${integration.provider} does not support getAgents, skipping`);
+            continue;
           }
-        } catch (error: any) {
+
+          // Initialize provider
+          await aiProvider.initialize({ apiKey: integration.apiKey });
+          console.log(`[SYNC] Provider ${integration.provider} initialized for agent sync`);
+
+          // Fetch agents from Provider
+          console.log(`[SYNC] Fetching agents from ${integration.provider}...`);
+          const agents = await aiProvider.getAgents();
+          console.log(`[SYNC] Found ${agents.length} agents from ${integration.provider}`);
+
+          // Process each agent
+          for (const agent of agents) {
+            try {
+              // Validate agent data
+              if (!agent.agent_id && !agent.id) {
+                console.warn(`[SYNC] Skipping agent without ID:`, agent);
+                errorCount++;
+                errors.push(`Agent missing ID: ${JSON.stringify(agent)}`);
+                continue;
+              }
+
+              const agentId = agent.agent_id || agent.id;
+              const existingAgent = await storage.getAgentByElevenLabsId(agentId, organizationId);
+
+              // Extract agent data
+              const agentData: Partial<InsertAgent> = {
+                organizationId,
+                elevenLabsAgentId: agentId, // Using this column for external ID
+                name: agent.name || agent.agent_name || "Unnamed Agent",
+                voiceId: agent.conversation_config?.voice?.voice_id || agent.voice_id || null,
+                systemPrompt: agent.prompt?.prompt || agent.system_prompt || agent.prompt || null,
+                firstMessage: agent.conversation_config?.first_message || agent.first_message || null,
+                language: agent.conversation_config?.language || agent.language || "en",
+                isActive: true, // Set imported agents as active by default
+              };
+
+              console.log(`[SYNC] Processing agent:`, {
+                id: agentData.elevenLabsAgentId,
+                name: agentData.name,
+                hasVoice: !!agentData.voiceId,
+                hasPrompt: !!agentData.systemPrompt,
+                hasFirstMessage: !!agentData.firstMessage,
+                language: agentData.language
+              });
+
+              if (existingAgent) {
+                // Update existing agent
+                await storage.updateAgent(existingAgent.id, organizationId, agentData);
+                updatedCount++;
+                console.log(`[SYNC] Updated agent ${existingAgent.id}`);
+              } else {
+                // Create new agent
+                await storage.createAgent(agentData as InsertAgent);
+                syncedCount++;
+                console.log(`[SYNC] Created new agent ${agentId}`);
+              }
+            } catch (error: any) {
+              errorCount++;
+              const errorMsg = `Failed to process agent ${agent?.agent_id || 'unknown'}: ${error.message}`;
+              errors.push(errorMsg);
+              console.error(`[SYNC] ${errorMsg}`, error);
+            }
+          }
+        } catch (integrationError: any) {
+          console.error(`[SYNC] Error processing integration ${integration.provider} for agents:`, integrationError);
           errorCount++;
-          const errorMsg = `Failed to process agent ${agent?.agent_id || 'unknown'}: ${error.message}`;
-          errors.push(errorMsg);
-          console.error(`[SYNC] ${errorMsg}`, error);
+          errors.push(`Integration ${integration.provider} failed: ${integrationError.message}`);
         }
       }
 
@@ -502,4 +566,3 @@ export class SyncService {
 }
 
 export default SyncService;
-
