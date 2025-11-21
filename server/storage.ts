@@ -108,6 +108,7 @@ import { eq, and, desc, count, sum, avg, max, or, inArray, isNull } from "drizzl
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>;
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: Partial<User>): Promise<User>;
@@ -132,6 +133,7 @@ export interface IStorage {
 
   // Organization operations
   createOrganization(org: InsertOrganization): Promise<Organization>;
+  getOrganizations(): Promise<Organization[]>;
   getOrganization(id: string): Promise<Organization | undefined>;
   getOrganizationBySubdomain(subdomain: string): Promise<Organization | undefined>;
   getOrganizationByCustomDomain(domain: string): Promise<Organization | undefined>;
@@ -166,6 +168,16 @@ export interface IStorage {
   updateAgent(id: string, organizationId: string, updates: Partial<InsertAgent>): Promise<Agent>;
   deleteAgent(id: string, organizationId: string): Promise<void>;
   deleteAllAgents(organizationId: string): Promise<number>;
+
+  // Admin Agent operations
+  getAllAgents(): Promise<Agent[]>;
+  reassignAgentToOrganization(agentId: string, newOrganizationId: string): Promise<Agent>;
+  getAgentsByOrganization(organizationId: string): Promise<string[]>;
+
+  // User-Agent assignment operations (singular)
+  getAgentsForUser(userId: string, organizationId: string): Promise<Agent[]>;
+  assignAgentToUser(userId: string, agentId: string, assignedBy?: string): Promise<void>;
+  unassignAgentFromUser(userId: string, agentId: string): Promise<void>;
 
   // Call log operations
   getCallLogs(organizationId: string, limit?: number, offset?: number, agentId?: string): Promise<{ data: CallLog[]; total: number }>;
@@ -380,6 +392,10 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db().select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return await db().select().from(users);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
@@ -630,7 +646,6 @@ export class DatabaseStorage implements IStorage {
     await this.updateInvitation(invitationId, {
       status: "accepted",
       acceptedAt: new Date(),
-      acceptedBy: userId
     });
   }
 
@@ -638,6 +653,10 @@ export class DatabaseStorage implements IStorage {
   async createOrganization(orgData: InsertOrganization): Promise<Organization> {
     const [org] = await db().insert(organizations).values(orgData).returning();
     return org;
+  }
+
+  async getOrganizations(): Promise<Organization[]> {
+    return await db().select().from(organizations);
   }
 
   async getOrganization(id: string): Promise<Organization | undefined> {
@@ -1199,39 +1218,57 @@ export class DatabaseStorage implements IStorage {
       totalCost: sum(callLogs.cost)
     }).from(callLogs);
 
-    // Get organization-specific data
+    // Get organization-specific data using batch queries to avoid N+1
     const orgs = await db().select().from(organizations);
-    const organizationsData = await Promise.all(
-      orgs.map(async (org: Organization) => {
-        const [userStats] = await db()
-          .select({ count: count(users.id) })
-          .from(users)
-          .where(eq(users.organizationId, org.id));
 
-        const [callStats] = await db()
-          .select({
-            totalCalls: count(callLogs.id),
-            totalMinutes: sum(callLogs.duration),
-            estimatedCost: sum(callLogs.cost),
-          })
-          .from(callLogs)
-          .where(eq(callLogs.organizationId, org.id));
-
-        return {
-          id: org.id,
-          name: org.name,
-          userCount: Number(userStats.count) || 0,
-          totalCalls: Number(callStats.totalCalls) || 0,
-          totalMinutes: Math.round(Number(callStats.totalMinutes) / 60) || 0,
-          estimatedCost: Number(callStats.estimatedCost) || 0,
-          billingPackage: org.billingPackage || 'starter',
-          perCallRate: Number(org.perCallRate) || 0.30,
-          perMinuteRate: Number(org.perMinuteRate) || 0.30,
-          monthlyCredits: org.monthlyCredits || 0,
-          usedCredits: org.usedCredits || 0,
-        };
+    // Group user counts by organization
+    const userCounts = await db()
+      .select({
+        organizationId: users.organizationId,
+        count: count(users.id)
       })
+      .from(users)
+      .groupBy(users.organizationId);
+
+    const userCountMap = new Map<string, number>(
+      userCounts.map((u: { organizationId: string | null; count: number }) => [u.organizationId || '', Number(u.count)])
     );
+
+    // Group call stats by organization
+    const callStats = await db()
+      .select({
+        organizationId: callLogs.organizationId,
+        totalCalls: count(callLogs.id),
+        totalMinutes: sum(callLogs.duration),
+        estimatedCost: sum(callLogs.cost)
+      })
+      .from(callLogs)
+      .groupBy(callLogs.organizationId);
+
+    const callStatsMap = new Map<string, { totalCalls: number; totalMinutes: number; estimatedCost: number }>(
+      callStats.map((c: { organizationId: string | null; totalCalls: number; totalMinutes: string | null; estimatedCost: string | null }) => [c.organizationId || '', {
+        totalCalls: Number(c.totalCalls) || 0,
+        totalMinutes: Math.round(Number(c.totalMinutes) / 60) || 0,
+        estimatedCost: Number(c.estimatedCost) || 0
+      }])
+    );
+
+    const organizationsData = orgs.map((org: Organization) => {
+      const stats = callStatsMap.get(org.id) || { totalCalls: 0, totalMinutes: 0, estimatedCost: 0 };
+      return {
+        id: org.id,
+        name: org.name,
+        userCount: userCountMap.get(org.id) || 0,
+        totalCalls: stats.totalCalls,
+        totalMinutes: stats.totalMinutes,
+        estimatedCost: stats.estimatedCost,
+        billingPackage: org.billingPackage || 'starter',
+        perCallRate: Number(org.perCallRate) || 0.30,
+        perMinuteRate: Number(org.perMinuteRate) || 0.30,
+        monthlyCredits: org.monthlyCredits || 0,
+        usedCredits: org.usedCredits || 0,
+      };
+    });
 
     return {
       totalUsers: Number(userCount.count) || 0,

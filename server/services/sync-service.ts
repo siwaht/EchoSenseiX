@@ -459,6 +459,57 @@ export class SyncService {
   }
 
   /**
+   * Get current sync status
+   */
+  static async getSyncStatus(organizationId?: string) {
+    // For now, return a basic status based on the last sync time of integrations
+    const integrations = organizationId
+      ? await storage.getIntegrations(organizationId)
+      : await storage.getAllIntegrations();
+
+    const activeIntegrations = integrations.filter(i => i.status === 'ACTIVE');
+
+    if (activeIntegrations.length === 0) {
+      return {
+        status: 'idle',
+        lastSync: null,
+        details: 'No active integrations'
+      };
+    }
+
+    // Find the most recent sync time
+    const lastSync = activeIntegrations.reduce((latest, current) => {
+      if (!current.lastSyncAt) return latest;
+      return !latest || new Date(current.lastSyncAt) > new Date(latest)
+        ? current.lastSyncAt
+        : latest;
+    }, null as Date | null);
+
+    return {
+      status: 'idle', // We don't currently track active running state in DB
+      lastSync,
+      details: `${activeIntegrations.length} active integrations`
+    };
+  }
+
+  /**
+   * Run full sync (alias for syncDashboard)
+   */
+  static async runSync(organizationId?: string) {
+    if (organizationId) {
+      return this.syncDashboard(organizationId);
+    }
+
+    // Sync all organizations
+    const organizations = await storage.getOrganizations();
+    const results = [];
+    for (const org of organizations) {
+      results.push(await this.syncDashboard(org.id));
+    }
+    return results;
+  }
+
+  /**
    * Internal method to run dashboard sync operations
    */
   private static async runDashboardSync(organizationId: string, agentId?: string) {
