@@ -270,9 +270,13 @@ router.post("/agency/users/:userId/agents", isAuthenticated, async (req: any, re
 // Invitation Routes
 // ==========================================
 
+// ==========================================
+// Invitation Routes
+// ==========================================
+
 router.get('/agency/invitations', isAuthenticated, async (req: any, res) => {
     try {
-        const invitations = await storage.getInvitations(req.user.organizationId);
+        const invitations = await storage.getOrganizationInvitations(req.user.organizationId);
         res.json(invitations);
     } catch (error) {
         console.error("Error fetching invitations:", error);
@@ -283,7 +287,7 @@ router.get('/agency/invitations', isAuthenticated, async (req: any, res) => {
 router.get('/users/invitations', isAuthenticated, async (req: any, res) => {
     try {
         const organizationId = req.user.organizationId;
-        const invitations = userInvitations.get(organizationId) || [];
+        const invitations = await storage.getOrganizationInvitations(organizationId);
         res.json(invitations);
     } catch (error) {
         console.error("Error fetching invitations:", error);
@@ -301,7 +305,7 @@ router.post('/agency/invitations', isAuthenticated, async (req: any, res) => {
             organizationId: req.user.organizationId,
             role: role || 'user',
             invitedBy: req.user.id,
-            token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            token: crypto.randomBytes(32).toString('hex'),
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
         });
 
@@ -342,22 +346,14 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
         }
 
         // Create invitation
-        const invitation = {
-            id: crypto.randomBytes(16).toString('hex'),
+        const invitation = await storage.createInvitation({
             email,
-            role,
-            status: 'pending',
-            invitedBy: currentUser?.email,
-            invitedAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
             organizationId,
-            inviteCode: crypto.randomBytes(32).toString('hex'),
-            message,
-        };
-
-        const invitations = userInvitations.get(organizationId) || [];
-        invitations.push(invitation);
-        userInvitations.set(organizationId, invitations);
+            role: role || 'user',
+            invitedBy: req.user.id,
+            token: crypto.randomBytes(32).toString('hex'),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        });
 
         // Log activity
         const log = {
@@ -373,7 +369,7 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
         activityLogs.set(organizationId, logs);
 
         // In production, send email with invitation link
-        console.log(`Invitation link: ${process.env.APP_URL || 'http://localhost:5000'}/invite/${invitation.inviteCode}`);
+        console.log(`Invitation link: ${process.env.APP_URL || 'http://localhost:5000'}/invite/${invitation.token}`);
 
         res.json(invitation);
     } catch (error) {
@@ -384,21 +380,21 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
 
 router.post('/users/invitations/:invitationId/resend', isAuthenticated, async (req: any, res) => {
     try {
-        const organizationId = req.user.organizationId;
-        const invitations = userInvitations.get(organizationId) || [];
-        const invitation = invitations.find(i => i.id === req.params.invitationId);
+        const invitation = await storage.getInvitation(req.params.invitationId);
 
         if (!invitation) {
             return res.status(404).json({ message: "Invitation not found" });
         }
 
         // Update expiration
-        invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const updatedInvitation = await storage.updateInvitation(invitation.id, {
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
 
         // In production, resend email
         console.log(`Resending invitation to ${invitation.email}`);
 
-        res.json(invitation);
+        res.json(updatedInvitation);
     } catch (error) {
         console.error("Error resending invitation:", error);
         res.status(500).json({ message: "Failed to resend invitation" });
@@ -418,17 +414,7 @@ router.delete("/agency/invitations/:invitationId", isAuthenticated, async (req: 
 
 router.delete('/users/invitations/:invitationId', isAuthenticated, async (req: any, res) => {
     try {
-        const organizationId = req.user.organizationId;
-        const invitations = userInvitations.get(organizationId) || [];
-        const index = invitations.findIndex(i => i.id === req.params.invitationId);
-
-        if (index === -1) {
-            return res.status(404).json({ message: "Invitation not found" });
-        }
-
-        invitations.splice(index, 1);
-        userInvitations.set(organizationId, invitations);
-
+        await storage.deleteInvitation(req.params.invitationId);
         res.json({ message: "Invitation cancelled successfully" });
     } catch (error) {
         console.error("Error cancelling invitation:", error);
@@ -441,7 +427,7 @@ router.post("/invitations/accept", async (req: any, res) => {
     try {
         const { token, password, firstName, lastName } = req.body;
 
-        const invitation = await storage.getInvitationByToken(token);
+        const invitation = await storage.getInvitationByCode(token);
         if (!invitation) {
             return res.status(404).json({ message: "Invalid or expired invitation" });
         }

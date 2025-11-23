@@ -22,6 +22,30 @@ const router = Router();
 router.use(isAuthenticated, isAdmin);
 
 // ==========================================
+// Admin Billing & Payments Routes
+// ==========================================
+
+router.get('/billing', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const billingData = await storage.getAdminBillingData();
+        res.json(billingData);
+    } catch (error) {
+        console.error("Error fetching admin billing data:", error);
+        res.status(500).json({ message: "Failed to fetch billing data" });
+    }
+});
+
+router.get('/payments', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const payments = await storage.getAllPayments();
+        res.json(payments);
+    } catch (error) {
+        console.error("Error fetching payments:", error);
+        res.status(500).json({ message: "Failed to fetch payments" });
+    }
+});
+
+// ==========================================
 
 // Get all users (admin only)
 router.get('/users', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
