@@ -19,32 +19,26 @@ export default function Landing() {
   const { toast } = useToast();
   const { agencySubdomain, buildPath } = useAgencyPath();
   const [subdomain, setSubdomain] = useState<string | null>(null);
-  
+
   // Detect subdomain from URL path, query parameter, or hostname
   useEffect(() => {
-    // First priority: agency path
     if (agencySubdomain) {
       setSubdomain(agencySubdomain);
     } else {
-      // Check for subdomain in query parameter (development mode)
       const urlParams = new URLSearchParams(window.location.search);
       const querySubdomain = urlParams.get('subdomain');
-      
       if (querySubdomain) {
         setSubdomain(querySubdomain);
       } else {
-        // Check hostname for subdomain
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
-        
-        // Check if we have a subdomain (not www, not localhost)
         if (parts.length >= 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
           setSubdomain(parts[0]);
         }
       }
     }
   }, [agencySubdomain]);
-  
+
   // Fetch public whitelabel configuration based on subdomain
   const { data: whitelabelConfig } = useQuery<{
     appName?: string;
@@ -53,23 +47,19 @@ export default function Landing() {
     faviconUrl?: string;
     removePlatformBranding?: boolean;
   }>({
-    queryKey: subdomain 
+    queryKey: subdomain
       ? [`/api/whitelabel/subdomain/${subdomain}`]
       : ["/api/whitelabel/public"],
     retry: false,
     enabled: true,
   });
-  
-  
+
   // Apply whitelabel settings to document
   useEffect(() => {
     if (whitelabelConfig) {
-      // Update document title
       if (whitelabelConfig.appName) {
         document.title = whitelabelConfig.appName;
       }
-      
-      // Update favicon
       if (whitelabelConfig.faviconUrl) {
         const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
         if (favicon) {
@@ -94,7 +84,6 @@ export default function Landing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      // Use buildPath to maintain agency context after login
       setLocation(buildPath("/"));
     },
     onError: (error: Error) => {
@@ -172,7 +161,7 @@ export default function Landing() {
               </p>
             </div>
 
-            <form 
+            <form
               className="space-y-4"
               onSubmit={handleSubmit}
               aria-label="Login form"
@@ -186,8 +175,10 @@ export default function Landing() {
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="username"
+                    inputMode="email"
                     placeholder="Enter your email"
-                    className="pl-10 h-12 border-border/50 focus:border-primary/50 transition-all"
+                    className="pl-10 h-12 text-base border-border/50 focus:border-primary/50 transition-all"
                     data-testid="input-email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -205,8 +196,9 @@ export default function Landing() {
                   <Input
                     id="password"
                     type="password"
+                    autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="pl-10 h-12 border-border/50 focus:border-primary/50 transition-all"
+                    className="pl-10 h-12 text-base border-border/50 focus:border-primary/50 transition-all"
                     data-testid="input-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

@@ -1,5 +1,7 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
@@ -9,28 +11,21 @@ let pool: Pool | null = null;
 let database: any = null;
 
 function getDatabaseConnection() {
-  if (!database) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error(
-        "DATABASE_URL must be set. Did you forget to provision a database?",
-      );
-    }
+  if (database) return database;
 
-    console.log('[DB] Using PostgreSQL database');
-    
-    // Configure the connection pool optimized for high concurrency
-    pool = new Pool({ 
+  // 1. Check for Postgres (Production/Cloud)
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres')) {
+    console.log('[DB] Initializing PostgreSQL connection...');
+    pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: 50, // Increased from 20 for better concurrency
-      connectionTimeoutMillis: 3000, // 3 seconds connection timeout (faster fail)
-      idleTimeoutMillis: 30000, // 30 seconds idle timeout (keep connections warm)
-      allowExitOnIdle: false, // Keep pool alive
+      max: 50, // Optimized for high concurrency
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
+      allowExitOnIdle: false,
     });
 
-    // Add error handling for pool
     pool.on('error', (err) => {
       console.error('[DB] Unexpected pool error:', err);
-      // Reset connection on critical errors
       if (err.message.includes('Connection terminated') || err.message.includes('ECONNREFUSED')) {
         database = null;
         pool = null;
@@ -39,13 +34,19 @@ function getDatabaseConnection() {
 
     database = drizzle({ client: pool, schema });
   }
-  
+  // 2. Fallback to SQLite (Local/Dev/Plug & Play)
+  else {
+    console.log('[DB] No valid DATABASE_URL found. Using local SQLite (plug-and-play mode).');
+    // Ensure the data directory exists or use root
+    const sqlite = new Database('local.db');
+    database = drizzleSqlite(sqlite, { schema });
+  }
+
   return database;
 }
 
 // Export a function that returns the database instance
-// This ensures the connection is lazy-loaded and properly cached
-export const db = () => getDatabaseConnection();
+export const db = getDatabaseConnection();
 
 // Cleanup function for graceful shutdown
 export const closeDatabase = async () => {
@@ -61,6 +62,5 @@ export const closeDatabase = async () => {
   }
 };
 
-// Handle process termination
 process.on('SIGINT', closeDatabase);
 process.on('SIGTERM', closeDatabase);
