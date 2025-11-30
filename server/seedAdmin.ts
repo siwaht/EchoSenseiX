@@ -1,15 +1,20 @@
 import { storage } from "./storage";
 import { hashPassword } from "./auth";
+import logger from "./utils/logger";
+
+// Get admin credentials from environment or use defaults
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@echosensei.local";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "change-this-in-production";
 
 export async function seedAdminUser() {
   try {
-    console.log("[SEED] Starting admin user seeding process...");
+    logger.info('Starting admin user seeding process...');
     
     // Check if admin user already exists
-    const existingUser = await storage.getUserByEmail("cc@siwaht.com");
+    const existingUser = await storage.getUserByEmail(ADMIN_EMAIL);
     
     if (existingUser) {
-      console.log("[SEED] Admin user already exists");
+      logger.debug('Admin user already exists', { email: ADMIN_EMAIL });
       
       // Sync ElevenLabs API key from environment to database
       await syncElevenLabsApiKey(existingUser.organizationId);
@@ -17,21 +22,22 @@ export async function seedAdminUser() {
     }
     
     // Create admin user with properly hashed password
-    const hashedPassword = await hashPassword("Hola173!");
+    const hashedPassword = await hashPassword(ADMIN_PASSWORD);
     const adminUser = await storage.createUser({
-      email: "cc@siwaht.com",
+      email: ADMIN_EMAIL,
       password: hashedPassword,
       firstName: "Admin",
       lastName: "User",
       isAdmin: true,
     });
     
-    console.log("[SEED] Admin user created successfully:", adminUser.email);
+    logger.info('Admin user created successfully', { email: adminUser.email });
     
     // Sync ElevenLabs API key from environment to database
     await syncElevenLabsApiKey(adminUser.organizationId);
   } catch (error) {
-    console.error("[SEED] Error seeding admin user:", error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error seeding admin user', { error: message });
     // Don't throw the error to prevent server startup failure
   }
 }
@@ -45,13 +51,13 @@ async function syncElevenLabsApiKey(organizationId: string) {
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
     
     if (!elevenLabsApiKey) {
-      console.log("[SEED] No ELEVENLABS_API_KEY in environment, skipping sync");
+      logger.debug('No ELEVENLABS_API_KEY in environment, skipping sync');
       return;
     }
     
-    // Show last 4 characters for verification
+    // Show last 4 characters for verification (safe to log)
     const keyLast4 = elevenLabsApiKey.slice(-4);
-    console.log(`[SEED] Syncing ElevenLabs API key from environment (***${keyLast4}) to database...`);
+    logger.info('Syncing ElevenLabs API key from environment', { keyLast4 });
     
     // Upsert the integration with the current API key
     await storage.upsertIntegration({
@@ -61,15 +67,16 @@ async function syncElevenLabsApiKey(organizationId: string) {
       status: "ACTIVE",
     });
     
-    console.log(`[SEED] ✅ ElevenLabs integration synced successfully (***${keyLast4})`);
+    logger.info('ElevenLabs integration synced successfully', { keyLast4 });
     
     // Verify by reading back
     const integration = await storage.getIntegration(organizationId, "elevenlabs");
     if (integration) {
-      const storedKeyLast4 = integration.apiKey.slice(-4);
-      console.log(`[SEED] ✅ Verified: Database has key ending in ***${storedKeyLast4}`);
+      const storedKeyLast4 = integration.apiKey?.slice(-4) || 'N/A';
+      logger.debug('Verified database has synced key', { storedKeyLast4 });
     }
   } catch (error) {
-    console.error("[SEED] Error syncing ElevenLabs API key:", error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Error syncing ElevenLabs API key', { error: message });
   }
 }

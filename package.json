@@ -8,16 +8,25 @@
     "dev:windows": "set NODE_ENV=development && tsx server/index.ts",
     "start": "NODE_ENV=production node dist/index.js",
     "start:windows": "set NODE_ENV=production && node dist/index.js",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "check": "tsc",
+    "build": "npm run check && vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:prod": "NODE_ENV=production npm run build",
+    "check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "mongodb:init": "tsx server/scripts/init-mongodb.ts",
     "mongodb:test": "tsx server/scripts/test-mongodb.ts",
     "test:health": "tsx server/tests/health-check.ts",
     "test:critical": "tsx server/tests/critical-path-tests.ts",
     "test:webhooks": "tsx server/test-webhook-integration.ts",
     "test:all": "npm run test:health && npm run test:critical && npm run test:webhooks",
-    "test:quick": "npm run test:health"
+    "test:quick": "npm run test:health",
+    "prepare": "husky || true",
+    "precommit": "lint-staged"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -124,16 +133,33 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.6",
     "esbuild": "^0.25.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
     "postcss": "^8.4.47",
+    "prettier": "^3.2.0",
     "tailwindcss": "^3.4.17",
     "terser": "^5.44.0",
     "tsx": "^4.20.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.19"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

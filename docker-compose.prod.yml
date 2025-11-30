@@ -1,0 +1,136 @@
+# Production Docker Compose configuration for EchoSenseiX
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+# 1. Copy .env.example to .env and configure all required values
+# 2. Generate strong secrets for SESSION_SECRET and ENCRYPTION_KEY
+# 3. Configure your external PostgreSQL database URL
+# 4. Set up SSL certificates in ./ssl directory
+
+version: '3.8'
+
+services:
+  # EchoSenseiX Application (Production)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: echosensei-app
+    restart: unless-stopped
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    
+    ports:
+      - "5000:5000"
+    
+    # Load environment from file
+    env_file:
+      - .env
+    
+    # Override specific environment variables
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 5000
+      TRUST_PROXY: "true"
+    
+    # Mount volumes for persistent data
+    volumes:
+      - app_uploads:/app/uploads
+      - app_audio:/app/audio-storage
+      - app_logs:/app/logs
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "app,environment"
+    
+    networks:
+      - echosensei-prod
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem (optional, uncomment if needed)
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:size=100M
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: echosensei-nginx
+    restart: unless-stopped
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    
+    depends_on:
+      app:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - echosensei-prod
+
+# Persistent volumes
+volumes:
+  app_uploads:
+    driver: local
+  app_audio:
+    driver: local
+  app_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# Production network with encryption
+networks:
+  echosensei-prod:
+    driver: bridge
+    driver_opts:
+      encrypted: "true"
+

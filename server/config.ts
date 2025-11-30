@@ -110,7 +110,8 @@ function loadConfig(): Config {
   // Use secure defaults for development, but warn
   const sessionSecret = requiredSecrets.sessionSecret || (() => {
     if (isDevelopment) {
-      console.warn('[CONFIG] ⚠️  Using insecure default SESSION_SECRET in development');
+      // Use console.warn here as logger may not be initialized yet
+      console.warn('[CONFIG] Using insecure default SESSION_SECRET in development');
       return 'dev-session-secret-change-in-production-minimum-32-chars';
     }
     throw new Error('SESSION_SECRET is required');
@@ -118,7 +119,7 @@ function loadConfig(): Config {
 
   const encryptionKey = requiredSecrets.encryptionKey || (() => {
     if (isDevelopment) {
-      console.warn('[CONFIG] ⚠️  Using insecure default ENCRYPTION_KEY in development');
+      console.warn('[CONFIG] Using insecure default ENCRYPTION_KEY in development');
       return 'dev-encryption-key-change-in-production-min-32-chars';
     }
     throw new Error('ENCRYPTION_KEY is required');

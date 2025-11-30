@@ -1,11 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import { createServer, type Server } from "http";
 import { registerRoutes } from "./routes";
 import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocket";
 import { setupVite, serveStatic, log } from "./vite";
 import { rateLimiters } from "./middleware/rate-limiter";
+import { securityHeaders, sanitizeRequest, apiVersionHeader } from "./middleware/security";
+import { errorHandler, notFoundHandler, handleUnhandledRejection, handleUncaughtException } from "./middleware/error-handler";
 import { config } from "./config";
 import { initializeProviders } from "./services/providers";
+import logger from "./utils/logger";
+
+// Setup global error handlers early
+handleUnhandledRejection();
+handleUncaughtException();
 
 const app = express();
 
@@ -38,6 +46,11 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Security middleware - add security headers and sanitize requests
+app.use(securityHeaders);
+app.use(sanitizeRequest);
+app.use(apiVersionHeader);
 
 // Apply rate limiting to API routes
 app.use('/api/auth/login', rateLimiters.auth);
@@ -114,14 +127,6 @@ app.use((req, res, next) => {
   const wss = setupWebSocketRoutes(app, server);
   setupWebSocketEndpoints(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    console.error(`Error ${status}: ${message}`, err);
-    res.status(status).json({ message });
-  });
-
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
@@ -131,14 +136,73 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
+  // 404 handler - must be after all routes
+  app.use('/api/*', notFoundHandler);
+
+  // Global error handler - must be last
+  app.use(errorHandler);
+
   // Start the server with configured host and port
   server.listen({
     port: config.port,
     host: config.host,
     reusePort: false,
   }, () => {
+    logger.info('Server started', {
+      host: config.host,
+      port: config.port,
+      publicUrl: config.publicUrl,
+      environment: config.nodeEnv,
+    });
     log(`serving on ${config.host}:${config.port}`);
     log(`public URL: ${config.publicUrl}`);
     log(`environment: ${config.nodeEnv}`);
   });
+
+  // Graceful shutdown handling
+  const gracefulShutdown = (signal: string) => {
+    logger.info(`${signal} received. Starting graceful shutdown...`);
+    
+    // Stop accepting new connections
+    server.close((err) => {
+      if (err) {
+        logger.error('Error during server close', { error: err.message });
+        process.exit(1);
+      }
+
+      logger.info('HTTP server closed');
+
+      // Close WebSocket connections
+      if (wss) {
+        wss.clients.forEach((client) => {
+          client.close(1001, 'Server shutting down');
+        });
+        wss.close(() => {
+          logger.info('WebSocket server closed');
+        });
+      }
+
+      // Give ongoing requests time to complete (30 seconds max)
+      const forceShutdownTimeout = setTimeout(() => {
+        logger.warn('Forcing shutdown after timeout');
+        process.exit(1);
+      }, 30000);
+
+      // Clear the timeout if shutdown completes
+      forceShutdownTimeout.unref();
+
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    });
+
+    // Stop accepting new requests immediately
+    setTimeout(() => {
+      logger.warn('Server did not close in time, forcing shutdown');
+      process.exit(1);
+    }, 35000).unref();
+  };
+
+  // Listen for shutdown signals
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 })();
