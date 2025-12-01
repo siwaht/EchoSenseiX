@@ -1,5 +1,17 @@
-error ?: string;
-statusCode ?: number;
+import crypto from "crypto";
+
+interface ElevenLabsConfig {
+  apiKey: string;
+  baseUrl?: string;
+  maxRetries?: number;
+  retryDelay?: number;
+}
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  statusCode?: number;
 }
 
 class ElevenLabsService {
@@ -297,21 +309,6 @@ class ElevenLabsService {
 
       return { success: false, error: error.message };
     }
-  }
-
-  method: "POST",
-  headers: {
-        ...this.defaultHeaders,
-      },
-body: JSON.stringify({
-  text,
-  model_id: modelId || "eleven_multilingual_v2",
-}),
-    });
-
-if (!response.ok) {
-  throw new Error(`TTS failed: ${response.status}`);
-}
   }
 
   async deleteTool(toolId: string) {

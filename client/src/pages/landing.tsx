@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/components/theme-provider";
-import { Moon, Sun, Shield, TrendingUp, Users, Mic, LogIn, Mail, Lock } from "lucide-react";
+import { Moon, Sun, Shield, TrendingUp, Users, Mic, LogIn, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -101,171 +101,186 @@ export default function Landing() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col" role="main">
+    <main className="min-h-screen relative overflow-hidden flex flex-col" role="main">
+      {/* Dynamic Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-[1px] z-10" />
+        <div className={`absolute inset-0 z-0 ${theme === 'dark' ? 'mesh-bg' : 'mesh-bg-light'} opacity-60`} />
+
+        {/* Animated Orbs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[100px] animate-float" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] animate-float" style={{ animationDelay: '-3s' }} />
+      </div>
+
       {/* Navigation */}
-      <header className="bg-card/90 backdrop-blur-md border-b border-border/50 shadow-sm" role="banner">
+      <header className="relative z-20 border-b border-white/10 bg-white/5 backdrop-blur-md" role="banner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-4 group cursor-pointer">
               {whitelabelConfig?.logoUrl ? (
                 <img
                   src={whitelabelConfig.logoUrl}
                   alt="Logo"
-                  className="w-9 h-9 object-contain rounded-lg shadow-sm"
+                  className="w-10 h-10 object-contain rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300"
                 />
               ) : (
-                <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                  <Mic className="w-5 h-5 text-primary-foreground" />
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 transition-all duration-300">
+                  <Mic className="w-5 h-5 text-white" />
                 </div>
               )}
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 tracking-tight">
                 {whitelabelConfig?.appName || "EchoSensei"}
               </span>
             </div>
             <div className="flex items-center">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 data-testid="button-theme-toggle"
-                className="hover:bg-primary/10 transition-colors"
+                className="rounded-full hover:bg-white/10 transition-colors"
               >
-                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Login Section */}
-      <section className="flex-1 overflow-y-auto p-4" aria-labelledby="login-heading">
-        <div className="w-full max-w-md mx-auto mt-12">
-          <Card className="p-6 sm:p-8 bg-card/95 backdrop-blur-md border-border/50 shadow-2xl hover:shadow-3xl transition-shadow duration-300">
-            <div className="text-center mb-8">
-              {whitelabelConfig?.logoUrl ? (
-                <img
-                  src={whitelabelConfig.logoUrl}
-                  alt="Logo"
-                  className="w-16 h-16 object-contain rounded-2xl mx-auto mb-4 shadow-lg"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Mic className="w-8 h-8 text-primary-foreground" />
-                </div>
-              )}
-              <h1 id="login-heading" className="text-3xl font-bold text-card-foreground mb-2">Welcome Back</h1>
-              <p className="text-sm text-muted-foreground">
-                {whitelabelConfig?.companyName
-                  ? `Sign in to access ${whitelabelConfig.companyName}`
-                  : "Sign in to access your EchoSensei"}
-              </p>
-            </div>
+      {/* Main Content */}
+      <section className="relative z-20 flex-1 flex flex-col justify-center items-center p-4 sm:p-8" aria-labelledby="login-heading">
+        <div className="w-full max-w-md mx-auto animate-in" style={{ animationDelay: '0.1s' }}>
+          <Card className="glass-card border-0 p-8 sm:p-10 shadow-2xl ring-1 ring-white/20 relative overflow-hidden group">
+            {/* Card Glow Effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 rounded-[inherit] blur opacity-20 group-hover:opacity-40 transition duration-500" />
 
-            <form
-              className="space-y-4"
-              onSubmit={handleSubmit}
-              aria-label="Login form"
-            >
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-card-foreground">
-                  Email
-                </Label>
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="username"
-                    inputMode="email"
-                    placeholder="Enter your email"
-                    className="pl-10 h-12 text-base border-border/50 focus:border-primary/50 transition-all"
-                    data-testid="input-email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+            <div className="relative z-10">
+              <div className="text-center mb-10">
+                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-6 ring-1 ring-primary/20 shadow-lg shadow-primary/5">
+                  {whitelabelConfig?.logoUrl ? (
+                    <img
+                      src={whitelabelConfig.logoUrl}
+                      alt="Logo"
+                      className="w-12 h-12 object-contain"
+                    />
+                  ) : (
+                    <Mic className="w-8 h-8 text-primary" />
+                  )}
                 </div>
+                <h1 id="login-heading" className="text-3xl font-bold tracking-tight mb-3">
+                  Welcome Back
+                </h1>
+                <p className="text-muted-foreground">
+                  {whitelabelConfig?.companyName
+                    ? `Sign in to ${whitelabelConfig.companyName}`
+                    : "Sign in to your dashboard"}
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium text-card-foreground">
-                  Password
-                </Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="Enter your password"
-                    className="pl-10 h-12 text-base border-border/50 focus:border-primary/50 transition-all"
-                    data-testid="input-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-12 mt-8 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
-                size="lg"
-                data-testid="button-login"
-                disabled={loginMutation.isPending}
+              <form
+                className="space-y-5"
+                onSubmit={handleSubmit}
+                aria-label="Login form"
               >
-                {loginMutation.isPending ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Signing in...</span>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium ml-1">
+                    Email Address
+                  </Label>
+                  <div className="relative group/input">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-background/50 text-muted-foreground group-focus-within/input:text-primary group-focus-within/input:bg-primary/10 transition-all duration-300">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="username"
+                      inputMode="email"
+                      placeholder="name@example.com"
+                      className="pl-12 h-12 bg-background/30 border-white/10 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 rounded-xl"
+                      data-testid="input-email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
                   </div>
-                ) : (
-                  <>
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Sign In
-                  </>
-                )}
-              </Button>
-            </form>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium ml-1">
+                    Password
+                  </Label>
+                  <div className="relative group/input">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-background/50 text-muted-foreground group-focus-within/input:text-primary group-focus-within/input:bg-primary/10 transition-all duration-300">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className="pl-12 h-12 bg-background/30 border-white/10 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 rounded-xl"
+                      data-testid="input-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 mt-6 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all duration-300 rounded-xl font-medium text-base"
+                  size="lg"
+                  data-testid="button-login"
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Authenticating...</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      Sign In <ArrowRight className="ml-2 w-4 h-4" />
+                    </span>
+                  )}
+                </Button>
+              </form>
+            </div>
           </Card>
 
           {/* Info Section */}
-          <div className="mt-8 text-center">
+          <div className="mt-12 text-center animate-in" style={{ animationDelay: '0.2s' }}>
             {!whitelabelConfig?.removePlatformBranding && (
-              <>
-                <h3 className="text-lg font-semibold text-card-foreground mb-3">
-                  What is {whitelabelConfig?.appName || "EchoSensei"}?
-                </h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed" data-testid="text-info-description">
-                  A comprehensive monitoring platform for voice AI agents with enterprise-grade security,
-                  real-time analytics, and multi-tenant support.
+              <div className="mb-10">
+                <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-xs font-medium text-muted-foreground">Enterprise Grade AI Platform</span>
+                </div>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed" data-testid="text-info-description">
+                  Experience the next generation of voice AI monitoring with real-time analytics and secure multi-tenant architecture.
                 </p>
-              </>
+              </div>
             )}
 
             {/* Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-              <div className="text-center group">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
-                  <Shield className="w-6 h-6 text-primary" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { icon: Shield, label: "Secure BYOK", sub: "Enterprise Security" },
+                { icon: TrendingUp, label: "Real-time Analytics", sub: "Live Insights" },
+                { icon: Users, label: "Multi-tenant", sub: "Organization Ready" }
+              ].map((feature, idx) => (
+                <div
+                  key={idx}
+                  className="group p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
+                    <feature.icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">{feature.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{feature.sub}</p>
                 </div>
-                <p className="text-sm font-medium text-card-foreground">Secure BYOK</p>
-                <p className="text-xs text-muted-foreground mt-1">Bring your own keys</p>
-              </div>
-              <div className="text-center group">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
-                  <TrendingUp className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-card-foreground">Real-time Analytics</p>
-                <p className="text-xs text-muted-foreground mt-1">Live insights & metrics</p>
-              </div>
-              <div className="text-center group">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-card-foreground">Multi-tenant</p>
-                <p className="text-xs text-muted-foreground mt-1">Agencies & organizations</p>
-              </div>
+              ))}
             </div>
           </div>
         </div>
