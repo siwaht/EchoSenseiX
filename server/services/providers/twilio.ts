@@ -11,7 +11,7 @@ export class TwilioProvider implements ITelephonyProvider {
         this.client = Twilio(config.accountSid, config.authToken);
     }
 
-    async getPhoneNumbers(agentId?: string): Promise<any[]> {
+    async getPhoneNumbers(): Promise<any[]> {
         if (!this.client) throw new Error("TwilioProvider not initialized");
 
         try {
@@ -54,6 +54,27 @@ export class TwilioProvider implements ITelephonyProvider {
             return { success: true };
         } catch (error: any) {
             throw new Error(`Failed to delete phone number: ${error.message}`);
+        }
+    }
+
+    async makeOutboundCall(to: string, from: string, config: any): Promise<any> {
+        if (!this.client) throw new Error("TwilioProvider not initialized");
+
+        try {
+            const call = await this.client.calls.create({
+                to,
+                from,
+                url: config.url || config.twiml,
+                ...config
+            });
+            return {
+                id: call.sid,
+                status: call.status,
+                to: call.to,
+                from: call.from
+            };
+        } catch (error: any) {
+            throw new Error(`Failed to make outbound call: ${error.message}`);
         }
     }
 }
