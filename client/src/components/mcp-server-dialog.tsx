@@ -12,11 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+
+
+
+
+
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -96,7 +96,7 @@ export function MCPServerDialog({ isOpen, onClose, onSave, tool }: MCPServerDial
 
   const updateHeader = (index: number, field: 'key' | 'value', value: string) => {
     const newHeaders = [...headers];
-    newHeaders[index][field] = value;
+    newHeaders[index]![field] = value;
     setHeaders(newHeaders);
   };
 
@@ -121,7 +121,7 @@ export function MCPServerDialog({ isOpen, onClose, onSave, tool }: MCPServerDial
             <p className="text-xs text-muted-foreground">
               Identify your webhook tool with a clear name and description for voice agent Server Tools.
             </p>
-            
+
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -312,7 +312,7 @@ export function MCPServerDialog({ isOpen, onClose, onSave, tool }: MCPServerDial
             <p className="text-xs text-muted-foreground">
               Custom webhook tools are not verified by the voice service provider
             </p>
-            
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="trust"
@@ -330,7 +330,7 @@ export function MCPServerDialog({ isOpen, onClose, onSave, tool }: MCPServerDial
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
             disabled={!name || !url || !trusted}
           >

@@ -2,13 +2,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Bot, Sparkles, Loader2, AlertCircle, Download } from "lucide-react";
+import { Bot } from "lucide-react";
 import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
-import type { CallLog, SummaryMetadata } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState, useRef } from "react";
+import type { CallLog } from "@shared/schema";
+
 
 interface CallDetailModalProps {
   callLog: CallLog | null;
@@ -16,138 +13,12 @@ interface CallDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function MetadataDisplay({ metadata }: { metadata: SummaryMetadata | null }) {
-  if (!metadata) return null;
-  
-  return (
-    <div className="flex gap-3">
-      {metadata.model && <span>Model: {metadata.model}</span>}
-      {metadata.tokens && <span>Tokens: {metadata.tokens}</span>}
-      {metadata.cost && <span>Cost: ${Number(metadata.cost).toFixed(4)}</span>}
-    </div>
-  );
-}
+export function CallDetailModal({ callLog: propCallLog, open, onOpenChange }: CallDetailModalProps) {
+  const callLog = propCallLog as CallLog;
 
-export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModalProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
-  const blobUrlRef = useRef<string | null>(null);
 
-  // Fetch authenticated audio and convert to blob URL
-  useEffect(() => {
-    const fetchAuthenticatedAudio = async () => {
-      if (!callLog?.recordingUrl) {
-        console.log('[MODAL-AUDIO] No recording URL available');
-        return;
-      }
-      
-      console.log('[MODAL-AUDIO] Fetching audio from:', callLog.recordingUrl);
-      setIsFetchingAudio(true);
-      try {
-        // Fetch with credentials to send auth cookies
-        const response = await fetch(callLog.recordingUrl, {
-          credentials: 'include',
-          headers: {
-            'Accept': 'audio/mpeg'
-          }
-        });
-
-        console.log('[MODAL-AUDIO] Response status:', response.status, response.statusText);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
-        console.log('[MODAL-AUDIO] Blob created, size:', blob.size, 'type:', blob.type);
-        const newBlobUrl = URL.createObjectURL(blob);
-        console.log('[MODAL-AUDIO] Blob URL created:', newBlobUrl);
-        
-        // Clean up old blob URL if exists
-        if (blobUrlRef.current) {
-          URL.revokeObjectURL(blobUrlRef.current);
-        }
-        
-        blobUrlRef.current = newBlobUrl;
-        setAudioUrl(newBlobUrl);
-      } catch (error: any) {
-        console.error('[MODAL-AUDIO] Error fetching authenticated audio:', error?.message || error);
-        setAudioUrl(null);
-      } finally {
-        setIsFetchingAudio(false);
-      }
-    };
-
-    if (open && callLog?.recordingUrl) {
-      fetchAuthenticatedAudio();
-    } else if (open && callLog && !callLog.recordingUrl && !callLog.audioStorageKey && callLog.conversationId) {
-      fetchRecording();
-    } else {
-      setAudioUrl(null);
-    }
-
-    // Cleanup blob URL when modal closes or callLog changes
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-    };
-  }, [open, callLog?.id, callLog?.recordingUrl]);
-
-  // Fetch recording function
-  const fetchRecording = async () => {
-    if (!callLog?.conversationId) return;
-    
-    setIsFetchingAudio(true);
-    try {
-      console.log(`Auto-fetching recording for call: ${callLog.id}`);
-      const response = await apiRequest("GET", `/api/recordings/${callLog.id}/audio`);
-      
-      // The API returns binary audio data, so we need to create a blob URL
-      if (response instanceof Blob || response instanceof ArrayBuffer) {
-        const blob = response instanceof Blob ? response : new Blob([response], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        console.log(`Recording fetched successfully for call: ${callLog.id}`);
-      }
-    } catch (error: any) {
-      console.error(`Failed to fetch recording for call ${callLog?.id}:`, error);
-      // Don't show error toast since recording might not exist for all calls
-    } finally {
-      setIsFetchingAudio(false);
-    }
-  };
-
-  // Summary generation mutation
-  const generateSummaryMutation = useMutation({
-    mutationFn: (callLogId: string) => apiRequest("POST", `/api/call-logs/${callLogId}/summary`) as Promise<any>,
-    onSuccess: (data: any) => {
-      toast({
-        title: "Summary Generated",
-        description: data.cached 
-          ? "Summary retrieved from cache" 
-          : "AI summary generated successfully",
-      });
-      // Invalidate call logs cache to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["/api/call-logs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/call-logs", callLog?.id] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Summary Generation Failed",
-        description: error.message || "Failed to generate summary",
-        variant: "destructive",
-      });
-    },
-  });
-
+  if (!callLog && open) return null;
   if (!callLog) return null;
-
-  const summaryMetadata = callLog.summaryMetadata;
-  const hasTranscript = Boolean(callLog.transcript);
 
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "N/A";
@@ -180,8 +51,6 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
             View detailed information about this voice agent call including transcript, duration, and status.
           </DialogDescription>
         </DialogHeader>
-        
-        {/* Call Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
           <div className="space-y-3">
             <div>
@@ -227,163 +96,30 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
           </div>
         </div>
 
-        {/* AI Summary Section */}
-        <div className="mb-4 sm:mb-6" data-testid="section-ai-summary">
-          <div className="flex items-center justify-between mb-2 sm:mb-3">
-            <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              AI Summary
-            </h4>
-            {callLog.summaryStatus === 'success' && (
-              <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200" data-testid="badge-summary-status">
-                Generated
-              </Badge>
+        {/* Summary */}
+        {!!callLog.summary && (
+          <Card className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700 mb-4 sm:mb-6">
+            <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="text-call-summary">
+              <div className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
+                {String(callLog.summary || '')}
+              </div>
+            </div>
+            {callLog.summaryGeneratedAt && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>Generated: {new Date(callLog.summaryGeneratedAt).toLocaleString()}</span>
+              </div>
             )}
             {callLog.summaryStatus === 'failed' && (
-              <Badge className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200" data-testid="badge-summary-status">
-                Failed
-              </Badge>
+              <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                <span>Summary generation failed.</span>
+              </div>
             )}
-          </div>
-          
-          {!callLog.summary && !generateSummaryMutation.isPending && (
-            <Card className="p-4 sm:p-6 text-center bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-dashed border-purple-200 dark:border-purple-800">
-              <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-purple-500 dark:text-purple-400 mb-3" />
-              <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
-                Generate AI Summary
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Get an AI-powered summary of this call including outcome, intent, key topics, and action items.
-              </p>
-              <Button
-                onClick={() => generateSummaryMutation.mutate(callLog.id)}
-                disabled={!hasTranscript || generateSummaryMutation.isPending}
-                className="flex items-center gap-2"
-                data-testid="button-generate-summary"
-              >
-                <Sparkles className="w-4 h-4" />
-                {!hasTranscript ? "No Transcript Available" : "Generate Summary"}
-              </Button>
-            </Card>
-          )}
-
-          {generateSummaryMutation.isPending && (
-            <Card className="p-4 sm:p-6 text-center">
-              <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-blue-500 dark:text-blue-400 mb-3 animate-spin" />
-              <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-2">
-                Generating Summary...
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                AI is analyzing the call transcript. This may take a few moments.
-              </p>
-            </Card>
-          )}
-
-          {callLog.summary && (
-            <Card className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700">
-              <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="text-call-summary">
-                <div className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
-                  {callLog.summary}
-                </div>
-              </div>
-              {callLog.summaryGeneratedAt && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span>Generated: {new Date(callLog.summaryGeneratedAt).toLocaleString()}</span>
-                  <MetadataDisplay metadata={summaryMetadata} />
-                </div>
-              )}
-              {callLog.summaryStatus === 'failed' && (
-                <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Summary generation failed. Click "Generate Summary" to retry.</span>
-                </div>
-              )}
-            </Card>
-          )}
-        </div>
-
-        {/* Call Recording with Professional Audio Player */}
-        <div className="mb-4 sm:mb-6">
-          <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Call Recording</h4>
-          <Card className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700">
-            {isFetchingAudio ? (
-              <div className="text-center py-4">
-                <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">Fetching recording...</p>
-              </div>
-            ) : audioUrl || callLog.recordingUrl || callLog.audioStorageKey ? (
-              <div className="space-y-3 sm:space-y-4">
-                {/* Waveform Visualization */}
-                <div className="h-12 sm:h-16 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex items-end gap-0.5 sm:gap-1 h-8 sm:h-12">
-                      {Array.from({ length: 30 }, (_, i) => (
-                        <div
-                          key={i}
-                          className="bg-blue-500 dark:bg-blue-400 opacity-70 hover:opacity-100 transition-opacity"
-                          style={{
-                            width: '2px',
-                            height: `${Math.random() * 35 + 8}px`,
-                            borderRadius: '1px'
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="absolute bottom-1 sm:bottom-2 left-2 sm:left-4 text-[10px] sm:text-xs text-blue-600 dark:text-blue-300 font-medium">
-                    Audio Waveform
-                  </div>
-                </div>
-                
-                {/* Audio Controls */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                  <audio controls className="w-full sm:flex-1 sm:max-w-md" data-testid="audio-call-recording">
-                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/mpeg" />
-                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/wav" />
-                    <source src={audioUrl || callLog.recordingUrl || ""} type="audio/mp4" />
-                    Your browser does not support the audio element.
-                  </audio>
-                  
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="block sm:inline">Duration: {callLog.duration ? `${Math.floor(callLog.duration / 60)}:${String(callLog.duration % 60).padStart(2, '0')}` : 'N/A'}</span>
-                    <a
-                      href={audioUrl || callLog.recordingUrl || ""}
-                      download={`call-recording-${callLog.elevenLabsCallId || callLog.id}.mp3`}
-                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
-                      data-testid="link-download-recording"
-                    >
-                      <Download className="w-4 h-4" />
-                      Download
-                    </a>
-                  </div>
-                </div>
-                
-                {/* Recording Info */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
-                  <span>High-quality audio recording</span>
-                  <span>Encrypted & secure storage</span>
-                </div>
-              </div>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">No recording available for this call</p>
-                  <Button 
-                    onClick={fetchRecording}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                    data-testid="button-fetch-recording"
-                  >
-                    <Download className="w-4 h-4" />
-                    Fetch Recording
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div>
+          </Card>
+        )}
 
         {/* Transcript */}
-        {callLog.transcript && (
+        {/* Transcript */}
+        {!!callLog.transcript && (
           <div>
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Call Transcript</h4>
@@ -394,8 +130,8 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                 {(() => {
                   try {
                     let transcript = callLog.transcript;
-                    let conversationTurns = [];
-                    
+                    let conversationTurns: any[] = [];
+
                     // Check if transcript is already an array
                     if (Array.isArray(transcript)) {
                       conversationTurns = transcript;
@@ -414,38 +150,34 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                       // If it's an object, try to extract conversation turns
                       conversationTurns = Object.values(transcript);
                     }
-                    
+
                     // Filter out empty messages and ensure proper structure
-                    conversationTurns = conversationTurns.filter((turn: any) => 
+                    conversationTurns = conversationTurns.filter((turn: any) =>
                       turn && turn.message && turn.message.trim()
                     );
-                    
+
                     // Sort by timestamp to maintain conversation order
                     conversationTurns.sort((a: any, b: any) => (a.time_in_call_secs || 0) - (b.time_in_call_secs || 0));
-                    
+
                     // Render professional conversation
                     if (conversationTurns.length > 0) {
                       return (
                         <div className="space-y-3 sm:space-y-4">
                           {conversationTurns.map((turn, index) => (
-                            <div key={index} className={`flex ${
-                              turn.role === 'agent' ? 'justify-start' : 'justify-end'
-                            }`}>
-                              <div className={`max-w-[85%] sm:max-w-[75%] ${
-                                turn.role === 'agent' ? 'mr-2 sm:mr-8' : 'ml-2 sm:ml-8'
+                            <div key={index} className={`flex ${turn.role === 'agent' ? 'justify-start' : 'justify-end'
                               }`}>
-                                <div className={`px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm ${
-                                  turn.role === 'agent' 
-                                    ? 'bg-blue-500 text-white' 
-                                    : 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white'
+                              <div className={`max-w-[85%] sm:max-w-[75%] ${turn.role === 'agent' ? 'mr-2 sm:mr-8' : 'ml-2 sm:ml-8'
                                 }`}>
+                                <div className={`px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm ${turn.role === 'agent'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white'
+                                  }`}>
                                   <p className="text-xs sm:text-sm leading-relaxed">
                                     {turn.message}
                                   </p>
                                 </div>
-                                <div className={`flex items-center gap-1 sm:gap-2 mt-1 text-[10px] sm:text-xs text-gray-500 ${
-                                  turn.role === 'agent' ? 'justify-start' : 'justify-end'
-                                }`}>
+                                <div className={`flex items-center gap-1 sm:gap-2 mt-1 text-[10px] sm:text-xs text-gray-500 ${turn.role === 'agent' ? 'justify-start' : 'justify-end'
+                                  }`}>
                                   <span className="font-medium">
                                     {turn.role === 'agent' ? 'AI Agent' : 'Customer'}
                                   </span>
@@ -461,7 +193,7 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
                         </div>
                       );
                     }
-                    
+
                     // No conversation data available
                     return (
                       <div className="text-center py-8 text-gray-500">
@@ -481,8 +213,9 @@ export function CallDetailModal({ callLog, open, onOpenChange }: CallDetailModal
           </div>
         )}
 
+        {/* No Data Fallback */}
         {!callLog.transcript && !callLog.recordingUrl && (
-          <Card className="p-6 sm:p-8 text-center">
+          <Card className="p-6 sm:p-8 text-center mt-4">
             <Bot className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
             <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2" data-testid="text-no-data-title">
               No additional data available

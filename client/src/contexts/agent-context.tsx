@@ -13,7 +13,7 @@ const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 export function AgentProvider({ children }: { children: ReactNode }) {
   const [selectedAgent, setSelectedAgentState] = useState<Agent | null>(null);
-  
+
   // Fetch agents
   const { data: agents = [], isLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -36,8 +36,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     if (agents.length === 1) {
       // Select the single agent if nothing is selected or current selection is invalid
       if (!selectedAgent || !agents.find(a => a.id === selectedAgent.id)) {
-        setSelectedAgentState(agents[0]);
-        localStorage.setItem("selectedAgentId", agents[0].id);
+        setSelectedAgentState(agents[0]!);
+        localStorage.setItem("selectedAgentId", agents[0]!.id);
       }
     }
     // Clear selection if the selected agent is no longer available

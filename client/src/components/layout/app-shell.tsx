@@ -24,9 +24,7 @@ import {
   Wrench,
   Users,
   Palette,
-  Volume2,
-  BookOpen,
-  Globe
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
@@ -211,7 +209,7 @@ export default function AppShell({ children }: AppShellProps) {
       )}>
         {/* Sidebar gradient accent */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-        
+
         <div className="relative flex items-center h-16 px-4 lg:px-6 border-b border-border/50 flex-shrink-0">
           <div className="flex items-center space-x-2.5 lg:space-x-3">
             {whitelabelConfig?.logoUrl ? (

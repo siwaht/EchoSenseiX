@@ -15,11 +15,11 @@ interface AgencyPermissionsProps {
   billingPackage?: string;
 }
 
-export function AgencyPermissions({ 
-  organizationId, 
+export function AgencyPermissions({
+  organizationId,
   organizationName,
-  organizationType,
-  billingPackage
+
+
 }: AgencyPermissionsProps) {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function AgencyPermissions({
   };
 
   const handleSave = () => {
-    updatePermissionsMutation.mutate({ 
+    updatePermissionsMutation.mutate({
       permissions: selectedPermissions,
       role: selectedRole || undefined
     });

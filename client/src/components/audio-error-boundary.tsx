@@ -17,7 +17,7 @@ interface State {
 }
 
 export class AudioErrorBoundary extends Component<Props, State> {
-  public state: State = {
+  public override state: State = {
     hasError: false,
     error: null,
     errorInfo: null
@@ -27,11 +27,11 @@ export class AudioErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Audio error boundary caught:", error, errorInfo);
-    
+
     this.setState({ errorInfo });
-    
+
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
@@ -59,9 +59,9 @@ export class AudioErrorBoundary extends Component<Props, State> {
   };
 
   private handleReset = () => {
-    this.setState({ 
-      hasError: false, 
-      error: null, 
+    this.setState({
+      hasError: false,
+      error: null,
       errorInfo: null
     });
   };
@@ -69,12 +69,12 @@ export class AudioErrorBoundary extends Component<Props, State> {
   private isAudioContextError = () => {
     const { error } = this.state;
     if (!error) return false;
-    
-    return error.message.includes('AudioContext') || 
-           error.message.includes('audio') ||
-           error.message.includes('Audio') ||
-           error.message.includes('playback') ||
-           error.message.includes('media');
+
+    return error.message.includes('AudioContext') ||
+      error.message.includes('audio') ||
+      error.message.includes('Audio') ||
+      error.message.includes('playback') ||
+      error.message.includes('media');
   };
 
   private getErrorType = () => {
@@ -85,7 +85,7 @@ export class AudioErrorBoundary extends Component<Props, State> {
     if (error.message.includes('network') || error.message.includes('fetch')) return 'network';
     if (error.message.includes('permission')) return 'permission';
     if (error.message.includes('format') || error.message.includes('codec')) return 'format';
-    
+
     return 'unknown';
   };
 
@@ -153,7 +153,7 @@ export class AudioErrorBoundary extends Component<Props, State> {
     }
   };
 
-  public render() {
+  public override render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -169,7 +169,7 @@ export class AudioErrorBoundary extends Component<Props, State> {
               <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
                 {errorInfo.icon}
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -179,7 +179,7 @@ export class AudioErrorBoundary extends Component<Props, State> {
                     {errorType}
                   </Badge>
                 </div>
-                
+
                 <p className="text-sm text-muted-foreground">
                   {errorInfo.message}
                 </p>
@@ -199,8 +199,8 @@ export class AudioErrorBoundary extends Component<Props, State> {
               </div>
 
               {/* Action Button */}
-              <Button 
-                onClick={this.handleReset} 
+              <Button
+                onClick={this.handleReset}
                 variant="default"
                 className="flex items-center gap-2 mt-4"
               >

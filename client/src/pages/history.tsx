@@ -420,7 +420,6 @@ export default function History() {
                   <AnalyticsExport
                     data={exportData}
                     filename="call_history"
-                    label="Export Call History"
                   />
                 </div>
               </div>

@@ -13,8 +13,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Bot, Upload, Sparkles, Wand2, Settings2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { getProvidersByCategory, getAllProviders } from "@shared/voice-ai-providers";
+
+import { getProvidersByCategory } from "@shared/voice-ai-providers";
 
 const importAgentSchema = z.object({
   platform: z.string().min(1, "Platform is required"),
@@ -61,7 +61,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
   const queryClient = useQueryClient();
 
   // Fetch configured integrations to show available providers
-  const { data: integrations = [] } = useQuery<any[]>({
+  useQuery<any[]>({
     queryKey: ["/api/integrations/all"],
   });
 
@@ -280,7 +280,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
         <DialogHeader className="flex-shrink-0">
           <DialogTitle data-testid="text-modal-title" className="text-base sm:text-lg">Add New Agent</DialogTitle>
         </DialogHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="import" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
@@ -466,7 +466,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
               </form>
             </Form>
           </TabsContent>
-          
+
           <TabsContent value="create" className="space-y-3 sm:space-y-4 overflow-y-auto max-h-[calc(85vh-200px)] px-1 pb-4">
             <Form {...createForm}>
               <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
@@ -491,7 +491,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="firstMessage"
@@ -513,7 +513,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="systemPrompt"
@@ -523,7 +523,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                         System Prompt
                         <Sparkles className="w-4 h-4 text-purple-500" />
                       </FormLabel>
-                      
+
                       {/* AI Prompt Generator */}
                       <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-3">
                         <div className="flex items-center gap-2 mb-2">
@@ -583,7 +583,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createForm.control}
                   name="platform"

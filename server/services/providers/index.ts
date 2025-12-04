@@ -46,4 +46,18 @@ export async function initializeProviders() {
             console.error("[Providers] Failed to initialize OpenAI provider:", error);
         }
     }
+
+    // Initialize PicaOS
+    if (process.env.PICA_SECRET_KEY) {
+        try {
+            const { picaService } = await import("../pica");
+            await picaService.initialize({ apiKey: process.env.PICA_SECRET_KEY });
+            providerRegistry.register(picaService);
+            console.log("[Providers] PicaOS provider initialized");
+        } catch (error) {
+            console.error("[Providers] Failed to initialize PicaOS provider:", error);
+        }
+    } else {
+        console.warn("[Providers] PICA_SECRET_KEY not found, skipping PicaOS provider");
+    }
 }

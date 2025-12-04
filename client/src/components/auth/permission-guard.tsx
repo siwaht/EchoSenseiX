@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Shield, Home } from "lucide-react";
@@ -19,7 +19,7 @@ const routePermissions: Record<string, string> = {
   // '/phone-numbers': 'manage_phone_numbers',
   // '/playground': 'access_playground',
   // '/history': 'view_call_history',
-  
+
   // Pages that still require permissions
   '/outbound-calling': 'make_outbound_calls',
   '/tools': 'configure_tools',
@@ -30,25 +30,25 @@ const routePermissions: Record<string, string> = {
 export function PermissionGuard({ children, permission }: PermissionGuardProps) {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
-  
+
   // Get the required permission from the current route
   const requiredPermission = permission || routePermissions[location];
-  
+
   // Check if user has permission
   const hasPermission = () => {
     if (!user) return false;
-    
+
     // Admin users have all permissions
     if ((user as any).isAdmin) return true;
-    
+
     // Dashboard is always accessible
     if (location === '/' || !requiredPermission) return true;
-    
+
     // Check user permissions
     const userPermissions = (user as any).permissions || [];
     return userPermissions.includes(requiredPermission);
   };
-  
+
   // Show access denied message if user doesn't have permission
   if (!hasPermission()) {
     return (
@@ -75,6 +75,6 @@ export function PermissionGuard({ children, permission }: PermissionGuardProps) 
       </div>
     );
   }
-  
+
   return <>{children}</>;
 }

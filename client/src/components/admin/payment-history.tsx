@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Search, Filter, Download, Eye, RefreshCw, CheckCircle, 
-  XCircle, Clock, DollarSign, CreditCard, Calendar,
-  FileText, Send, AlertTriangle
+import {
+  Search, Download, Eye, RefreshCw, CheckCircle,
+  XCircle, Clock, DollarSign, CreditCard,
+  FileText, Send
 } from "lucide-react";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
@@ -48,29 +48,29 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showDetails, setShowDetails] = useState<Payment | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  
+
+
   // Add organization names to transactions
   const enrichedTransactions = transactions.map(t => ({
     ...t,
     organizationName: organizations.find(o => o.id === t.organizationId)?.name || "Unknown"
   }));
-  
+
   // Filter transactions
   const filteredTransactions = enrichedTransactions.filter(t => {
-    const matchesSearch = 
+    const matchesSearch =
       t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.organizationName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.transactionId?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     const matchesMethod = methodFilter === "all" || t.paymentMethod === methodFilter;
-    
+
     let matchesDate = true;
     if (dateFilter !== "all") {
       const date = new Date(t.createdAt);
       const now = new Date();
-      switch(dateFilter) {
+      switch (dateFilter) {
         case "today":
           matchesDate = format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
           break;
@@ -84,15 +84,15 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
           break;
       }
     }
-    
+
     return matchesSearch && matchesStatus && matchesMethod && matchesDate;
   });
-  
+
   // Get unique payment methods
   const paymentMethods = Array.from(new Set(transactions.map(t => t.paymentMethod).filter(Boolean)));
-  
+
   const getStatusBadge = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "completed":
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
       case "pending":
@@ -105,7 +105,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
         return <Badge>{status}</Badge>;
     }
   };
-  
+
   const handleSelectAll = () => {
     if (selectedTransactions.length === filteredTransactions.length) {
       setSelectedTransactions([]);
@@ -113,7 +113,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
       setSelectedTransactions(filteredTransactions.map(t => t.id));
     }
   };
-  
+
   const handleSelectTransaction = (id: string) => {
     if (selectedTransactions.includes(id)) {
       setSelectedTransactions(selectedTransactions.filter(t => t !== id));
@@ -121,12 +121,12 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
       setSelectedTransactions([...selectedTransactions, id]);
     }
   };
-  
+
   const exportTransactions = () => {
-    const dataToExport = selectedTransactions.length > 0 
+    const dataToExport = selectedTransactions.length > 0
       ? filteredTransactions.filter(t => selectedTransactions.includes(t.id))
       : filteredTransactions;
-      
+
     const csvContent = [
       ['Transaction ID', 'Date', 'Organization', 'Amount', 'Status', 'Method', 'External ID', 'Description'],
       ...dataToExport.map(t => [
@@ -140,25 +140,25 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
         t.description || 'N/A'
       ])
     ].map(row => row.join(',')).join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `payment-history-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
-    
+
     toast({
       title: "Export successful",
       description: `Exported ${dataToExport.length} transactions`
     });
   };
-  
+
   const handleRefund = async (payment: Payment) => {
     if (!confirm(`Are you sure you want to refund $${payment.amount} to ${payment.organizationName}?`)) {
       return;
     }
-    
+
     setProcessing(payment.id);
     try {
       await apiRequest("POST", `/api/admin/payments/${payment.id}/refund`, {});
@@ -177,7 +177,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
       setProcessing(null);
     }
   };
-  
+
   const handleResendInvoice = async (payment: Payment) => {
     setProcessing(payment.id);
     try {
@@ -196,11 +196,11 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
       setProcessing(null);
     }
   };
-  
+
   const handleBulkExport = () => {
     exportTransactions();
     setSelectedTransactions([]);
-    setShowBulkActions(false);
+
   };
 
   return (
@@ -236,7 +236,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full lg:w-[150px]">
                 <SelectValue placeholder="Status" />
@@ -249,7 +249,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
                 <SelectItem value="refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <Select value={methodFilter} onValueChange={setMethodFilter}>
               <SelectTrigger className="w-full lg:w-[150px]">
                 <SelectValue placeholder="Method" />
@@ -263,7 +263,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
                 ))}
               </SelectContent>
             </Select>
-            
+
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="w-full lg:w-[150px]">
                 <SelectValue placeholder="Date" />
@@ -276,7 +276,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
               </SelectContent>
             </Select>
           </div>
-          
+
           {/* Results summary */}
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm text-muted-foreground">
@@ -298,7 +298,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Transactions Table */}
       <Card>
         <CardContent className="p-0">
@@ -424,7 +424,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
           )}
         </CardContent>
       </Card>
-      
+
       {/* Transaction Details Dialog */}
       {showDetails && (
         <Dialog open={true} onOpenChange={() => setShowDetails(null)}>
@@ -472,7 +472,7 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
                 <div>
                   <Label className="text-sm text-muted-foreground">Completed</Label>
                   <p className="text-sm">
-                    {showDetails.completedAt 
+                    {showDetails.completedAt
                       ? format(new Date(showDetails.completedAt), 'MMM dd, yyyy HH:mm:ss')
                       : 'N/A'}
                   </p>

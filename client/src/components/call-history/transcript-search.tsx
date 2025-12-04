@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,11 +66,11 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
   // Highlight search terms in text
   const highlightText = useCallback((text: string, query: string) => {
     if (!query.trim()) return text;
-    
+
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
           {part}
@@ -107,17 +107,17 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
         searchTerms.forEach(term => {
           const termRegex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
           const matches_found = text.match(termRegex);
-          
+
           if (matches_found) {
             hasMatch = true;
             // Score based on number of matches and position
             entryScore += matches_found.length * 10;
-            
+
             // Boost score for exact phrase matches
             if (text.includes(query.toLowerCase())) {
               entryScore += 50;
             }
-            
+
             // Boost score for beginning of text
             const firstMatchIndex = text.indexOf(term);
             if (firstMatchIndex < 50) {
@@ -157,9 +157,9 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
       onClearSearch();
       return;
     }
-    
+
     setIsSearching(true);
-    
+
     try {
       const results = searchTranscripts(searchQuery);
       setSearchResults(results);
@@ -253,8 +253,8 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
             <Search className="w-4 h-4" />
             Search Results Preview
           </div>
-          
-          {searchResults.slice(0, 3).map((result, index) => (
+
+          {searchResults.slice(0, 3).map((result) => (
             <div key={result.callLog.id} className="bg-white dark:bg-gray-700 rounded border p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
                   {result.callLog.duration ? `${Math.floor(result.callLog.duration / 60)}m ${result.callLog.duration % 60}s` : 'N/A'}
                 </div>
               </div>
-              
+
               {result.matches.slice(0, 2).map((match, matchIndex) => (
                 <div key={matchIndex} className="text-sm space-y-1">
                   <div className="flex items-center gap-2">
@@ -293,7 +293,7 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
                   </div>
                 </div>
               ))}
-              
+
               {result.matches.length > 2 && (
                 <div className="text-xs text-gray-500 mt-2">
                   +{result.matches.length - 2} more matches
@@ -301,7 +301,7 @@ export function TranscriptSearch({ callLogs, onSearchResults, onClearSearch }: T
               )}
             </div>
           ))}
-          
+
           {searchResults.length > 3 && (
             <div className="text-center text-sm text-gray-500">
               And {searchResults.length - 3} more results...

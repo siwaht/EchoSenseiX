@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Trash2 } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,7 +87,7 @@ export function DocumentUpload() {
 
       return response.json();
     },
-    onSuccess: (data, documentId) => {
+    onSuccess: (_, documentId) => {
       toast({
         title: "Document Deleted",
         description: "Document and associated knowledge entries have been removed",
@@ -198,11 +198,10 @@ export function DocumentUpload() {
         <CardContent>
           {/* Upload Area */}
           <div
-            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragActive
+            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
                 ? 'border-primary bg-primary/5'
                 : 'border-gray-300 hover:border-gray-400'
-            } ${uploadMutation.isPending ? 'pointer-events-none opacity-50' : ''}`}
+              } ${uploadMutation.isPending ? 'pointer-events-none opacity-50' : ''}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -269,7 +268,7 @@ export function DocumentUpload() {
                             ElevenLabs Integrated
                           </Badge>
                         )}
-                        <Badge 
+                        <Badge
                           variant={file.status === 'completed' ? 'default' : 'secondary'}
                           className="text-xs"
                         >

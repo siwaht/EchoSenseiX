@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ export function AgentAssignment({ userId, onClose, hideActions = false, onAssign
   const [hasChanges, setHasChanges] = useState(false);
 
   // Fetch agents with assignment status
-  const { data: agents = [], isLoading, refetch } = useQuery<Agent[]>({
+  const { data: agents = [], isLoading } = useQuery<Agent[]>({
     queryKey: [`/api/admin/users/${userId}/agents`],
     enabled: !!userId,
     refetchOnMount: 'always',
@@ -93,7 +93,7 @@ export function AgentAssignment({ userId, onClose, hideActions = false, onAssign
     }
     setLocalAssignments(newAssignments);
     setHasChanges(true);
-    
+
     // Notify parent of changes if callback provided
     if (onAssignmentsChange) {
       onAssignmentsChange(Array.from(newAssignments));

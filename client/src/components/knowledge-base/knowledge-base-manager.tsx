@@ -5,18 +5,18 @@
  */
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Upload, Settings } from "lucide-react";
+import { Search, Plus, BookOpen, Brain, MessageSquare, Lightbulb, Tag, Settings } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
 
 interface KnowledgeBaseEntry {
@@ -29,12 +29,7 @@ interface KnowledgeBaseEntry {
   updatedAt: string;
 }
 
-interface KnowledgeBaseResponse {
-  answer: string;
-  sources: KnowledgeBaseEntry[];
-  confidence: number;
-  followUpQuestions?: string[];
-}
+
 
 export function KnowledgeBaseManager() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,8 +40,8 @@ export function KnowledgeBaseManager() {
     category: "General",
     tags: ""
   });
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
+  const [, setIsAddDialogOpen] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -59,11 +54,11 @@ export function KnowledgeBaseManager() {
         credentials: "include",
         body: JSON.stringify({ query, category: selectedCategory !== "all" ? selectedCategory : undefined })
       });
-      
+
       if (!response.ok) {
         throw new Error("Search failed");
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -95,11 +90,11 @@ export function KnowledgeBaseManager() {
           tags: entry.tags.split(",").map(tag => tag.trim()).filter(tag => tag)
         })
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to add entry");
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -152,7 +147,7 @@ export function KnowledgeBaseManager() {
               <TabsTrigger value="upload">Upload Documents</TabsTrigger>
               <TabsTrigger value="integrate">Integrate with Agents</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="search" className="space-y-4">
               <div className="flex gap-2">
                 <Input
@@ -308,8 +303,8 @@ export function KnowledgeBaseManager() {
                     />
                   </div>
 
-                  <Button 
-                    onClick={handleAddEntry} 
+                  <Button
+                    onClick={handleAddEntry}
                     disabled={addEntryMutation.isPending || !newEntry.title.trim() || !newEntry.content.trim()}
                     className="w-full"
                   >

@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Calendar, Clock, DollarSign, Activity, Settings, Phone, FlaskConical, Copy } from "lucide-react";
-import type { Agent, CallLog } from "@shared/schema";
+import { Bot, Calendar, Clock, DollarSign, Activity, Settings, FlaskConical, Copy } from "lucide-react";
+import type { Agent } from "@shared/schema";
 
 interface AgentDetailModalProps {
   agent: Agent | null;
@@ -20,20 +20,20 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Reset tab to overview when modal opens
   useEffect(() => {
     if (open) {
       setActiveTab("overview");
     }
   }, [open]);
-  
+
   const { data: callLogsResponse } = useQuery({
     queryKey: ["/api/call-logs"],
     queryFn: () => fetch(`/api/call-logs?agentId=${agent?.id}`).then(res => res.json()),
     enabled: !!agent?.id && open,
   });
-  
+
   // Extract data from paginated response
   const callLogs = callLogsResponse?.data || callLogsResponse || [];
 
@@ -169,7 +169,7 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                 <Activity className="w-5 h-5" />
                 Agent Status
               </h3>
-              
+
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-medium">Agent Availability</p>
@@ -193,11 +193,11 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                 <Settings className="w-5 h-5" />
                 Quick Actions
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => {
                       // Navigate to agent settings page
@@ -207,9 +207,9 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                     <Settings className="w-4 h-4 mr-2" />
                     Configure Agent Settings
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => {
                       // Navigate to playground for testing
@@ -219,7 +219,7 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                     <FlaskConical className="w-4 h-4 mr-2" />
                     Test Agent in Playground
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     className="w-full justify-start"
@@ -238,10 +238,10 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                     Copy Agent ID
                   </Button>
                 </div>
-                
+
                 <div className="border-t pt-4">
                   <p className="text-xs text-muted-foreground">
-                    Use the "Configure Agent Settings" button above to access all agent configuration options 
+                    Use the "Configure Agent Settings" button above to access all agent configuration options
                     including voice settings, prompts, tools, and knowledge base integration.
                   </p>
                 </div>
@@ -254,7 +254,7 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                 <Bot className="w-5 h-5" />
                 Agent Details
               </h3>
-              
+
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Agent ID</p>
@@ -274,14 +274,14 @@ export function AgentDetailModal({ agent, open, onOpenChange }: AgentDetailModal
                     </Button>
                   </div>
                 </div>
-                
+
                 {agent.description && (
                   <div>
                     <p className="text-sm text-muted-foreground">Description</p>
                     <p className="text-sm mt-1">{agent.description}</p>
                   </div>
                 )}
-                
+
                 <div>
                   <p className="text-sm text-muted-foreground">Created Date</p>
                   <p className="text-sm mt-1">

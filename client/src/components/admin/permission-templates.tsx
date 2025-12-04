@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Shield, Eye, Users, Bot, Phone, Settings, 
-  CheckCircle, Building2, Briefcase, Store, User
+import {
+  Shield, Eye, Users, Bot, Phone, Settings,
+  Building2, Briefcase, Store, User
 } from "lucide-react";
 
 // Available permissions with clear descriptions
@@ -15,26 +15,26 @@ export const availablePermissions = [
   // Core Access - Basic viewing rights
   { id: "view_analytics", label: "View Dashboard & Analytics", category: "Core Access", description: "Access to dashboard metrics and analytics data", icon: Eye },
   { id: "view_call_history", label: "View Call History", category: "Core Access", description: "View call logs and conversation history", icon: Phone },
-  
+
   // Agent Management - Managing AI agents
   { id: "manage_agents", label: "Manage Agents", category: "Agent Management", description: "Create, edit, and delete AI agents", icon: Bot },
   { id: "configure_tools", label: "Configure Agent Tools", category: "Agent Management", description: "Set up and modify agent tools and capabilities", icon: Settings },
   { id: "access_playground", label: "Test Agents", category: "Agent Management", description: "Access playground to test agent interactions", icon: Bot },
   { id: "advanced_agent_settings", label: "Advanced Agent Settings", category: "Agent Management", description: "Access to advanced agent configuration", icon: Settings },
-  
+
   // Voice & Communications - Phone and voice features
   { id: "manage_voices", label: "Manage Voices", category: "Communications", description: "Configure voice settings and preferences", icon: Phone },
   { id: "manage_phone_numbers", label: "Manage Phone Numbers", category: "Communications", description: "Add and configure phone numbers", icon: Phone },
   { id: "make_outbound_calls", label: "Outbound Calling", category: "Communications", description: "Initiate and manage outbound call campaigns", icon: Phone },
   { id: "access_recordings", label: "Access Recordings", category: "Communications", description: "Listen to and download call recordings", icon: Phone },
   { id: "use_webrtc", label: "Use WebRTC Connection", category: "Communications", description: "Enable enhanced WebRTC connection in playground", icon: Phone },
-  
+
   // Administration - System management
   { id: "manage_integrations", label: "Manage Integrations", category: "Administration", description: "Configure third-party integrations", icon: Settings },
   { id: "view_billing", label: "View Billing", category: "Administration", description: "Access billing and payment information", icon: Settings },
   { id: "manage_settings", label: "Manage Settings", category: "Administration", description: "Modify organization settings", icon: Settings },
   { id: "manage_users", label: "Manage Users", category: "Administration", description: "Add and manage user accounts", icon: Users },
-  
+
   // Agency-specific permissions
   { id: "manage_customers", label: "Manage Customers", category: "Agency", description: "Create and manage customer organizations", icon: Store },
   { id: "view_commission_reports", label: "View Commission Reports", category: "Agency", description: "Access commission and revenue reports", icon: Building2 },
@@ -86,7 +86,7 @@ export const roleTemplatesByOrgType = {
       label: "Agency Owner",
       description: "Full agency control with financial access",
       permissions: [
-        "view_analytics", "view_call_history", "manage_customers", 
+        "view_analytics", "view_call_history", "manage_customers",
         "view_commission_reports", "create_billing_packages", "white_label_settings",
         "manage_agents", "manage_integrations", "view_billing", "manage_settings", "manage_users",
         "configure_tools", "manage_voices", "manage_phone_numbers", "make_outbound_calls"
@@ -127,7 +127,7 @@ export const roleTemplatesByOrgType = {
     owner: {
       label: "Account Owner",
       description: "Full control of organization",
-      permissions: availablePermissions.filter(p => 
+      permissions: availablePermissions.filter(p =>
         !["manage_customers", "view_commission_reports", "create_billing_packages", "white_label_settings"].includes(p.id)
       ).map(p => p.id),
       icon: Shield,
@@ -138,7 +138,7 @@ export const roleTemplatesByOrgType = {
       label: "Admin",
       description: "Manage users and settings",
       permissions: [
-        "view_analytics", "view_call_history", "manage_agents", "configure_tools", 
+        "view_analytics", "view_call_history", "manage_agents", "configure_tools",
         "access_playground", "manage_voices", "manage_phone_numbers", "manage_users", "manage_settings"
       ],
       icon: Shield,
@@ -197,8 +197,8 @@ interface PermissionTemplatesSelectorProps {
   onRoleChange?: (role: string) => void;
 }
 
-export function PermissionTemplatesSelector({ 
-  selectedPermissions, 
+export function PermissionTemplatesSelector({
+  selectedPermissions,
   onPermissionsChange,
   userType = "regular",
   organizationType,
@@ -250,7 +250,7 @@ export function PermissionTemplatesSelector({
     if (!acc[perm.category]) {
       acc[perm.category] = [];
     }
-    acc[perm.category].push(perm);
+    acc[perm.category]!.push(perm);
     return acc;
   }, {} as Record<string, typeof availablePermissions>);
 
@@ -264,11 +264,10 @@ export function PermissionTemplatesSelector({
             {Object.entries(templates).map(([presetKey, preset]) => {
               const Icon = preset.icon;
               return (
-                <Card 
+                <Card
                   key={presetKey}
-                  className={`cursor-pointer transition-colors ${
-                    selectedPreset === presetKey ? 'border-primary' : ''
-                  }`}
+                  className={`cursor-pointer transition-colors ${selectedPreset === presetKey ? 'border-primary' : ''
+                    }`}
                   onClick={() => handlePresetSelect(presetKey)}
                 >
                   <CardContent className="p-4">
@@ -313,7 +312,7 @@ export function PermissionTemplatesSelector({
               </Button>
             )}
           </div>
-          
+
           {(customMode || !selectedPreset) && (
             <Card>
               <CardContent className="p-4">
@@ -334,8 +333,8 @@ export function PermissionTemplatesSelector({
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <Icon className="w-4 h-4 text-muted-foreground" />
-                                  <Label 
-                                    htmlFor={perm.id} 
+                                  <Label
+                                    htmlFor={perm.id}
                                     className="font-medium cursor-pointer"
                                   >
                                     {perm.label}

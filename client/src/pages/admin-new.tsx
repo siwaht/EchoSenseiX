@@ -9,13 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Users, Building2, DollarSign, Phone, Edit, Trash2, Plus, Shield,
   Activity, TrendingUp, CreditCard, Settings,
-  Eye, Wallet, AlertCircle, Briefcase
+  Eye, Wallet, Briefcase
 } from "lucide-react";
 import type { User, Organization, BillingPackage } from "@shared/schema";
 
@@ -60,15 +60,15 @@ export default function AdminDashboard() {
   const { toast } = useToast();
 
   // State management
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  // const [, setEditingUser] = useState<User | null>(null);
+  // const [, setDeletingUser] = useState<User | null>(null);
   const [creatingPackage, setCreatingPackage] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<BillingPackage | null>(null);
-  const [deletingPackage, setDeletingPackage] = useState<BillingPackage | null>(null);
-  const [connectingStripe, setConnectingStripe] = useState(false);
-  const [connectingPayPal, setConnectingPayPal] = useState(false);
-  const [stripeKeys, setStripeKeys] = useState({ publishableKey: '', secretKey: '' });
-  const [paypalKeys, setPaypalKeys] = useState({ clientId: '', clientSecret: '' });
+  const [, setEditingPackage] = useState<BillingPackage | null>(null);
+  const [, setDeletingPackage] = useState<BillingPackage | null>(null);
+  // const [, setConnectingStripe] = useState(false);
+  // const [, setConnectingPayPal] = useState(false);
+  // const [, setStripeKeys] = useState({ publishableKey: '', secretKey: '' });
+  // const [, setPaypalKeys] = useState({ clientId: '', clientSecret: '' });
   const [newPackage, setNewPackage] = useState({
     id: "",
     name: "",
@@ -105,8 +105,8 @@ export default function AdminDashboard() {
     organizationType?: string;
     billingPackage?: string;
   } | null>(null);
-  const [creatingUser, setCreatingUser] = useState(false);
-  const [newUser, setNewUser] = useState({
+  // const [creatingUser, setCreatingUser] = useState(false);
+  /* const [newUser, setNewUser] = useState({
     email: "",
     firstName: "",
     lastName: "",
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
     isAdmin: false,
     userType: "regular" as "regular" | "agency",
     commissionRate: "30",
-  });
+  }); */
 
   // Queries
   const { data: users = [] } = useQuery<User[]>({
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
   });
 
   // Create user mutation
-  const createUserMutation = useMutation({
+  /* const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
       return await apiRequest("POST", "/api/admin/users", {
         ...userData,
@@ -172,10 +172,10 @@ export default function AdminDashboard() {
         variant: "destructive"
       });
     },
-  });
+  }); */
 
   // Update user mutation
-  const updateUserMutation = useMutation({
+  /* const updateUserMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<User> }) => {
       return await apiRequest("PATCH", `/api/admin/users/${data.id}`, data.updates);
     },
@@ -187,10 +187,10 @@ export default function AdminDashboard() {
     onError: () => {
       toast({ title: "Failed to update user", variant: "destructive" });
     },
-  });
+  }); */
 
   // Delete user mutation
-  const deleteUserMutation = useMutation({
+  /* const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest("DELETE", `/api/admin/users/${userId}`);
     },
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
     onError: () => {
       toast({ title: "Failed to delete user", variant: "destructive" });
     },
-  });
+  }); */
 
   // Create billing package mutation
   const createPackageMutation = useMutation({

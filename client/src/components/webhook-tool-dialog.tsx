@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Code, Sparkles, Database } from "lucide-react";
+import { Trash2, Code, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 // Simple ID generator
 const generateId = () => `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -178,7 +178,7 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
 
   const updateHeader = (index: number, field: 'key' | 'value' | 'enabled', value: any) => {
     const headers = [...(formData.webhookConfig?.headers || [])];
-    headers[index] = { ...headers[index], [field]: value };
+    headers[index] = { ...headers[index]!, [field]: value };
     setFormData({
       ...formData,
       webhookConfig: { ...formData.webhookConfig, headers },
@@ -214,10 +214,10 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
         ...formData.webhookConfig,
         bodyParameters: [
           ...(formData.webhookConfig?.bodyParameters || []),
-          { 
-            identifier: '', 
-            dataType: 'String' as const, 
-            description: '', 
+          {
+            identifier: '',
+            dataType: 'String' as const,
+            description: '',
             required: false,
             valueType: 'LLM Prompt' as const
           }
@@ -228,7 +228,7 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
 
   const updateQueryParameter = (index: number, field: 'identifier' | 'description' | 'required' | 'dataType' | 'valueType', value: any) => {
     const params = [...(formData.webhookConfig?.queryParameters || [])];
-    params[index] = { ...params[index], [field]: value };
+    params[index] = { ...params[index]!, [field]: value };
     setFormData({
       ...formData,
       webhookConfig: { ...formData.webhookConfig, queryParameters: params },
@@ -246,7 +246,7 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
 
   const updateBodyParameter = (index: number, field: string, value: any) => {
     const updatedParams = [...(formData.webhookConfig?.bodyParameters || [])];
-    updatedParams[index] = { ...updatedParams[index], [field]: value };
+    updatedParams[index] = { ...updatedParams[index]!, [field]: value };
     setFormData({
       ...formData,
       webhookConfig: {
@@ -281,7 +281,7 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
 
   const updateDynamicVariableAssignment = (index: number, field: 'variable' | 'jsonPath', value: string) => {
     const assignments = [...(formData.webhookConfig?.dynamicVariableAssignments || [])];
-    assignments[index] = { ...assignments[index], [field]: value };
+    assignments[index] = { ...assignments[index]!, [field]: value };
     setFormData({
       ...formData,
       webhookConfig: { ...formData.webhookConfig, dynamicVariableAssignments: assignments },
@@ -658,7 +658,7 @@ export function WebhookToolDialog({ isOpen, onClose, webhook, onSave }: WebhookT
                         This field will be passed to the LLM and should describe in detail how to extract the data from the transcript.
                       </p>
                     </div>
-                    
+
                     <div>
                       <Label className="text-xs font-semibold">Properties</Label>
                       <div className="grid grid-cols-2 gap-3 mt-2">

@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { IConversationalAIProvider, ProviderType } from './providers/types';
 
 interface PicaActionParams {
     tool: string;
@@ -6,7 +7,11 @@ interface PicaActionParams {
     params?: any;
 }
 
-export class PicaService {
+export class PicaService implements IConversationalAIProvider {
+    id = 'pica';
+    name = 'PicaOS';
+    type: ProviderType = 'conversational_ai';
+
     private client: AxiosInstance;
     private secretKey: string;
 
@@ -18,7 +23,7 @@ export class PicaService {
         }
 
         this.client = axios.create({
-            baseURL: 'https://api.picaos.com/v1', // Assuming v1 based on docs structure, will verify if needed
+            baseURL: 'https://api.picaos.com/v1',
             headers: {
                 'Authorization': `Bearer ${this.secretKey}`,
                 'Content-Type': 'application/json'
@@ -26,21 +31,18 @@ export class PicaService {
         });
     }
 
+    async initialize(config: any): Promise<void> {
+        if (config.apiKey) {
+            this.secretKey = config.apiKey;
+            this.client.defaults.headers['Authorization'] = `Bearer ${this.secretKey}`;
+        }
+    }
+
     /**
      * Execute a generic action via PicaOS Passthrough API
      */
     async executeAction({ tool, action, params }: PicaActionParams): Promise<any> {
         try {
-            // Based on Passthrough API docs, structure might vary. 
-            // Using a generic POST to /passthrough or similar if that's the endpoint.
-            // Re-checking docs: "Building Requests" usually implies a specific structure.
-            // If PicaOS acts as a proxy, we might need to hit specific endpoints or a central execution endpoint.
-            // For now, assuming a central execution endpoint or direct tool endpoints via Pica.
-
-            // If using the MCP server pattern or direct API:
-            // POST https://api.picaos.com/passthrough
-            // Body: { tool, action, params }
-
             const response = await this.client.post('/passthrough', {
                 tool,
                 action,
@@ -67,33 +69,24 @@ export class PicaService {
         }
     }
 
-    // --- ElevenLabs Specific Methods ---
+    // --- IConversationalAIProvider Implementation ---
 
-    /**
-     * Create an ElevenLabs Agent
-     */
-    async createAgent(params: any): Promise<any> {
+    async createAgent(agentData: any): Promise<any> {
         return this.executeAction({
             tool: 'elevenlabs',
             action: 'create_agent',
-            params
+            params: agentData
         });
     }
 
-    /**
-     * Update an ElevenLabs Agent
-     */
-    async updateAgent(agentId: string, params: any): Promise<any> {
+    async updateAgent(agentId: string, updates: any): Promise<any> {
         return this.executeAction({
             tool: 'elevenlabs',
             action: 'update_agent',
-            params: { ...params, agent_id: agentId }
+            params: { ...updates, agent_id: agentId }
         });
     }
 
-    /**
-     * Delete an ElevenLabs Agent
-     */
     async deleteAgent(agentId: string): Promise<any> {
         return this.executeAction({
             tool: 'elevenlabs',
@@ -101,6 +94,99 @@ export class PicaService {
             params: { agent_id: agentId }
         });
     }
+
+    async getAgent(agentId: string): Promise<any> {
+        return this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_agent',
+            params: { agent_id: agentId }
+        });
+    }
+
+    async getAgents(): Promise<any[]> {
+        const response = await this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_agents',
+            params: {}
+        });
+        return response.agents || response;
+    }
+
+    async getConversations(params?: any): Promise<any> {
+        return this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_history', // Mapping getConversations to get_history
+            params
+        });
+    }
+
+    async getConversation(conversationId: string): Promise<any> {
+        return this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_conversation',
+            params: { conversation_id: conversationId }
+        });
+    }
+
+    async getConversationTranscript(conversationId: string): Promise<any> {
+        try {
+            return await this.executeAction({
+                tool: 'elevenlabs',
+                action: 'get_transcript',
+                params: { conversation_id: conversationId }
+            });
+        } catch (e) {
+            console.warn('getConversationTranscript not fully supported via PicaOS yet');
+            return null;
+        }
+    }
+
+    async getConversationAudio(conversationId: string): Promise<{ buffer: Buffer | null; error?: string; notFound?: boolean }> {
+        try {
+            const conversation = await this.getConversation(conversationId);
+            if (conversation && conversation.recording_url) {
+                const response = await axios.get(conversation.recording_url, { responseType: 'arraybuffer' });
+                return { buffer: Buffer.from(response.data) };
+            }
+            return { buffer: null, notFound: true };
+        } catch (error: any) {
+            return { buffer: null, error: error.message };
+        }
+    }
+
+    async createWebRTCSession(_agentId: string, _options?: any): Promise<any> {
+        throw new Error('createWebRTCSession not implemented in PicaService');
+    }
+
+    async manageTools(_tools: any[], _integrationId?: string): Promise<{ toolIds: string[]; builtInTools: any }> {
+        return { toolIds: [], builtInTools: {} };
+    }
+
+    async createBatchCall(_data: any): Promise<any> {
+        throw new Error('createBatchCall not implemented in PicaService');
+    }
+
+    async getBatchCalls(): Promise<any[]> {
+        return [];
+    }
+
+    async getBatchCallStatus(_batchId: string): Promise<any> {
+        return null;
+    }
+
+    async cancelBatchCall(_batchId: string): Promise<any> {
+        return null;
+    }
+
+    async createConversation(data: any): Promise<any> {
+        return this.executeAction({
+            tool: 'elevenlabs',
+            action: 'outbound_call',
+            params: data
+        });
+    }
+
+    // --- Additional Helper Methods ---
 
     /**
      * Create Knowledge Base
@@ -114,25 +200,17 @@ export class PicaService {
     }
 
     /**
-     * Get Call History
+     * Initiate Outbound Call (Alias for createConversation)
      */
-    async getCallHistory(params: any): Promise<any> {
-        return this.executeAction({
-            tool: 'elevenlabs',
-            action: 'get_history',
-            params
-        });
+    async outboundCall(params: any): Promise<any> {
+        return this.createConversation(params);
     }
 
     /**
-     * Initiate Outbound Call
+     * Get Call History (Alias for getConversations)
      */
-    async outboundCall(params: any): Promise<any> {
-        return this.executeAction({
-            tool: 'elevenlabs',
-            action: 'outbound_call',
-            params
-        });
+    async getCallHistory(params: any): Promise<any> {
+        return this.getConversations(params);
     }
 }
 

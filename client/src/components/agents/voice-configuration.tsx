@@ -11,12 +11,9 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { Mic, Play, Loader2, Save, Plus, Trash2, Volume2, Settings, Users, Globe } from "lucide-react";
+import { Mic, Play, Loader2, Save, Plus, Trash2, Volume2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -46,19 +43,19 @@ interface VoiceConfigurationProps {
   currentMultiVoiceConfig?: any;
 }
 
-export function VoiceConfiguration({ 
-  agentId, 
-  currentVoiceId = "", 
+export function VoiceConfiguration({
+  agentId,
+  currentVoiceId = "",
   currentVoiceSettings = {},
   currentMultiVoiceConfig = {}
 }: VoiceConfigurationProps) {
-  const [selectedVoice, setSelectedVoice] = useState<string>(currentVoiceId);
-  const [isPlaying, setIsPlaying] = useState(false);
+
+
   const [multiVoices, setMultiVoices] = useState<any[]>(currentMultiVoiceConfig?.voices || []);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: voices, isLoading: voicesLoading } = useQuery({
+  const { data: voices } = useQuery({
     queryKey: ["/api/elevenlabs/voices"],
   });
 
@@ -92,7 +89,7 @@ export function VoiceConfiguration({
           switchingMode: "keyword" as const,
         } : undefined,
       };
-      
+
       await apiRequest("PATCH", `/api/agents/${agentId}`, voiceSettings);
     },
     onSuccess: () => {

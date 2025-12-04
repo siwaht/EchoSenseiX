@@ -20,7 +20,7 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
+  public override state: State = {
     hasError: false,
     error: null,
     errorInfo: null,
@@ -31,12 +31,12 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Error boundary caught:", error, errorInfo);
-    
+
     // Update state with error info
     this.setState({ errorInfo });
-    
+
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -68,18 +68,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     const newRetryCount = this.state.retryCount + 1;
-    
+
     if (newRetryCount >= 3) {
       // After 3 retries, reload the page
       window.location.reload();
       return;
     }
 
-    this.setState({ 
-      hasError: false, 
-      error: null, 
+    this.setState({
+      hasError: false,
+      error: null,
       errorInfo: null,
-      retryCount: newRetryCount 
+      retryCount: newRetryCount
     });
   };
 
@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
-  public render() {
+  public override render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -103,20 +103,20 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-full">
                 <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
               </div>
-              
+
               <div className="space-y-3">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   Oops! Something went wrong
                 </h2>
-                
+
                 {context && (
                   <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded">
                     <strong>Context:</strong> {context}
                   </div>
                 )}
-                
+
                 <p className="text-sm text-muted-foreground">
-                  {retryCount > 0 
+                  {retryCount > 0
                     ? `Retry attempt ${retryCount}/3. We're working to fix this issue.`
                     : "We encountered an unexpected error. Please try again or go back to the main page."
                   }
@@ -156,8 +156,8 @@ export class ErrorBoundary extends Component<Props, State> {
               {/* Action Buttons */}
               <div className="flex gap-3 mt-6">
                 {showRetry && (
-                  <Button 
-                    onClick={this.handleReset} 
+                  <Button
+                    onClick={this.handleReset}
                     variant="default"
                     className="flex items-center gap-2"
                   >
@@ -165,10 +165,10 @@ export class ErrorBoundary extends Component<Props, State> {
                     {retryCount >= 3 ? 'Reload Page' : 'Try Again'}
                   </Button>
                 )}
-                
+
                 {showHome && (
-                  <Button 
-                    onClick={this.handleGoHome} 
+                  <Button
+                    onClick={this.handleGoHome}
                     variant="outline"
                     className="flex items-center gap-2"
                   >

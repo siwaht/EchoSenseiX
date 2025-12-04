@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -27,24 +27,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   CreditCard,
-  Plus,
-  Check,
-  X,
-  Eye,
-  EyeOff,
-  AlertCircle,
+  Zap,
   Globe,
   TrendingUp,
   Shield,
-  Zap,
+  Check,
+  AlertCircle,
+  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   PAYMENT_PROVIDERS,
   PaymentProvider,
   PaymentProviderCategory,
-  getProvidersByCategory,
-  getPopularProviders,
-  formatProviderName,
 } from "../../../shared/payment-providers";
 
 interface PaymentProviderConfigProps {
@@ -62,7 +58,7 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
   const [selectedCategory, setSelectedCategory] = useState<PaymentProviderCategory | "all">("all");
 
   // Fetch configured payment processors
-  const { data: processors, isLoading } = useQuery({
+  const { data: processors } = useQuery<any[]>({
     queryKey: ["/api/agency/payment-processors", organizationId],
   });
 
@@ -158,22 +154,7 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
     }
   };
 
-  const getCategoryLabel = (category: PaymentProviderCategory) => {
-    switch (category) {
-      case "traditional_gateway":
-        return "Payment Gateways";
-      case "regional_provider":
-        return "Regional Providers";
-      case "digital_wallet":
-        return "Digital Wallets";
-      case "bnpl":
-        return "Buy Now Pay Later";
-      case "cryptocurrency":
-        return "Cryptocurrency";
-      default:
-        return category;
-    }
-  };
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -329,9 +310,8 @@ export default function PaymentProviderConfig({ organizationId }: PaymentProvide
               return (
                 <Card
                   key={provider.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    isConfigured ? "opacity-60" : ""
-                  }`}
+                  className={`cursor-pointer transition-all hover:shadow-md ${isConfigured ? "opacity-60" : ""
+                    }`}
                   onClick={() => !isConfigured && handleProviderSelect(provider.id)}
                 >
                   <CardHeader>

@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,7 +43,7 @@ export function MultilingualConfig({ agentId }: MultilingualConfigProps) {
   const [availableLanguages, setAvailableLanguages] = useState<Language[]>([]);
   const [supportedLanguages, setSupportedLanguages] = useState<LanguageConfig[]>([]);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -310,7 +310,7 @@ export function MultilingualConfig({ agentId }: MultilingualConfigProps) {
                   ))}
               </SelectContent>
             </Select>
-            <Button 
+            <Button
               onClick={handleAddLanguage}
               disabled={addLanguageMutation.isPending}
               variant="outline"
@@ -448,7 +448,7 @@ export function MultilingualConfig({ agentId }: MultilingualConfigProps) {
           </div>
 
           {/* Update Button */}
-          <Button 
+          <Button
             onClick={handleUpdateConfig}
             disabled={updateLanguageMutation.isPending}
             className="w-full"

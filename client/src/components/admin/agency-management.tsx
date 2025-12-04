@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Building2, Users, DollarSign, Plus, ChevronRight, ChevronDown,
-  UserPlus, TrendingUp, CreditCard, Briefcase, Store, Settings,
-  Eye, Edit, Trash2, Shield, AlertCircle, PackageIcon, Percent, Palette, Wand2,
+import {
+  Building2, Users, Plus, ChevronRight, ChevronDown,
+  CreditCard, Briefcase, Store,
+  Eye, Edit, Trash2, Percent, Palette, Wand2,
   Power, Ban, AlertTriangle, X
 } from "lucide-react";
 import type { Organization, User } from "@shared/schema";
@@ -45,7 +45,7 @@ export function AgencyManagement() {
   const [orgToDelete, setOrgToDelete] = useState<OrganizationWithDetails | null>(null);
   const [adminPassword, setAdminPassword] = useState<string>("");
   const [editingPermissions, setEditingPermissions] = useState<string[]>([]);
-  
+
   // New agency form state
   const [newAgency, setNewAgency] = useState({
     name: "",
@@ -89,7 +89,7 @@ export function AgencyManagement() {
   // Build hierarchical structure
   const buildHierarchy = (): OrganizationWithDetails[] => {
     const orgMap = new Map<string, OrganizationWithDetails>();
-    
+
     // First pass: create all org objects with user counts
     organizations.forEach(org => {
       const orgUsers = users.filter(u => u.organizationId === org.id);
@@ -268,7 +268,7 @@ export function AgencyManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/organizations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/billing"] });
-      toast({ 
+      toast({
         title: `${createType === "agency" ? "Agency" : "Customer"} created successfully`,
         description: `Login credentials have been set for the admin user.`
       });
@@ -276,10 +276,10 @@ export function AgencyManagement() {
       resetForm();
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Creation failed", 
+      toast({
+        title: "Creation failed",
         description: error.message || "An error occurred",
-        variant: "destructive" 
+        variant: "destructive"
       });
     },
   });
@@ -323,7 +323,7 @@ export function AgencyManagement() {
     const isExpanded = expandedOrgs.has(org.id);
     const hasChildren = org.children && org.children.length > 0;
     const isAgency = org.organizationType === 'agency';
-    
+
     return (
       <div key={org.id} className={`${level > 0 ? 'ml-8' : ''}`}>
         <Card className={`mb-3 ${isAgency ? 'border-primary/50 bg-primary/5' : ''}`}>
@@ -342,7 +342,7 @@ export function AgencyManagement() {
                   </Button>
                 )}
                 {!hasChildren && <div className="w-6 flex-shrink-0" />}
-                
+
                 {/* Organization icon */}
                 <div className="flex-shrink-0 mt-1">
                   {isAgency ? (
@@ -351,7 +351,7 @@ export function AgencyManagement() {
                     <Store className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
-                
+
                 {/* Organization details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center flex-wrap gap-2 mb-1">
@@ -410,9 +410,9 @@ export function AgencyManagement() {
                       <span className="hidden sm:inline">Add Customer</span>
                       <span className="sm:hidden">Add</span>
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       title="Whitelabel Settings"
                       onClick={() => setLocation("/whitelabel-settings")}
                       className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 hover:from-purple-500/20 hover:to-purple-600/20 border-purple-500/20"
@@ -422,9 +422,9 @@ export function AgencyManagement() {
                     </Button>
                   </>
                 )}
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
+                <Button
+                  size="sm"
+                  variant="ghost"
                   title="View Details"
                   onClick={() => {
                     setSelectedOrgForView(org);
@@ -434,9 +434,9 @@ export function AgencyManagement() {
                   <Eye className="w-4 h-4" />
                   <span className="sr-only">View</span>
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
+                <Button
+                  size="sm"
+                  variant="ghost"
                   title="Edit Settings"
                   onClick={() => {
                     setSelectedOrgForView(org);
@@ -451,9 +451,9 @@ export function AgencyManagement() {
                   variant="ghost"
                   title={org.billingStatus === 'active' ? "Disable Organization" : "Enable Organization"}
                   onClick={() => {
-                    toggleOrgStatusMutation.mutate({ 
-                      orgId: org.id, 
-                      isActive: org.billingStatus !== 'active' 
+                    toggleOrgStatusMutation.mutate({
+                      orgId: org.id,
+                      isActive: org.billingStatus !== 'active'
                     });
                   }}
                 >
@@ -538,7 +538,7 @@ export function AgencyManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={async () => {
               try {
@@ -552,7 +552,7 @@ export function AgencyManagement() {
                     <div className="space-y-2">
                       <p>Login credentials:</p>
                       <div className="bg-muted p-2 rounded text-sm font-mono">
-                        Email: {data.owner.email}<br/>
+                        Email: {data.owner.email}<br />
                         Password: {data.owner.password}
                       </div>
                       <p className="text-xs">Use these to test whitelabel features</p>
@@ -570,7 +570,7 @@ export function AgencyManagement() {
             <Wand2 className="w-4 h-4 mr-2" />
             Create Test Agency
           </Button>
-          <Button 
+          <Button
             onClick={() => {
               setCreateType("agency");
               setSelectedAgency(null);
@@ -620,7 +620,7 @@ export function AgencyManagement() {
       {/* Organization Hierarchy */}
       <div className="space-y-2">
         {hierarchicalOrgs.map(org => renderOrganization(org))}
-        
+
         {hierarchicalOrgs.length === 0 && (
           <Card className="p-12">
             <div className="text-center text-muted-foreground">
@@ -640,7 +640,7 @@ export function AgencyManagement() {
               {createType === "agency" ? "Create New Agency" : "Create New Customer"}
             </DialogTitle>
             <DialogDescription>
-              {createType === "agency" 
+              {createType === "agency"
                 ? "Set up a new agency partner with their own customers and commission structure"
                 : `Add a new customer ${selectedAgency ? "under the selected agency" : "as a direct customer"}`}
             </DialogDescription>
@@ -648,297 +648,297 @@ export function AgencyManagement() {
 
           <div className="flex-1 overflow-y-auto px-1 py-4">
             <div className="grid gap-4 pr-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">
-                  {createType === "agency" ? "Agency Name" : "Company Name"}
-                </Label>
-                <Input
-                  id="name"
-                  value={newAgency.name}
-                  onChange={(e) => setNewAgency({...newAgency, name: e.target.value})}
-                  placeholder={createType === "agency" ? "Acme Partners" : "Customer Corp"}
-                />
-              </div>
-              {createType === "agency" && (
-                <div>
-                  <Label htmlFor="commission">Commission Rate (%)</Label>
-                  <Input
-                    id="commission"
-                    type="number"
-                    value={newAgency.commissionRate}
-                    onChange={(e) => setNewAgency({...newAgency, commissionRate: e.target.value})}
-                    placeholder="30"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Admin User Account</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="name">
+                    {createType === "agency" ? "Agency Name" : "Company Name"}
+                  </Label>
                   <Input
-                    id="firstName"
-                    value={newAgency.firstName}
-                    onChange={(e) => setNewAgency({...newAgency, firstName: e.target.value})}
-                    placeholder="John"
+                    id="name"
+                    value={newAgency.name}
+                    onChange={(e) => setNewAgency({ ...newAgency, name: e.target.value })}
+                    placeholder={createType === "agency" ? "Acme Partners" : "Customer Corp"}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={newAgency.lastName}
-                    onChange={(e) => setNewAgency({...newAgency, lastName: e.target.value})}
-                    placeholder="Doe"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newAgency.email}
-                    onChange={(e) => setNewAgency({...newAgency, email: e.target.value})}
-                    placeholder="admin@agency.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newAgency.password}
-                    onChange={(e) => setNewAgency({...newAgency, password: e.target.value})}
-                    placeholder="••••••••"
-                  />
+                {createType === "agency" && (
+                  <div>
+                    <Label htmlFor="commission">Commission Rate (%)</Label>
+                    <Input
+                      id="commission"
+                      type="number"
+                      value={newAgency.commissionRate}
+                      onChange={(e) => setNewAgency({ ...newAgency, commissionRate: e.target.value })}
+                      placeholder="30"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Admin User Account</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={newAgency.firstName}
+                      onChange={(e) => setNewAgency({ ...newAgency, firstName: e.target.value })}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={newAgency.lastName}
+                      onChange={(e) => setNewAgency({ ...newAgency, lastName: e.target.value })}
+                      placeholder="Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newAgency.email}
+                      onChange={(e) => setNewAgency({ ...newAgency, email: e.target.value })}
+                      placeholder="admin@agency.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newAgency.password}
+                      onChange={(e) => setNewAgency({ ...newAgency, password: e.target.value })}
+                      placeholder="••••••••"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {createType === "agency" && (
-              <>
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Branding & Domain</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="whiteLabel">White Label Mode</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Hide platform branding for this agency's customers
-                        </p>
+              {createType === "agency" && (
+                <>
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Branding & Domain</h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="whiteLabel">White Label Mode</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Hide platform branding for this agency's customers
+                          </p>
+                        </div>
+                        <Switch
+                          id="whiteLabel"
+                          checked={newAgency.whiteLabel}
+                          onCheckedChange={(checked) => setNewAgency({ ...newAgency, whiteLabel: checked })}
+                        />
                       </div>
-                      <Switch
-                        id="whiteLabel"
-                        checked={newAgency.whiteLabel}
-                        onCheckedChange={(checked) => setNewAgency({...newAgency, whiteLabel: checked})}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="subdomain">Subdomain</Label>
-                        <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="subdomain">Subdomain</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="subdomain"
+                              value={newAgency.subdomain}
+                              onChange={(e) => setNewAgency({ ...newAgency, subdomain: e.target.value })}
+                              placeholder="agency-name"
+                            />
+                            <span className="text-sm text-muted-foreground">.voiceai.com</span>
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="customDomain">Custom Domain (Optional)</Label>
                           <Input
-                            id="subdomain"
-                            value={newAgency.subdomain}
-                            onChange={(e) => setNewAgency({...newAgency, subdomain: e.target.value})}
-                            placeholder="agency-name"
+                            id="customDomain"
+                            value={newAgency.customDomain}
+                            onChange={(e) => setNewAgency({ ...newAgency, customDomain: e.target.value })}
+                            placeholder="dashboard.agency.com"
                           />
-                          <span className="text-sm text-muted-foreground">.voiceai.com</span>
                         </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="customDomain">Custom Domain (Optional)</Label>
-                        <Input
-                          id="customDomain"
-                          value={newAgency.customDomain}
-                          onChange={(e) => setNewAgency({...newAgency, customDomain: e.target.value})}
-                          placeholder="dashboard.agency.com"
-                        />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Billing & Pricing</h4>
-                  <div className="space-y-4">
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Billing & Pricing</h4>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="billingPackage">Billing Package</Label>
+                          <Select
+                            value={newAgency.billingPackage}
+                            onValueChange={(value) => {
+                              setNewAgency({ ...newAgency, billingPackage: value });
+                              // Auto-update permissions based on package
+                              if (value === 'starter') {
+                                setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.starter);
+                              } else if (value === 'professional') {
+                                setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.professional);
+                              } else if (value === 'enterprise') {
+                                setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.enterprise);
+                              }
+                              // Custom keeps current selection
+                            }}
+                          >
+                            <SelectTrigger id="billingPackage">
+                              <SelectValue placeholder="Select package" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="starter">Starter</SelectItem>
+                              <SelectItem value="professional">Professional</SelectItem>
+                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                              <SelectItem value="custom">Custom</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="monthlyCredits">Monthly Credits</Label>
+                          <Input
+                            id="monthlyCredits"
+                            type="number"
+                            value={newAgency.monthlyCredits}
+                            onChange={(e) => setNewAgency({ ...newAgency, monthlyCredits: e.target.value })}
+                            placeholder="0"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="perCallRate">Per Call Rate ($)</Label>
+                          <Input
+                            id="perCallRate"
+                            type="number"
+                            step="0.01"
+                            value={newAgency.perCallRate}
+                            onChange={(e) => setNewAgency({ ...newAgency, perCallRate: e.target.value })}
+                            placeholder="0.30"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="perMinuteRate">Per Minute Rate ($)</Label>
+                          <Input
+                            id="perMinuteRate"
+                            type="number"
+                            step="0.01"
+                            value={newAgency.perMinuteRate}
+                            onChange={(e) => setNewAgency({ ...newAgency, perMinuteRate: e.target.value })}
+                            placeholder="0.30"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="creditBalance">Initial Credit Balance ($)</Label>
+                          <Input
+                            id="creditBalance"
+                            type="number"
+                            value={newAgency.creditBalance}
+                            onChange={(e) => setNewAgency({ ...newAgency, creditBalance: e.target.value })}
+                            placeholder="0"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Resource Limits</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="billingPackage">Billing Package</Label>
-                        <Select
-                          value={newAgency.billingPackage}
-                          onValueChange={(value) => {
-                            setNewAgency({...newAgency, billingPackage: value});
-                            // Auto-update permissions based on package
-                            if (value === 'starter') {
-                              setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.starter);
-                            } else if (value === 'professional') {
-                              setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.professional);
-                            } else if (value === 'enterprise') {
-                              setSelectedPermissions(DEFAULT_AGENCY_PERMISSIONS.enterprise);
-                            }
-                            // Custom keeps current selection
-                          }}
-                        >
-                          <SelectTrigger id="billingPackage">
-                            <SelectValue placeholder="Select package" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="starter">Starter</SelectItem>
-                            <SelectItem value="professional">Professional</SelectItem>
-                            <SelectItem value="enterprise">Enterprise</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="monthlyCredits">Monthly Credits</Label>
+                        <Label htmlFor="maxAgents">Max Agents</Label>
                         <Input
-                          id="monthlyCredits"
+                          id="maxAgents"
                           type="number"
-                          value={newAgency.monthlyCredits}
-                          onChange={(e) => setNewAgency({...newAgency, monthlyCredits: e.target.value})}
-                          placeholder="0"
-                          min="0"
+                          value={newAgency.maxAgents}
+                          onChange={(e) => setNewAgency({ ...newAgency, maxAgents: e.target.value })}
+                          placeholder="5"
+                          min="1"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="perCallRate">Per Call Rate ($)</Label>
+                        <Label htmlFor="maxUsers">Max Users</Label>
                         <Input
-                          id="perCallRate"
+                          id="maxUsers"
                           type="number"
-                          step="0.01"
-                          value={newAgency.perCallRate}
-                          onChange={(e) => setNewAgency({...newAgency, perCallRate: e.target.value})}
-                          placeholder="0.30"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="perMinuteRate">Per Minute Rate ($)</Label>
-                        <Input
-                          id="perMinuteRate"
-                          type="number"
-                          step="0.01"
-                          value={newAgency.perMinuteRate}
-                          onChange={(e) => setNewAgency({...newAgency, perMinuteRate: e.target.value})}
-                          placeholder="0.30"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="creditBalance">Initial Credit Balance ($)</Label>
-                        <Input
-                          id="creditBalance"
-                          type="number"
-                          value={newAgency.creditBalance}
-                          onChange={(e) => setNewAgency({...newAgency, creditBalance: e.target.value})}
-                          placeholder="0"
-                          min="0"
+                          value={newAgency.maxUsers}
+                          onChange={(e) => setNewAgency({ ...newAgency, maxUsers: e.target.value })}
+                          placeholder="10"
+                          min="1"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Resource Limits</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="maxAgents">Max Agents</Label>
-                      <Input
-                        id="maxAgents"
-                        type="number"
-                        value={newAgency.maxAgents}
-                        onChange={(e) => setNewAgency({...newAgency, maxAgents: e.target.value})}
-                        placeholder="5"
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="maxUsers">Max Users</Label>
-                      <Input
-                        id="maxUsers"
-                        type="number"
-                        value={newAgency.maxUsers}
-                        onChange={(e) => setNewAgency({...newAgency, maxUsers: e.target.value})}
-                        placeholder="10"
-                        min="1"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Agency Permissions</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Permissions are auto-selected based on billing package. Choose Custom package to manually configure.
-                  </p>
-                  <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
-                    {Object.entries(AGENCY_PERMISSIONS_BY_CATEGORY).map(([category, permissions]) => (
-                      <div key={category} className="space-y-2">
-                        <h5 className="text-sm font-medium text-muted-foreground">{category}</h5>
-                        <div className="space-y-2">
-                          {permissions.map((permission) => (
-                            <div key={permission.id} className="flex items-start space-x-2">
-                              <Checkbox
-                                id={permission.id}
-                                checked={selectedPermissions.includes(permission.id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedPermissions([...selectedPermissions, permission.id]);
-                                  } else {
-                                    setSelectedPermissions(selectedPermissions.filter(p => p !== permission.id));
-                                  }
-                                  // If user manually changes permissions, switch to custom package
-                                  if (newAgency.billingPackage !== 'custom') {
-                                    setNewAgency({...newAgency, billingPackage: 'custom'});
-                                  }
-                                }}
-                                disabled={newAgency.billingPackage !== 'custom'}
-                              />
-                              <div className="flex-1">
-                                <Label 
-                                  htmlFor={permission.id} 
-                                  className="text-sm font-normal cursor-pointer"
-                                >
-                                  {permission.name}
-                                </Label>
-                                <p className="text-xs text-muted-foreground">{permission.description}</p>
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Agency Permissions</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Permissions are auto-selected based on billing package. Choose Custom package to manually configure.
+                    </p>
+                    <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+                      {Object.entries(AGENCY_PERMISSIONS_BY_CATEGORY).map(([category, permissions]) => (
+                        <div key={category} className="space-y-2">
+                          <h5 className="text-sm font-medium text-muted-foreground">{category}</h5>
+                          <div className="space-y-2">
+                            {permissions.map((permission) => (
+                              <div key={permission.id} className="flex items-start space-x-2">
+                                <Checkbox
+                                  id={permission.id}
+                                  checked={selectedPermissions.includes(permission.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedPermissions([...selectedPermissions, permission.id]);
+                                    } else {
+                                      setSelectedPermissions(selectedPermissions.filter(p => p !== permission.id));
+                                    }
+                                    // If user manually changes permissions, switch to custom package
+                                    if (newAgency.billingPackage !== 'custom') {
+                                      setNewAgency({ ...newAgency, billingPackage: 'custom' });
+                                    }
+                                  }}
+                                  disabled={newAgency.billingPackage !== 'custom'}
+                                />
+                                <div className="flex-1">
+                                  <Label
+                                    htmlFor={permission.id}
+                                    className="text-sm font-normal cursor-pointer"
+                                  >
+                                    {permission.name}
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground">{permission.description}</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
 
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={newAgency.notes}
-                onChange={(e) => setNewAgency({...newAgency, notes: e.target.value})}
-                placeholder="Any additional notes or information..."
-                rows={3}
-              />
+              <div>
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={newAgency.notes}
+                  onChange={(e) => setNewAgency({ ...newAgency, notes: e.target.value })}
+                  placeholder="Any additional notes or information..."
+                  rows={3}
+                />
+              </div>
             </div>
-          </div>
           </div>
 
           <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => createAgencyMutation.mutate({
                 ...newAgency,
                 permissions: selectedPermissions,
@@ -967,89 +967,89 @@ export function AgencyManagement() {
           {selectedOrgForView && (
             <div className="flex-1 overflow-y-auto px-1 py-4">
               <div className="space-y-4 pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Organization Type</Label>
-                  <p className="font-medium">
-                    {selectedOrgForView.organizationType === 'agency' ? 'Agency' : 
-                     selectedOrgForView.organizationType === 'platform_owner' ? 'Platform Owner' : 'End Customer'}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Billing Package</Label>
-                  <p className="font-medium">{selectedOrgForView.billingPackage || 'Starter'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Total Users</Label>
-                  <p className="font-medium">{selectedOrgForView.userCount || 0}</p>
-                </div>
-                {selectedOrgForView.organizationType === 'agency' && (
-                  <>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Total Customers</Label>
-                      <p className="font-medium">{selectedOrgForView.customerCount || 0}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Commission Rate</Label>
-                      <p className="font-medium">{selectedOrgForView.commissionRate || 30}%</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Credit Balance</Label>
-                      <p className="font-medium">${selectedOrgForView.creditBalance || 0}</p>
-                    </div>
-                  </>
-                )}
-                <div>
-                  <Label className="text-sm text-muted-foreground">Max Agents</Label>
-                  <p className="font-medium">{selectedOrgForView.maxAgents || 5}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Max Users</Label>
-                  <p className="font-medium">{selectedOrgForView.maxUsers || 10}</p>
-                </div>
-              </div>
-
-              {selectedOrgForView.users && selectedOrgForView.users.length > 0 && (
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Team Members ({selectedOrgForView.users.length})</h4>
-                    {selectedOrgForView.users.length > 0 && (
-                      <p className="text-xs text-muted-foreground">Remove all users before deleting organization</p>
-                    )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Organization Type</Label>
+                    <p className="font-medium">
+                      {selectedOrgForView.organizationType === 'agency' ? 'Agency' :
+                        selectedOrgForView.organizationType === 'platform_owner' ? 'Platform Owner' : 'End Customer'}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    {selectedOrgForView.users.map(user => (
-                      <div key={user.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded group hover:bg-muted/70 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">{user.firstName} {user.lastName}</span>
-                          <span className="text-muted-foreground">({user.email})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {user.isAdmin && <Badge variant="outline" className="text-xs">Admin</Badge>}
-                          {user.role === 'agency' && <Badge variant="outline" className="text-xs">Agency Owner</Badge>}
-                          <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                            {user.status || 'active'}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) {
-                                deleteUserMutation.mutate(user.id);
-                              }
-                            }}
-                            disabled={deleteUserMutation.isPending}
-                          >
-                            <X className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Billing Package</Label>
+                    <p className="font-medium">{selectedOrgForView.billingPackage || 'Starter'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Total Users</Label>
+                    <p className="font-medium">{selectedOrgForView.userCount || 0}</p>
+                  </div>
+                  {selectedOrgForView.organizationType === 'agency' && (
+                    <>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Total Customers</Label>
+                        <p className="font-medium">{selectedOrgForView.customerCount || 0}</p>
                       </div>
-                    ))}
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Commission Rate</Label>
+                        <p className="font-medium">{selectedOrgForView.commissionRate || 30}%</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Credit Balance</Label>
+                        <p className="font-medium">${selectedOrgForView.creditBalance || 0}</p>
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Max Agents</Label>
+                    <p className="font-medium">{selectedOrgForView.maxAgents || 5}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Max Users</Label>
+                    <p className="font-medium">{selectedOrgForView.maxUsers || 10}</p>
                   </div>
                 </div>
-              )}
+
+                {selectedOrgForView.users && selectedOrgForView.users.length > 0 && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">Team Members ({selectedOrgForView.users.length})</h4>
+                      {selectedOrgForView.users.length > 0 && (
+                        <p className="text-xs text-muted-foreground">Remove all users before deleting organization</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {selectedOrgForView.users.map(user => (
+                        <div key={user.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded group hover:bg-muted/70 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{user.firstName} {user.lastName}</span>
+                            <span className="text-muted-foreground">({user.email})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {user.isAdmin && <Badge variant="outline" className="text-xs">Admin</Badge>}
+                            {user.role === 'agency' && <Badge variant="outline" className="text-xs">Agency Owner</Badge>}
+                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                              {user.status || 'active'}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) {
+                                  deleteUserMutation.mutate(user.id);
+                                }
+                              }}
+                              disabled={deleteUserMutation.isPending}
+                            >
+                              <X className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1063,8 +1063,8 @@ export function AgencyManagement() {
       </Dialog>
 
       {/* Settings Dialog */}
-      <Dialog 
-        open={showSettingsDialog} 
+      <Dialog
+        open={showSettingsDialog}
         onOpenChange={async (open) => {
           setShowSettingsDialog(open);
           if (!open) {
@@ -1076,17 +1076,17 @@ export function AgencyManagement() {
             if (selectedOrgForView.organizationType === 'agency') {
               setEditingPermissions(selectedOrgForView.agencyPermissions || []);
             }
-            
+
             // Fetch all agents and current assignments
             try {
               const [agentsResponse, assignedResponse] = await Promise.all([
                 apiRequest("GET", "/api/admin/agents"),
                 apiRequest("GET", `/api/admin/organizations/${selectedOrgForView.id}/agents`)
               ]);
-              
+
               const agentsData = await agentsResponse.json();
               const assignedIds = await assignedResponse.json();
-              
+
               setAllAgents(agentsData || []);
               setSelectedAgentIds(assignedIds || []);
             } catch (error) {
@@ -1119,9 +1119,9 @@ export function AgencyManagement() {
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="commission-rate">Commission Rate (%)</Label>
-                      <Input 
-                        id="commission-rate" 
-                        type="number" 
+                      <Input
+                        id="commission-rate"
+                        type="number"
                         defaultValue={selectedOrgForView.commissionRate || 30}
                         min="0"
                         max="100"
@@ -1129,9 +1129,9 @@ export function AgencyManagement() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="credit-balance">Credit Balance ($)</Label>
-                      <Input 
-                        id="credit-balance" 
-                        type="number" 
+                      <Input
+                        id="credit-balance"
+                        type="number"
                         defaultValue={selectedOrgForView.creditBalance || 0}
                         min="0"
                       />
@@ -1141,9 +1141,9 @@ export function AgencyManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="max-agents">Max Agents</Label>
-                  <Input 
-                    id="max-agents" 
-                    type="number" 
+                  <Input
+                    id="max-agents"
+                    type="number"
                     defaultValue={selectedOrgForView.maxAgents || 5}
                     min="1"
                   />
@@ -1151,9 +1151,9 @@ export function AgencyManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="max-users">Max Users</Label>
-                  <Input 
-                    id="max-users" 
-                    type="number" 
+                  <Input
+                    id="max-users"
+                    type="number"
                     defaultValue={selectedOrgForView.maxUsers || 10}
                     min="1"
                   />
@@ -1173,7 +1173,7 @@ export function AgencyManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 {/* Permissions Section - Only for Agencies */}
                 {selectedOrgForView.organizationType === 'agency' && (
                   <div className="col-span-full space-y-4 border-t pt-4">
@@ -1183,7 +1183,7 @@ export function AgencyManagement() {
                         Configure what features and capabilities this agency has access to
                       </p>
                     </div>
-                    
+
                     <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                       {Object.entries(AGENCY_PERMISSIONS_BY_CATEGORY).map(([category, permissions]) => (
                         <div key={category} className="space-y-2">
@@ -1219,7 +1219,7 @@ export function AgencyManagement() {
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="flex items-center gap-2 pt-2">
                       <Button
                         type="button"
@@ -1254,7 +1254,7 @@ export function AgencyManagement() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Agent Assignment Section - Only for Agencies */}
                 {selectedOrgForView.organizationType === 'agency' && (
                   <div className="col-span-full space-y-4 border-t pt-4">
@@ -1264,7 +1264,7 @@ export function AgencyManagement() {
                         Select which AI agents belong to this agency
                       </p>
                     </div>
-                    
+
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                       {allAgents.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No agents available</p>
@@ -1302,7 +1302,7 @@ export function AgencyManagement() {
                         ))
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-2 pt-2">
                       <Button
                         type="button"
@@ -1326,10 +1326,10 @@ export function AgencyManagement() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="col-span-full space-y-2">
                   <Label htmlFor="admin-password">New Password (leave blank to keep current)</Label>
-                  <Input 
+                  <Input
                     id="admin-password"
                     type="password"
                     placeholder="Enter new password or leave blank"
@@ -1348,10 +1348,10 @@ export function AgencyManagement() {
             <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={async () => {
                 if (!selectedOrgForView) return;
-                
+
                 // Get form values
                 const nameInput = document.getElementById('org-name') as HTMLInputElement;
                 const commissionInput = document.getElementById('commission-rate') as HTMLInputElement;
@@ -1359,30 +1359,30 @@ export function AgencyManagement() {
                 const maxAgentsInput = document.getElementById('max-agents') as HTMLInputElement;
                 const maxUsersInput = document.getElementById('max-users') as HTMLInputElement;
                 const billingSelect = document.querySelector('[id="billing-package"]') as HTMLElement;
-                
+
                 const updates: any = {
                   name: nameInput?.value,
                   maxAgents: parseInt(maxAgentsInput?.value || '5'),
                   maxUsers: parseInt(maxUsersInput?.value || '10'),
                   billingPackage: billingSelect?.getAttribute('data-value') || 'starter',
                 };
-                
+
                 if (selectedOrgForView.organizationType === 'agency') {
                   updates.commissionRate = parseFloat(commissionInput?.value || '30');
                   updates.creditBalance = parseFloat(creditInput?.value || '0');
                   updates.agencyPermissions = editingPermissions;
                 }
-                
+
                 // If password is provided, update it for the first user in the organization
                 if (adminPassword) {
                   // Find the first user for this organization (typically the admin/owner)
                   const orgUsers = users.filter(u => u.organizationId === selectedOrgForView.id);
                   const primaryUser = orgUsers.find(u => u.role === 'agency' || u.isAdmin) || orgUsers[0];
-                  
+
                   if (primaryUser) {
                     try {
-                      await apiRequest("PATCH", `/api/admin/users/${primaryUser.id}`, { 
-                        password: adminPassword 
+                      await apiRequest("PATCH", `/api/admin/users/${primaryUser.id}`, {
+                        password: adminPassword
                       });
                       toast({
                         title: "Password Updated",
@@ -1406,24 +1406,24 @@ export function AgencyManagement() {
                     return;
                   }
                 }
-                
+
                 // Handle agent reassignments if this is an agency
                 if (selectedOrgForView.organizationType === 'agency') {
                   try {
                     // Get current agent assignments for comparison
                     const currentAssignmentsResponse = await apiRequest("GET", `/api/admin/organizations/${selectedOrgForView.id}/agents`);
                     const currentAssignments = await currentAssignmentsResponse.json();
-                    
+
                     // Find agents to reassign (newly selected)
                     const agentsToAssign = selectedAgentIds.filter(id => !currentAssignments.includes(id));
-                    
+
                     // Reassign each agent to this organization
                     for (const agentId of agentsToAssign) {
                       await apiRequest("POST", `/api/admin/agents/${agentId}/reassign`, {
                         organizationId: selectedOrgForView.id
                       });
                     }
-                    
+
                     if (agentsToAssign.length > 0) {
                       toast({
                         title: "Agents Reassigned",
@@ -1439,10 +1439,10 @@ export function AgencyManagement() {
                     });
                   }
                 }
-                
-                updateOrgMutation.mutate({ 
-                  orgId: selectedOrgForView.id, 
-                  updates 
+
+                updateOrgMutation.mutate({
+                  orgId: selectedOrgForView.id,
+                  updates
                 });
               }}
             >
@@ -1464,36 +1464,36 @@ export function AgencyManagement() {
               Are you sure you want to delete <strong>{orgToDelete?.name}</strong>?
             </DialogDescription>
           </DialogHeader>
-          
+
           {orgToDelete && (
             <div className="space-y-4">
               {orgToDelete.userCount && orgToDelete.userCount > 0 && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded p-3">
                   <p className="text-sm text-destructive">
-                    <strong>Warning:</strong> This organization has {orgToDelete.userCount} user(s). 
+                    <strong>Warning:</strong> This organization has {orgToDelete.userCount} user(s).
                     You must remove all users before deleting the organization.
                   </p>
                 </div>
               )}
-              
+
               {orgToDelete.organizationType === 'agency' && orgToDelete.customerCount && orgToDelete.customerCount > 0 && (
                 <div className="bg-orange-500/10 border border-orange-500/20 rounded p-3">
                   <p className="text-sm text-orange-700 dark:text-orange-400">
-                    <strong>Note:</strong> This agency has {orgToDelete.customerCount} customer(s). 
+                    <strong>Note:</strong> This agency has {orgToDelete.customerCount} customer(s).
                     Consider reassigning them before deletion.
                   </p>
                 </div>
               )}
-              
+
               <div className="text-sm text-muted-foreground">
                 This action cannot be undone. All data associated with this organization will be permanently deleted.
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowDeleteDialog(false);
                 setOrgToDelete(null);
@@ -1501,7 +1501,7 @@ export function AgencyManagement() {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => {
                 if (orgToDelete) {

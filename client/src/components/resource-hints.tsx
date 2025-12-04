@@ -162,7 +162,7 @@ export function useResourceHints() {
   // Prefetch on hover with debounce
   const prefetchOnHover = (url: string) => {
     let timeoutId: NodeJS.Timeout;
-    
+
     return {
       onMouseEnter: () => {
         timeoutId = setTimeout(() => {
@@ -185,7 +185,7 @@ export function useResourceHints() {
           if (entry.isIntersecting) {
             const link = entry.target as HTMLAnchorElement;
             const href = link.href;
-            
+
             // Only prefetch internal links
             if (href && href.startsWith(window.location.origin)) {
               prefetchResource(href);
@@ -224,22 +224,22 @@ export function RoutePrefetcher({ routes }: { routes: string[] }) {
 
   useEffect(() => {
     // Prefetch routes when idle
-    if ('requestIdleCallback' in window) {
-      const handle = requestIdleCallback(() => {
-        routes.forEach((route) => {
-          const link = document.createElement('link');
-          link.rel = 'prefetch';
-          link.href = route;
-          document.head.appendChild(link);
-        });
-      });
+    if (!('requestIdleCallback' in window)) return;
 
-      return () => {
-        if ('cancelIdleCallback' in window) {
-          cancelIdleCallback(handle);
-        }
-      };
-    }
+    const handle = requestIdleCallback(() => {
+      routes.forEach((route) => {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = route;
+        document.head.appendChild(link);
+      });
+    });
+
+    return () => {
+      if ('cancelIdleCallback' in window) {
+        cancelIdleCallback(handle);
+      }
+    };
   }, [routes]);
 
   useEffect(() => {

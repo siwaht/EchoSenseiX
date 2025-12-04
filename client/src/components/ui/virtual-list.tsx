@@ -145,7 +145,7 @@ function VirtualListComponent<T>({
   // Render visible items
   const visibleItems = [];
   for (let i = visibleRange.start; i <= visibleRange.end && i < items.length; i++) {
-    const item = items[i];
+    const item = items[i]!;
     const key = getItemKey ? getItemKey(item, i) : i;
     const height = getItemHeight(i);
     const top = getItemOffset(i) - offsetY;

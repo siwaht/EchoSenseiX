@@ -20,7 +20,7 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
     callLogs.forEach(call => {
       if (call.createdAt) {
         const hour = new Date(call.createdAt).getHours();
-        hourlyData[hour].calls++;
+        hourlyData[hour]!.calls++;
       }
     });
 
@@ -39,11 +39,11 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
 
     callLogs.forEach(call => {
       const minutes = (call.duration || 0) / 60;
-      if (minutes <= 1) ranges[0].count++;
-      else if (minutes <= 3) ranges[1].count++;
-      else if (minutes <= 5) ranges[2].count++;
-      else if (minutes <= 10) ranges[3].count++;
-      else ranges[4].count++;
+      if (minutes <= 1) ranges[0]!.count++;
+      else if (minutes <= 3) ranges[1]!.count++;
+      else if (minutes <= 5) ranges[2]!.count++;
+      else if (minutes <= 10) ranges[3]!.count++;
+      else ranges[4]!.count++;
     });
 
     return ranges.filter(r => r.count > 0);
@@ -56,7 +56,7 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      
+
       const dayLogs = callLogs.filter(call => {
         const callDate = new Date(call.createdAt);
         return callDate.toDateString() === date.toDateString();
@@ -73,10 +73,10 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
   };
 
   // Calculate average metrics
-  const avgCallDuration = callLogs.length > 0 
+  const avgCallDuration = callLogs.length > 0
     ? (callLogs.reduce((sum, call) => sum + (call.duration || 0), 0) / callLogs.length / 60).toFixed(1)
     : 0;
-    
+
   const avgCallCost = callLogs.length > 0
     ? (callLogs.reduce((sum, call) => sum + parseFloat(call.cost || 0), 0) / callLogs.length).toFixed(4)
     : 0;
@@ -88,7 +88,7 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
   // Calculate cost trend (compare to previous period)
   const currentPeriodCost = stats?.totalCost || 0;
   const previousPeriodCost = stats?.previousPeriodCost || currentPeriodCost * 0.8; // Mock previous period
-  const costTrend = previousPeriodCost > 0 
+  const costTrend = previousPeriodCost > 0
     ? ((currentPeriodCost - previousPeriodCost) / previousPeriodCost * 100).toFixed(1)
     : "0";
 
@@ -137,11 +137,10 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
               ) : (
                 <Minus className="h-4 w-4 text-muted-foreground" />
               )}
-              <span className={`text-sm font-medium ${
-                parseFloat(costTrend) > 0 ? 'text-red-500' : 
-                parseFloat(costTrend) < 0 ? 'text-green-500' : 
-                'text-muted-foreground'
-              }`}>
+              <span className={`text-sm font-medium ${parseFloat(costTrend) > 0 ? 'text-red-500' :
+                parseFloat(costTrend) < 0 ? 'text-green-500' :
+                  'text-muted-foreground'
+                }`}>
                 {Math.abs(parseFloat(costTrend))}%
               </span>
             </div>
@@ -173,9 +172,9 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend 
-                  verticalAlign="middle" 
-                  align="right" 
+                <Legend
+                  verticalAlign="middle"
+                  align="right"
                   layout="vertical"
                   iconSize={10}
                   formatter={(value, entry: any) => (
@@ -203,15 +202,15 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={hourlyData.filter(h => h.calls > 0)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="label" 
+              <XAxis
+                dataKey="label"
                 fontSize={10}
                 angle={-45}
                 textAnchor="end"
                 height={40}
               />
               <YAxis fontSize={10} />
-              <Tooltip 
+              <Tooltip
                 formatter={(value: any) => [`${value} calls`, 'Calls']}
               />
               <Bar dataKey="calls" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
@@ -234,27 +233,27 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
               <YAxis yAxisId="right" orientation="right" fontSize={9} tick={{ fontSize: 9 }} />
               <Tooltip />
               <Legend />
-              <Line 
+              <Line
                 yAxisId="left"
-                type="monotone" 
-                dataKey="calls" 
-                stroke="#3b82f6" 
+                type="monotone"
+                dataKey="calls"
+                stroke="#3b82f6"
                 name="Calls"
                 strokeWidth={2}
               />
-              <Line 
+              <Line
                 yAxisId="left"
-                type="monotone" 
-                dataKey="duration" 
-                stroke="#10b981" 
+                type="monotone"
+                dataKey="duration"
+                stroke="#10b981"
                 name="Minutes"
                 strokeWidth={2}
               />
-              <Line 
+              <Line
                 yAxisId="right"
-                type="monotone" 
-                dataKey="cost" 
-                stroke="#f59e0b" 
+                type="monotone"
+                dataKey="cost"
+                stroke="#f59e0b"
                 name="Cost ($)"
                 strokeWidth={2}
               />

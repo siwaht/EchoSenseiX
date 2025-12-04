@@ -29,7 +29,7 @@ export function UnifiedCheckout() {
   });
 
   // Get current organization info
-  const { data: orgInfo } = useQuery({
+  useQuery({
     queryKey: ["/api/organization"],
   });
 
@@ -43,17 +43,17 @@ export function UnifiedCheckout() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/organization"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing"] });
-      toast({ 
-        title: "Successfully subscribed!", 
-        description: "Your plan has been updated." 
+      toast({
+        title: "Successfully subscribed!",
+        description: "Your plan has been updated."
       });
       setIsProcessing(false);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Subscription failed", 
+      toast({
+        title: "Subscription failed",
         description: error.message || "Please try again later.",
-        variant: "destructive" 
+        variant: "destructive"
       });
       setIsProcessing(false);
     },
@@ -61,9 +61,9 @@ export function UnifiedCheckout() {
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
-      toast({ 
-        title: "Please select a plan", 
-        variant: "destructive" 
+      toast({
+        title: "Please select a plan",
+        variant: "destructive"
       });
       return;
     }
@@ -93,11 +93,10 @@ export function UnifiedCheckout() {
         {plans.map((plan) => (
           <Card
             key={plan.id}
-            className={`p-6 cursor-pointer transition-all ${
-              selectedPlan === plan.id
+            className={`p-6 cursor-pointer transition-all ${selectedPlan === plan.id
                 ? "ring-2 ring-primary border-primary"
                 : "hover:shadow-lg"
-            }`}
+              }`}
             onClick={() => setSelectedPlan(plan.id)}
             data-testid={`card-plan-${plan.id}`}
           >

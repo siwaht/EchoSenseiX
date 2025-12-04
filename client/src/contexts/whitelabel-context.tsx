@@ -33,7 +33,7 @@ export function WhitelabelProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const pathMatch = location.match(/^\/agency\/([a-z0-9-]+)/);
     if (pathMatch) {
-      setAgencySubdomain(pathMatch[1]);
+      setAgencySubdomain(pathMatch[1]!);
       setIsAgencyView(true);
     } else {
       setAgencySubdomain(null);
@@ -70,7 +70,7 @@ export function WhitelabelProvider({ children }: { children: ReactNode }) {
         link.type = "image/x-icon";
         link.rel = "shortcut icon";
         link.href = config.faviconUrl;
-        document.getElementsByTagName("head")[0].appendChild(link);
+        document.head.appendChild(link);
       }
     }
 

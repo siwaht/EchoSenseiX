@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import {
-  VOICE_AI_PROVIDERS,
   getProvidersByCategory,
   VoiceAIProviderMetadata,
   ProviderCategory,
@@ -20,7 +19,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -347,7 +345,7 @@ export default function ProviderIntegrationConfig() {
     );
   };
 
-  const renderCategoryTab = (category: ProviderCategory, label: string) => {
+  const renderCategoryTab = (category: ProviderCategory) => {
     const providers = getProvidersByCategory(category);
 
     return (
@@ -415,12 +413,12 @@ export default function ProviderIntegrationConfig() {
             <TabsTrigger value="telephony" className="text-xs sm:text-sm">Phone</TabsTrigger>
           </TabsList>
 
-          {renderCategoryTab("all-in-one", "All-in-One Platforms")}
-          {renderCategoryTab("llm", "Language Models")}
-          {renderCategoryTab("tts", "Text-to-Speech")}
-          {renderCategoryTab("stt", "Speech-to-Text")}
-          {renderCategoryTab("vad", "Turn Detection (VAD)")}
-          {renderCategoryTab("telephony", "Telephony")}
+          {renderCategoryTab("all-in-one")}
+          {renderCategoryTab("llm")}
+          {renderCategoryTab("tts")}
+          {renderCategoryTab("stt")}
+          {renderCategoryTab("vad")}
+          {renderCategoryTab("telephony")}
         </Tabs>
       </div>
 
