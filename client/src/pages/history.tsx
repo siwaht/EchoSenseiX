@@ -1,4 +1,4 @@
-import { useState, useRef, memo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,11 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, RefreshCw, Play, Pause, Download, Filter, FileDown } from "lucide-react";
+import { Bot, RefreshCw, Play, Pause, Download, Filter } from "lucide-react";
 import { CallDetailModal } from "@/components/modals/call-detail-modal";
 import { TranscriptSearch } from "@/components/call-history/transcript-search";
 import { AnalyticsExport } from "@/components/analytics/analytics-export";
-import type { CallLog, Agent } from "@shared/schema";
+import type { CallLog } from "@shared/schema";
 import { useAgentContext } from "@/contexts/agent-context";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
@@ -26,23 +26,14 @@ export default function History() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Enhanced audio player
   const {
     isPlaying,
     currentTrackId,
-    volume,
-    currentTime,
-    duration,
     isLoading: audioLoading,
-    error: audioError,
     queueAudio,
-    togglePlayPause,
-    seekTo,
-    setVolume,
-    stop,
-    clearError,
-    queueLength
+    togglePlayPause
   } = useAudioPlayer();
 
   const { data: callLogsResponse, isLoading } = useQuery<any>({
@@ -50,7 +41,7 @@ export default function History() {
     staleTime: 30000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
-  
+
   // Extract data from paginated response
   const callLogs = callLogsResponse?.data || callLogsResponse || [];
 
@@ -61,16 +52,16 @@ export default function History() {
     onSuccess: (data: any) => {
       const syncResults = data.syncResults || {};
       const message = `Sync completed: ${data.syncedCount || 0} new, ${data.updatedCount || 0} updated call logs`;
-      
+
       toast({
         title: "Sync Complete",
         description: message,
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ["/api/call-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/organization"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      
+
       // Show detailed sync results if available
       if (syncResults.conversations?.errors > 0 || syncResults.agents?.errors > 0) {
         toast({
@@ -177,12 +168,12 @@ export default function History() {
     if (selectedAgent && log.agentId !== selectedAgent.id) {
       return false;
     }
-    
+
     // Filter by status
     if (statusFilter !== "all" && log.status !== statusFilter) {
       return false;
     }
-    
+
     // Filter by duration
     if (durationFilter !== "all" && log.duration) {
       const duration = log.duration;
@@ -198,20 +189,20 @@ export default function History() {
           break;
       }
     }
-    
+
     // Filter by date range
     if ((startDate || endDate) && log.createdAt) {
       const logDate = new Date(log.createdAt).toISOString().split('T')[0];
-      
+
       // Check if log date is within the range
-      if (startDate && logDate < startDate) {
+      if (startDate && logDate && logDate < startDate) {
         return false;
       }
-      if (endDate && logDate > endDate) {
+      if (endDate && logDate && logDate > endDate) {
         return false;
       }
     }
-    
+
     return true;
   }) || [];
 
@@ -279,8 +270,8 @@ export default function History() {
               <Download className={`w-4 h-4 ${fetchAudioMutation.isPending ? 'animate-spin' : ''}`} />
               {fetchAudioMutation.isPending ? 'Fetching...' : 'Fetch Audio'}
             </Button>
-            <Select 
-              value={selectedAgent?.id || "all"} 
+            <Select
+              value={selectedAgent?.id || "all"}
               onValueChange={(value) => {
                 if (value === "all") {
                   setSelectedAgent(null);
@@ -303,7 +294,7 @@ export default function History() {
               </SelectContent>
             </Select>
           </div>
-          
+
           {/* Second Row - Date Range */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <Input
@@ -341,16 +332,16 @@ export default function History() {
             )}
           </div>
         </div>
-        
+
         {/* Advanced Filters and Search */}
         <div className="space-y-4">
           {/* Transcript Search */}
-          <TranscriptSearch 
+          <TranscriptSearch
             callLogs={callLogs || []}
             onSearchResults={setSearchResults}
             onClearSearch={() => setSearchResults(null)}
           />
-          
+
           {/* Advanced Filters Toggle */}
           <Button
             variant="outline"
@@ -362,7 +353,7 @@ export default function History() {
             <Filter className="w-4 h-4" />
             {showAdvancedFilters ? 'Hide' : 'Show'} Advanced Filters
           </Button>
-          
+
           {/* Advanced Filters Panel */}
           {showAdvancedFilters && (
             <Card className="p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
@@ -383,7 +374,7 @@ export default function History() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                     Duration
@@ -400,7 +391,7 @@ export default function History() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex items-end gap-2">
                   <Button
                     variant="secondary"
@@ -419,14 +410,14 @@ export default function History() {
                   </Button>
                 </div>
               </div>
-              
+
               {/* Export Options */}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {filteredCallLogs.length} call{filteredCallLogs.length !== 1 ? 's' : ''} found
                   </div>
-                  <AnalyticsExport 
+                  <AnalyticsExport
                     data={exportData}
                     filename="call_history"
                     label="Export Call History"
@@ -449,9 +440,9 @@ export default function History() {
             <p className="text-gray-600 dark:text-gray-400" data-testid="text-no-calls-description">
               {searchResults !== null
                 ? "No calls match your search query. Try different keywords."
-                : callLogs && callLogs.length > 0 
-                ? "No calls match your current filters. Try adjusting the filters."
-                : "Call logs will appear here once your agents start receiving calls."}
+                : callLogs && callLogs.length > 0
+                  ? "No calls match your current filters. Try adjusting the filters."
+                  : "Call logs will appear here once your agents start receiving calls."}
             </p>
           </div>
         ) : (
@@ -478,7 +469,7 @@ export default function History() {
                       {callLog.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Date:</span>
@@ -493,7 +484,7 @@ export default function History() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2 pt-2">
                     {callLog.recordingUrl && (
                       <>
@@ -682,7 +673,7 @@ export default function History() {
             </div>
           </>
         )}
-        
+
         {filteredCallLogs && filteredCallLogs.length > 0 && (
           <div className="bg-gray-50 dark:bg-gray-700 px-4 sm:px-6 py-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-gray-200 dark:border-gray-600">
             <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-left" data-testid="text-pagination-info">

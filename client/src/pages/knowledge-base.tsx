@@ -3,28 +3,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { 
-  BookOpen, 
-  Search, 
-  Plus, 
-  Upload, 
-  Brain, 
-  FileText, 
+import {
+  BookOpen,
+  Search,
+  Plus,
+  Upload,
+  Brain,
+  FileText,
   Globe,
   Sparkles,
   RefreshCw,
-  Settings,
-  Users
+  Settings
 } from "lucide-react";
 import { KnowledgeBaseManager } from "@/components/knowledge-base/knowledge-base-manager";
 import { DocumentUpload } from "@/components/knowledge-base/document-upload";
 import { MultilingualConfig } from "@/components/agents/multilingual-config";
 
 export default function KnowledgeBase() {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
   // Fetch knowledge base statistics
@@ -54,7 +51,7 @@ export default function KnowledgeBase() {
             Manage your AI agent's knowledge, documents, and multilingual capabilities
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/knowledge-base"] })}
           variant="outline"
           size="sm"
@@ -178,22 +175,22 @@ export default function KnowledgeBase() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
+                <Button
+                  className="w-full justify-start btn-brand-premium"
                   onClick={() => setActiveTab("knowledge")}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Knowledge Entry
                 </Button>
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
+                <Button
+                  className="w-full justify-start btn-brand-premium"
                   onClick={() => setActiveTab("documents")}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Document
                 </Button>
-                <Button 
-                  className="w-full justify-start btn-brand-premium" 
+                <Button
+                  className="w-full justify-start btn-brand-premium"
                   onClick={() => setActiveTab("multilingual")}
                 >
                   <Globe className="h-4 w-4 mr-2" />

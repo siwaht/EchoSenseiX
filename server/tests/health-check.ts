@@ -112,14 +112,11 @@ function checkEnvironmentVariables() {
 }
 
 // ============================================================================
-// 2. DATABASE CONNECTIVITY CHECKS
-// ============================================================================
-
 async function checkDatabase() {
   console.log('\n📋 Category 2: Database Connectivity\n');
 
   const databaseUrl = process.env.DATABASE_URL;
-  
+
   if (!databaseUrl) {
     logResult('Database', 'Connection String', 'fail', 'DATABASE_URL not configured');
     return;
@@ -142,16 +139,16 @@ async function checkDatabase() {
   // Test database connection
   try {
     const { storage } = await import('../storage');
-    
+
     // Try to get all organizations (this will test DB connection)
     try {
       const orgs = await storage.getAllOrganizations();
       logResult('Database', 'Connection Test', 'pass', 'Successfully connected to database');
-      logResult('Database', 'Schema Validation', 'pass', 'Database schema accessible', { 
-        organizationCount: orgs.length 
+      logResult('Database', 'Schema Validation', 'pass', 'Database schema accessible', {
+        organizationCount: orgs.length
       });
     } catch (error: any) {
-      logResult('Database', 'Connection Test', 'fail', 'Failed to query database', { 
+      logResult('Database', 'Connection Test', 'fail', 'Failed to query database', {
         error: error.message,
         note: 'Run migrations with: npm run db:push'
       });
@@ -182,7 +179,7 @@ function checkFileSystem() {
   criticalDirs.forEach(dir => {
     const dirPath = join(cwd, dir);
     const exists = existsSync(dirPath);
-    
+
     if (exists) {
       try {
         accessSync(dirPath, constants.R_OK | constants.W_OK);
@@ -192,7 +189,7 @@ function checkFileSystem() {
       }
     } else {
       const severity = dir === 'audio-storage' ? 'warning' : 'fail';
-      logResult('FileSystem', `Directory: ${dir}`, severity, 'Directory not found', { 
+      logResult('FileSystem', `Directory: ${dir}`, severity, 'Directory not found', {
         path: dirPath,
         note: dir === 'audio-storage' ? 'Will be created automatically' : 'Required directory missing'
       });
@@ -241,12 +238,12 @@ function checkSecurity() {
     if (sessionSecret.length >= 64) {
       logResult('Security', 'Session Secret Strength', 'pass', 'Strong session secret', { length: sessionSecret.length });
     } else if (sessionSecret.length >= 32) {
-      logResult('Security', 'Session Secret Strength', 'warning', 'Adequate session secret', { 
+      logResult('Security', 'Session Secret Strength', 'warning', 'Adequate session secret', {
         length: sessionSecret.length,
         recommendation: 'Consider using 64+ characters'
       });
     } else {
-      logResult('Security', 'Session Secret Strength', 'fail', 'Weak session secret', { 
+      logResult('Security', 'Session Secret Strength', 'fail', 'Weak session secret', {
         length: sessionSecret.length,
         requirement: 'Minimum 32 characters'
       });
@@ -259,12 +256,12 @@ function checkSecurity() {
     if (encryptionKey.length >= 64) {
       logResult('Security', 'Encryption Key Strength', 'pass', 'Strong encryption key', { length: encryptionKey.length });
     } else if (encryptionKey.length >= 32) {
-      logResult('Security', 'Encryption Key Strength', 'warning', 'Adequate encryption key', { 
+      logResult('Security', 'Encryption Key Strength', 'warning', 'Adequate encryption key', {
         length: encryptionKey.length,
         recommendation: 'Consider using 64+ characters'
       });
     } else {
-      logResult('Security', 'Encryption Key Strength', 'fail', 'Weak encryption key', { 
+      logResult('Security', 'Encryption Key Strength', 'fail', 'Weak encryption key', {
         length: encryptionKey.length,
         requirement: 'Minimum 32 characters'
       });
@@ -275,10 +272,10 @@ function checkSecurity() {
   const nodeEnv = process.env.NODE_ENV;
   if (nodeEnv === 'production') {
     const httpsEnabled = process.env.FORCE_HTTPS === 'true';
-    logResult('Security', 'HTTPS Enforcement', httpsEnabled ? 'pass' : 'warning', 
+    logResult('Security', 'HTTPS Enforcement', httpsEnabled ? 'pass' : 'warning',
       httpsEnabled ? 'HTTPS enforced' : 'HTTPS not enforced', {
-        recommendation: 'Set FORCE_HTTPS=true in production'
-      });
+      recommendation: 'Set FORCE_HTTPS=true in production'
+    });
   }
 
   // Check webhook secret
@@ -302,8 +299,8 @@ async function checkExternalServices() {
   // Check ElevenLabs API key
   const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
   if (elevenLabsKey) {
-    logResult('Services', 'ElevenLabs API Key', 'pass', 'Configured', { 
-      keyPrefix: elevenLabsKey.substring(0, 8) + '...' 
+    logResult('Services', 'ElevenLabs API Key', 'pass', 'Configured', {
+      keyPrefix: elevenLabsKey.substring(0, 8) + '...'
     });
   } else {
     logResult('Services', 'ElevenLabs API Key', 'warning', 'Not configured', {
@@ -348,7 +345,7 @@ async function checkExternalServices() {
   const publicUrl = process.env.PUBLIC_URL;
   if (publicUrl) {
     try {
-      const url = new URL(publicUrl);
+      new URL(publicUrl);
       logResult('Services', 'Public URL', 'pass', 'Valid URL format', { url: publicUrl });
     } catch (error) {
       logResult('Services', 'Public URL', 'warning', 'Invalid URL format', { url: publicUrl });
@@ -370,8 +367,8 @@ async function checkPerformance() {
 
   // Check Node.js version
   const nodeVersion = process.version;
-  const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
-  
+  const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0] || '0');
+
   if (majorVersion >= 20) {
     logResult('Performance', 'Node.js Version', 'pass', `Running Node.js ${nodeVersion}`);
   } else if (majorVersion >= 18) {
@@ -388,7 +385,7 @@ async function checkPerformance() {
   const memUsage = process.memoryUsage();
   const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
   const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
-  
+
   logResult('Performance', 'Memory Usage', 'pass', `${heapUsedMB}MB / ${heapTotalMB}MB heap`, {
     heapUsed: heapUsedMB + 'MB',
     heapTotal: heapTotalMB + 'MB',
@@ -397,7 +394,7 @@ async function checkPerformance() {
 
   // Check platform
   const platform = process.platform;
-  logResult('Performance', 'Platform', 'pass', `Running on ${platform}`, { 
+  logResult('Performance', 'Platform', 'pass', `Running on ${platform}`, {
     platform,
     arch: process.arch
   });
@@ -414,11 +411,11 @@ async function checkPerformance() {
 
 async function runHealthCheck() {
   console.log('🏥 EchoSenseiX Health Check\n');
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log(`Node Version: ${process.version}`);
   console.log(`Platform: ${process.platform} ${process.arch}`);
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
 
   try {
     checkEnvironmentVariables();
@@ -445,13 +442,13 @@ async function runHealthCheck() {
     const categorySet = new Set(results.map(r => r.category));
     const categories = Array.from(categorySet);
     console.log('\n📋 Results by Category:\n');
-    
+
     categories.forEach(category => {
       const categoryResults = results.filter(r => r.category === category);
       const categoryPassed = categoryResults.filter(r => r.status === 'pass').length;
       const categoryWarnings = categoryResults.filter(r => r.status === 'warning').length;
       const categoryFailed = categoryResults.filter(r => r.status === 'fail').length;
-      
+
       console.log(`${category}:`);
       console.log(`  ✅ ${categoryPassed} passed`);
       if (categoryWarnings > 0) console.log(`  ⚠️  ${categoryWarnings} warnings`);

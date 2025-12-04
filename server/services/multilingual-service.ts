@@ -6,7 +6,7 @@
  */
 
 import { storage } from "../storage";
-import { createElevenLabsClient } from "./elevenlabs";
+// import { createElevenLabsClient } from "./elevenlabs";
 
 export interface LanguageConfig {
   code: string;
@@ -76,14 +76,14 @@ export class MultilingualService {
   ): Promise<void> {
     try {
       console.log(`[MULTILINGUAL] Adding language ${languageCode} to agent ${agentId}`);
-      
+
       const agent = await storage.getAgent(agentId, organizationId);
       if (!agent) {
         throw new Error("Agent not found");
       }
 
       // Get current multilingual config
-      let multilingualConfig = agent.multilingualConfig || {
+      let multilingualConfig = (agent as any).multilingualConfig || {
         supportedLanguages: ['en'],
         languageOverrides: {}
       };
@@ -103,10 +103,10 @@ export class MultilingualService {
       await storage.updateAgent(agentId, organizationId, {
         multilingualConfig,
         lastSynced: new Date()
-      });
+      } as any);
 
       console.log(`[MULTILINGUAL] Language ${languageCode} added to agent ${agentId}`);
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Failed to add language:`, error);
       throw new Error(`Failed to add language: ${error.message}`);
@@ -123,13 +123,13 @@ export class MultilingualService {
   ): Promise<void> {
     try {
       console.log(`[MULTILINGUAL] Removing language ${languageCode} from agent ${agentId}`);
-      
+
       const agent = await storage.getAgent(agentId, organizationId);
       if (!agent) {
         throw new Error("Agent not found");
       }
 
-      const multilingualConfig = agent.multilingualConfig;
+      const multilingualConfig = (agent as any).multilingualConfig;
       if (!multilingualConfig) {
         return;
       }
@@ -141,7 +141,7 @@ export class MultilingualService {
 
       // Remove language from supported languages
       multilingualConfig.supportedLanguages = multilingualConfig.supportedLanguages.filter(
-        lang => lang !== languageCode
+        (lang: string) => lang !== languageCode
       );
 
       // Remove language overrides
@@ -151,10 +151,10 @@ export class MultilingualService {
       await storage.updateAgent(agentId, organizationId, {
         multilingualConfig,
         lastSynced: new Date()
-      });
+      } as any);
 
       console.log(`[MULTILINGUAL] Language ${languageCode} removed from agent ${agentId}`);
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Failed to remove language:`, error);
       throw new Error(`Failed to remove language: ${error.message}`);
@@ -175,13 +175,13 @@ export class MultilingualService {
   ): Promise<void> {
     try {
       console.log(`[MULTILINGUAL] Updating language config for ${languageCode} in agent ${agentId}`);
-      
+
       const agent = await storage.getAgent(agentId, organizationId);
       if (!agent) {
         throw new Error("Agent not found");
       }
 
-      let multilingualConfig = agent.multilingualConfig || {
+      let multilingualConfig = (agent as any).multilingualConfig || {
         supportedLanguages: ['en'],
         languageOverrides: {}
       };
@@ -196,10 +196,10 @@ export class MultilingualService {
       await storage.updateAgent(agentId, organizationId, {
         multilingualConfig,
         lastSynced: new Date()
-      });
+      } as any);
 
       console.log(`[MULTILINGUAL] Language config updated for ${languageCode} in agent ${agentId}`);
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Failed to update language config:`, error);
       throw new Error(`Failed to update language config: ${error.message}`);
@@ -216,19 +216,19 @@ export class MultilingualService {
   ): Promise<Record<string, string>> {
     try {
       console.log(`[MULTILINGUAL] Translating text to ${targetLanguages.length} languages`);
-      
+
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
         throw new Error("ElevenLabs integration not configured");
       }
 
-      const client = createElevenLabsClient(integration.apiKey);
+      // const client = createElevenLabsClient(integration.apiKey);
       const translations: Record<string, string> = {};
 
       // For now, we'll use a simple approach
       // In a real implementation, you might use ElevenLabs' translation capabilities
       // or integrate with Google Translate API
-      
+
       for (const languageCode of targetLanguages) {
         try {
           // This is a placeholder - in reality, you'd call ElevenLabs translation API
@@ -242,7 +242,7 @@ export class MultilingualService {
 
       console.log(`[MULTILINGUAL] Translation completed for ${Object.keys(translations).length} languages`);
       return translations;
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Translation failed:`, error);
       throw new Error(`Translation failed: ${error.message}`);
@@ -256,10 +256,10 @@ export class MultilingualService {
     // This is a placeholder implementation
     // In a real app, you would integrate with a translation service
     // For now, we'll return the original text with a note
-    
+
     const languageNames: Record<string, string> = {
       'es': 'Spanish',
-      'fr': 'French', 
+      'fr': 'French',
       'de': 'German',
       'it': 'Italian',
       'pt': 'Portuguese',
@@ -280,7 +280,7 @@ export class MultilingualService {
     };
 
     const languageName = languageNames[targetLanguage] || targetLanguage;
-    
+
     // Return a mock translation - in reality, this would be actual translation
     return `[${languageName} Translation] ${text}`;
   }
@@ -298,12 +298,12 @@ export class MultilingualService {
         return null;
       }
 
-      const multilingualConfig = agent.multilingualConfig || {
+      const multilingualConfig = (agent as any).multilingualConfig || {
         supportedLanguages: ['en'],
         languageOverrides: {}
       };
 
-      const supportedLanguages = this.SUPPORTED_LANGUAGES.filter(lang => 
+      const supportedLanguages = this.SUPPORTED_LANGUAGES.filter(lang =>
         multilingualConfig.supportedLanguages.includes(lang.code)
       );
 
@@ -314,7 +314,7 @@ export class MultilingualService {
         supportedLanguages,
         languageOverrides: multilingualConfig.languageOverrides
       };
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Failed to get agent config:`, error);
       throw new Error(`Failed to get agent config: ${error.message}`);
@@ -336,8 +336,8 @@ export class MultilingualService {
         throw new Error("Agent not found");
       }
 
-      const multilingualConfig = agent.multilingualConfig;
-      
+      const multilingualConfig = (agent as any).multilingualConfig;
+
       // Check if there's a language-specific override
       if (multilingualConfig?.languageOverrides[languageCode]?.[messageType]) {
         return multilingualConfig.languageOverrides[languageCode][messageType]!;
@@ -349,7 +349,7 @@ export class MultilingualService {
       } else {
         return agent.systemPrompt || "You are a helpful AI assistant.";
       }
-      
+
     } catch (error: any) {
       console.error(`[MULTILINGUAL] Failed to get message:`, error);
       throw new Error(`Failed to get message: ${error.message}`);

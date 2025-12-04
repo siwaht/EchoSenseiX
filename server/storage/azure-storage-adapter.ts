@@ -14,22 +14,23 @@ export class AzureStorageAdapter implements StorageAdapter {
     containerName: string;
   }) {
     this.containerName = config.containerName;
-    
+
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
-      
+
       const sharedKeyCredential = new StorageSharedKeyCredential(
         config.accountName,
         config.accountKey
       );
-      
+
       this.blobServiceClient = new BlobServiceClient(
         `https://${config.accountName}.blob.core.windows.net`,
         sharedKeyCredential
       );
-      
+
       this.containerClient = this.blobServiceClient.getContainerClient(this.containerName);
-      
+
       console.log(`[AZURE-STORAGE] Initialized Azure Blob Storage client for container: ${this.containerName}`);
       console.log('[AZURE-STORAGE] Note: Ensure the container exists before use');
     } catch (error) {
@@ -41,7 +42,7 @@ export class AzureStorageAdapter implements StorageAdapter {
 
   async save(key: string, buffer: Buffer, metadata?: StorageMetadata): Promise<string> {
     const blockBlobClient = this.containerClient.getBlockBlobClient(key);
-    
+
     await blockBlobClient.upload(buffer, buffer.length, {
       blobHTTPHeaders: {
         blobContentType: metadata?.contentType || 'application/octet-stream',
@@ -56,7 +57,7 @@ export class AzureStorageAdapter implements StorageAdapter {
   async get(key: string): Promise<Buffer> {
     const blockBlobClient = this.containerClient.getBlockBlobClient(key);
     const downloadResponse = await blockBlobClient.download(0);
-    
+
     if (!downloadResponse.readableStreamBody) {
       throw new Error('Failed to download blob');
     }
@@ -65,7 +66,7 @@ export class AzureStorageAdapter implements StorageAdapter {
     for await (const chunk of downloadResponse.readableStreamBody) {
       chunks.push(Buffer.from(chunk));
     }
-    
+
     return Buffer.concat(chunks);
   }
 
@@ -85,10 +86,11 @@ export class AzureStorageAdapter implements StorageAdapter {
   }
 
   async getSignedUrl(key: string, expiresIn: number = 3600): Promise<string | null> {
-    const { BlobSASPermissions, generateBlobSASQueryParameters, StorageSharedKeyCredential } = await import('@azure/storage-blob');
-    
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { BlobSASPermissions, generateBlobSASQueryParameters } = require('@azure/storage-blob');
+
     const blockBlobClient = this.containerClient.getBlockBlobClient(key);
-    
+
     const sasOptions = {
       containerName: this.containerName,
       blobName: key,

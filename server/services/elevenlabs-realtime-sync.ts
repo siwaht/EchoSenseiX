@@ -61,12 +61,12 @@ export interface AnalyticsData {
 export class ElevenLabsRealtimeSync {
   private client: ElevenLabsService;
   private organizationId: string;
-  private apiKey: string;
+  // private apiKey: string;
 
-  constructor(organizationId: string, apiKey: string) {
+  constructor(organizationId: string, _apiKey: string) {
     this.organizationId = organizationId;
-    this.apiKey = apiKey;
-    this.client = createElevenLabsClient(apiKey);
+    // this.apiKey = _apiKey;
+    this.client = createElevenLabsClient(_apiKey);
   }
 
   /**
@@ -159,8 +159,8 @@ export class ElevenLabsRealtimeSync {
       const subscription = user.subscription;
 
       // Get usage statistics
-      const usageResult = await this.client.getUsageAnalytics();
-      const usage = usageResult.success ? usageResult.data : null;
+      // const usageResult = await this.client.getUsageAnalytics();
+      // const _usage = usageResult.success ? usageResult.data : null;
 
       const creditsData: CreditsData = {
         used: subscription?.character_count || 0,
@@ -237,7 +237,7 @@ export class ElevenLabsRealtimeSync {
 
       // Get all conversations with pagination
       const allConversations = await this.getAllConversations();
-      
+
       const callsData: CallsData = {
         conversations: [],
         transcripts: [],
@@ -361,11 +361,11 @@ export class ElevenLabsRealtimeSync {
 
     while (hasMore) {
       try {
-        const result = await this.client.getConversations({ 
-          page_size: pageSize, 
-          page: page 
+        const result = await this.client.getConversations({
+          page_size: pageSize,
+          page: page
         });
-        
+
         if (!result.success || !result.data) {
           break;
         }
@@ -376,7 +376,7 @@ export class ElevenLabsRealtimeSync {
         } else {
           allConversations.push(...conversations);
           page++;
-          
+
           // Limit to prevent infinite loops
           if (page > 50) {
             console.warn(`[REALTIME-SYNC] Reached page limit (50), stopping pagination`);
@@ -514,7 +514,7 @@ export class ElevenLabsRealtimeSync {
     try {
       // Get recent call logs from database
       const { data: recentCalls } = await storage.getCallLogs(this.organizationId, 100);
-      
+
       const metrics = {
         totalCalls: recentCalls.length,
         averageDuration: 0,
@@ -543,7 +543,7 @@ export class ElevenLabsRealtimeSync {
   /**
    * Generate insights from usage data
    */
-  private async generateInsights(usage: any, llmUsage: any): Promise<any> {
+  private async generateInsights(usage: any, _llmUsage: any): Promise<any> {
     const insights: {
       peakUsageHours: { hour: number; calls: number }[];
       costOptimization: { type: string; message: string; potential_savings?: string }[];
@@ -570,11 +570,11 @@ export class ElevenLabsRealtimeSync {
             });
           }
         });
-        
+
         const sortedHours = Object.entries(hourlyUsage)
           .sort(([, a], [, b]) => Number(b) - Number(a))
           .slice(0, 3);
-        
+
         insights.peakUsageHours = sortedHours.map(([hour, count]) => ({
           hour: parseInt(hour, 10),
           calls: Number(count)

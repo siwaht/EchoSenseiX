@@ -34,11 +34,10 @@ async function resyncMissingAudio(batchSize: number = BATCH_SIZE): Promise<{
   const audioStorage = new AudioStorageService();
 
   // Get ALL call logs from the database (across all organizations)
-  const { db: getDb } = await import('../db');
+  const { db } = await import('../db');
   const { callLogs: callLogsTable } = await import('../../shared/schema');
-  const database = getDb();
-  const callLogs = await database.select().from(callLogsTable);
-  
+  const callLogs = await (db as any).select().from(callLogsTable);
+
   let total = 0;
   let missing = 0;
   let resynced = 0;
@@ -53,7 +52,7 @@ async function resyncMissingAudio(batchSize: number = BATCH_SIZE): Promise<{
   for (let i = 0; i < callLogs.length; i += batchSize) {
     const batch = callLogs.slice(i, i + batchSize);
     console.log(`[RESYNC-AUDIO] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(callLogs.length / batchSize)} (calls ${i + 1}-${Math.min(i + batchSize, callLogs.length)})`);
-    
+
     for (const log of batch) {
       // Check if call has audio that should be available
       if (!log.conversationId) {
@@ -64,31 +63,31 @@ async function resyncMissingAudio(batchSize: number = BATCH_SIZE): Promise<{
       // Check if file is missing (for any status except 'unavailable')
       const shouldHaveAudio = log.audioFetchStatus && log.audioFetchStatus !== 'unavailable';
       const hasStorageKey = !!log.audioStorageKey;
-      
+
       if (shouldHaveAudio || hasStorageKey) {
         total++;
-        
-        const audioPath = log.audioStorageKey 
+
+        const audioPath = log.audioStorageKey
           ? join(process.cwd(), 'audio-storage', log.audioStorageKey)
           : null;
-        
+
         const fileExists = audioPath && existsSync(audioPath);
-        
+
         if (!fileExists && log.conversationId) {
           missing++;
           console.log(`[RESYNC-AUDIO]   Missing: ${log.id} (status: ${log.audioFetchStatus})`);
-          
+
           let retries = 0;
           const maxRetries = 3;
           let success = false;
-          
+
           while (retries < maxRetries && !success) {
             try {
               if (retries > 0) {
                 console.log(`[RESYNC-AUDIO]     Retry ${retries}/${maxRetries}...`);
                 await sleep(RETRY_DELAY * retries); // Exponential backoff
               }
-              
+
               const result = await elevenlabsClient.fetchAndStoreAudio(
                 log.conversationId,
                 log.id,
@@ -114,14 +113,14 @@ async function resyncMissingAudio(batchSize: number = BATCH_SIZE): Promise<{
               retries++;
             }
           }
-          
+
           if (!success && retries >= maxRetries) {
             failed++;
           }
         }
       }
     }
-    
+
     // Small delay between batches
     if (i + batchSize < callLogs.length) {
       await sleep(500);

@@ -58,17 +58,17 @@ export class StorageFactory {
     return this.instance;
   }
 
-  private static createS3Adapter(config: NonNullable<typeof config.storage.s3>): StorageAdapter {
+  private static createS3Adapter(config: any): StorageAdapter {
     const { S3StorageAdapter } = require('./s3-storage-adapter');
     return new S3StorageAdapter(config);
   }
 
-  private static createGCSAdapter(config: NonNullable<typeof config.storage.gcs>): StorageAdapter {
+  private static createGCSAdapter(config: any): StorageAdapter {
     const { GCSStorageAdapter } = require('./gcs-storage-adapter');
     return new GCSStorageAdapter(config);
   }
 
-  private static createAzureAdapter(config: NonNullable<typeof config.storage.azure>): StorageAdapter {
+  private static createAzureAdapter(config: any): StorageAdapter {
     const { AzureStorageAdapter } = require('./azure-storage-adapter');
     return new AzureStorageAdapter(config);
   }

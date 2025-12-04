@@ -1,16 +1,16 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { isAuthenticated, checkPermission } from "../middleware/auth";
+import { isAuthenticated } from "../middleware/auth";
 import { hashPassword } from "../auth";
 import EmailService from "../services/email-service";
-import { z } from "zod";
+// import { z } from "zod";
 import crypto from "crypto";
 
 const router = Router();
 
 // In-memory storage for invitations and activity logs (should be moved to database in production)
 // Note: These Maps will be reset on server restart. Ideally, use database.
-const userInvitations = new Map<string, any[]>();
+// const userInvitations = new Map<string, any[]>();
 const activityLogs = new Map<string, any[]>();
 
 // ==========================================
@@ -50,10 +50,10 @@ router.get('/users', isAuthenticated, async (req: any, res) => {
             organizationName: 'Organization',
         }));
 
-        res.json(enrichedUsers);
+        return res.json(enrichedUsers);
     } catch (error) {
         console.error("Error fetching users:", error);
-        res.status(500).json({ message: "Failed to fetch users" });
+        return res.status(500).json({ message: "Failed to fetch users" });
     }
 });
 
@@ -100,10 +100,10 @@ router.patch('/users/:userId', isAuthenticated, async (req: any, res) => {
         logs.unshift(log);
         activityLogs.set(organizationId, logs.slice(0, 100));
 
-        res.json(updatedUser);
+        return res.json(updatedUser);
     } catch (error) {
         console.error("Error updating user:", error);
-        res.status(500).json({ message: "Failed to update user" });
+        return res.status(500).json({ message: "Failed to update user" });
     }
 });
 
@@ -142,10 +142,10 @@ router.post('/users/create', isAuthenticated, async (req: any, res) => {
             permissions: permissions || []
         });
 
-        res.status(201).json(newUser);
+        return res.status(201).json(newUser);
     } catch (error) {
         console.error("Error creating user:", error);
-        res.status(500).json({ message: "Failed to create user" });
+        return res.status(500).json({ message: "Failed to create user" });
     }
 });
 
@@ -184,10 +184,10 @@ router.delete('/users/:userId', isAuthenticated, async (req: any, res) => {
         logs.unshift(log);
         activityLogs.set(organizationId, logs);
 
-        res.json({ message: "User deleted successfully" });
+        return res.json({ message: "User deleted successfully" });
     } catch (error) {
         console.error("Error deleting user:", error);
-        res.status(500).json({ message: "Failed to delete user" });
+        return res.status(500).json({ message: "Failed to delete user" });
     }
 });
 
@@ -198,10 +198,10 @@ router.delete('/users/:userId', isAuthenticated, async (req: any, res) => {
 router.get("/agency/users", isAuthenticated, async (req: any, res) => {
     try {
         const users = await storage.getOrganizationUsers(req.user.organizationId);
-        res.json(users);
+        return res.json(users);
     } catch (error) {
         console.error("Error fetching agency users:", error);
-        res.status(500).json({ message: "Failed to fetch users" });
+        return res.status(500).json({ message: "Failed to fetch users" });
     }
 });
 
@@ -217,10 +217,10 @@ router.patch("/agency/users/:userId", isAuthenticated, async (req: any, res) => 
         }
 
         const updatedUser = await storage.updateUser(userId, updates);
-        res.json(updatedUser);
+        return res.json(updatedUser);
     } catch (error) {
         console.error("Error updating agency user:", error);
-        res.status(500).json({ message: "Failed to update user" });
+        return res.status(500).json({ message: "Failed to update user" });
     }
 });
 
@@ -235,10 +235,10 @@ router.delete("/agency/users/:userId", isAuthenticated, async (req: any, res) =>
         }
 
         await storage.deleteUser(userId);
-        res.json({ message: "User deleted successfully" });
+        return res.json({ message: "User deleted successfully" });
     } catch (error) {
         console.error("Error deleting agency user:", error);
-        res.status(500).json({ message: "Failed to delete user" });
+        return res.status(500).json({ message: "Failed to delete user" });
     }
 });
 
@@ -259,10 +259,10 @@ router.post("/agency/users/:userId/agents", isAuthenticated, async (req: any, re
             }
         }
 
-        res.json({ message: "Agents assigned successfully" });
+        return res.json({ message: "Agents assigned successfully" });
     } catch (error) {
         console.error("Error assigning agents:", error);
-        res.status(500).json({ message: "Failed to assign agents" });
+        return res.status(500).json({ message: "Failed to assign agents" });
     }
 });
 
@@ -277,10 +277,10 @@ router.post("/agency/users/:userId/agents", isAuthenticated, async (req: any, re
 router.get('/agency/invitations', isAuthenticated, async (req: any, res) => {
     try {
         const invitations = await storage.getOrganizationInvitations(req.user.organizationId);
-        res.json(invitations);
+        return res.json(invitations);
     } catch (error) {
         console.error("Error fetching invitations:", error);
-        res.status(500).json({ message: "Failed to fetch invitations" });
+        return res.status(500).json({ message: "Failed to fetch invitations" });
     }
 });
 
@@ -288,10 +288,10 @@ router.get('/users/invitations', isAuthenticated, async (req: any, res) => {
     try {
         const organizationId = req.user.organizationId;
         const invitations = await storage.getOrganizationInvitations(organizationId);
-        res.json(invitations);
+        return res.json(invitations);
     } catch (error) {
         console.error("Error fetching invitations:", error);
-        res.status(500).json({ message: "Failed to fetch invitations" });
+        return res.status(500).json({ message: "Failed to fetch invitations" });
     }
 });
 
@@ -305,25 +305,24 @@ router.post('/agency/invitations', isAuthenticated, async (req: any, res) => {
             organizationId: req.user.organizationId,
             role: role || 'user',
             invitedBy: req.user.id,
-            token: crypto.randomBytes(32).toString('hex'),
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
         });
 
         // Send email
-        const inviteUrl = `${process.env.APP_URL}/accept-invite?token=${invitation.token}`;
+        const inviteUrl = `${process.env.APP_URL}/accept-invite?token=${invitation.code}`;
         await EmailService.sendAgencyInvitation(email, {
             inviteeName: email.split('@')[0], // Fallback name
             inviterName: `${req.user.firstName} ${req.user.lastName}`,
             inviterCompany: "Agency", // Should get org name
-            invitationCode: invitation.token,
+            invitationCode: invitation.code,
             invitationType: 'agency',
             acceptUrl: inviteUrl
         });
 
-        res.status(201).json(invitation);
+        return res.status(201).json(invitation);
     } catch (error) {
         console.error("Error creating invitation:", error);
-        res.status(500).json({ message: "Failed to create invitation" });
+        return res.status(500).json({ message: "Failed to create invitation" });
     }
 });
 
@@ -337,7 +336,7 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
             return res.status(403).json({ message: "Insufficient permissions" });
         }
 
-        const { email, role, message } = req.body;
+        const { email, role, message: _message } = req.body;
 
         // Check if user already exists
         const existingUser = await storage.getUserByEmail(email);
@@ -351,7 +350,6 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
             organizationId,
             role: role || 'user',
             invitedBy: req.user.id,
-            token: crypto.randomBytes(32).toString('hex'),
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
         });
 
@@ -369,12 +367,12 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
         activityLogs.set(organizationId, logs);
 
         // In production, send email with invitation link
-        console.log(`Invitation link: ${process.env.APP_URL || 'http://localhost:5000'}/invite/${invitation.token}`);
+        console.log(`Invitation link: ${process.env.APP_URL || 'http://localhost:5000'}/invite/${invitation.code}`);
 
-        res.json(invitation);
+        return res.json(invitation);
     } catch (error) {
         console.error("Error inviting user:", error);
-        res.status(500).json({ message: "Failed to invite user" });
+        return res.status(500).json({ message: "Failed to invite user" });
     }
 });
 
@@ -394,10 +392,10 @@ router.post('/users/invitations/:invitationId/resend', isAuthenticated, async (r
         // In production, resend email
         console.log(`Resending invitation to ${invitation.email}`);
 
-        res.json(updatedInvitation);
+        return res.json(updatedInvitation);
     } catch (error) {
         console.error("Error resending invitation:", error);
-        res.status(500).json({ message: "Failed to resend invitation" });
+        return res.status(500).json({ message: "Failed to resend invitation" });
     }
 });
 
@@ -405,20 +403,20 @@ router.delete("/agency/invitations/:invitationId", isAuthenticated, async (req: 
     try {
         const { invitationId } = req.params;
         await storage.deleteInvitation(invitationId);
-        res.json({ message: "Invitation deleted" });
+        return res.json({ message: "Invitation deleted" });
     } catch (error) {
         console.error("Error deleting invitation:", error);
-        res.status(500).json({ message: "Failed to delete invitation" });
+        return res.status(500).json({ message: "Failed to delete invitation" });
     }
 });
 
 router.delete('/users/invitations/:invitationId', isAuthenticated, async (req: any, res) => {
     try {
         await storage.deleteInvitation(req.params.invitationId);
-        res.json({ message: "Invitation cancelled successfully" });
+        return res.json({ message: "Invitation cancelled successfully" });
     } catch (error) {
         console.error("Error cancelling invitation:", error);
-        res.status(500).json({ message: "Failed to cancel invitation" });
+        return res.status(500).json({ message: "Failed to cancel invitation" });
     }
 });
 
@@ -432,7 +430,7 @@ router.post("/invitations/accept", async (req: any, res) => {
             return res.status(404).json({ message: "Invalid or expired invitation" });
         }
 
-        if (new Date() > new Date(invitation.expiresAt)) {
+        if (invitation.expiresAt && new Date() > new Date(invitation.expiresAt)) {
             return res.status(400).json({ message: "Invitation expired" });
         }
 
@@ -451,14 +449,17 @@ router.post("/invitations/accept", async (req: any, res) => {
         await storage.deleteInvitation(invitation.id);
 
         // Log user in
-        req.login(newUser, (err: any) => {
-            if (err) throw err;
-            res.json(newUser);
+        await new Promise<void>((resolve, reject) => {
+            req.login(newUser, (err: any) => {
+                if (err) reject(err);
+                else resolve();
+            });
         });
+        return res.json(newUser);
 
     } catch (error) {
         console.error("Error accepting invitation:", error);
-        res.status(500).json({ message: "Failed to accept invitation" });
+        return res.status(500).json({ message: "Failed to accept invitation" });
     }
 });
 
@@ -478,10 +479,10 @@ router.get('/users/activity-logs', isAuthenticated, async (req: any, res) => {
         }
 
         const logs = activityLogs.get(organizationId) || [];
-        res.json(logs);
+        return res.json(logs);
     } catch (error) {
         console.error("Error fetching activity logs:", error);
-        res.status(500).json({ message: "Failed to fetch activity logs" });
+        return res.status(500).json({ message: "Failed to fetch activity logs" });
     }
 });
 
@@ -498,21 +499,21 @@ router.get('/user/pending-approvals', isAuthenticated, async (req: any, res) => 
             task.metadata?.requestedBy === req.user.id
         );
 
-        res.json(userTasks);
+        return res.json(userTasks);
     } catch (error) {
         console.error("Error fetching user pending approvals:", error);
-        res.status(500).json({ message: "Failed to fetch pending approvals" });
+        return res.status(500).json({ message: "Failed to fetch pending approvals" });
     }
 });
 
 // Public route to get active system templates (for all users)
-router.get('/system-templates', isAuthenticated, async (req: any, res) => {
+router.get('/system-templates', isAuthenticated, async (_req: any, res) => {
     try {
         const templates = await storage.getSystemTemplates();
-        res.json(templates);
+        return res.json(templates);
     } catch (error) {
         console.error("Error fetching system templates:", error);
-        res.status(500).json({ message: "Failed to fetch system templates" });
+        return res.status(500).json({ message: "Failed to fetch system templates" });
     }
 });
 

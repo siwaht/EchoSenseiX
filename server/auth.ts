@@ -10,7 +10,7 @@ import connectPg from "connect-pg-simple";
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User extends SelectUser { }
   }
 }
 
@@ -27,14 +27,14 @@ async function comparePasswords(supplied: string, stored: string) {
   if (!stored || !stored.includes('.')) {
     return false;
   }
-  
+
   const [hashed, salt] = stored.split(".");
-  
+
   // Ensure both hashed and salt exist
   if (!hashed || !salt) {
     return false;
   }
-  
+
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
@@ -75,12 +75,12 @@ export function setupAuth(app: Express) {
         if (!user) {
           return done(null, false);
         }
-        
+
         // Check hashed password for all users
         if (!user.password || !(await comparePasswords(password, user.password))) {
           return done(null, false);
         }
-        
+
         return done(null, user);
       }
     )
@@ -94,7 +94,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     const { email, firstName, lastName, password } = req.body;
-    
+
     const existingUser = await storage.getUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
@@ -109,9 +109,16 @@ export function setupAuth(app: Express) {
       isAdmin: email === "cc@siwaht.com",
     });
 
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
+    return new Promise<void>((resolve, _reject) => {
+      req.login(user, (err) => {
+        if (err) {
+          next(err);
+          resolve();
+        } else {
+          res.status(201).json(user);
+          resolve();
+        }
+      });
     });
   });
 
@@ -126,7 +133,7 @@ export function setupAuth(app: Express) {
         console.error("Error during logout:", err);
         return next(err);
       }
-      
+
       // Destroy the session completely
       if (req.session) {
         req.session.destroy((destroyErr: any) => {
@@ -149,6 +156,6 @@ export function setupAuth(app: Express) {
 
   app.get("/api/auth/user", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
-    res.json(req.user);
+    return res.json(req.user);
   });
 }

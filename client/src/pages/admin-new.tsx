@@ -12,10 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Users, Building2, DollarSign, Phone, Edit, Trash2, Plus, Shield, 
-  Activity, TrendingUp, Package, CreditCard, UserPlus, Settings,
-  Save, X, Eye, Wallet, AlertCircle, Briefcase
+import {
+  Users, Building2, DollarSign, Phone, Edit, Trash2, Plus, Shield,
+  Activity, TrendingUp, CreditCard, Settings,
+  Eye, Wallet, AlertCircle, Briefcase
 } from "lucide-react";
 import type { User, Organization, BillingPackage } from "@shared/schema";
 
@@ -23,7 +23,6 @@ import type { User, Organization, BillingPackage } from "@shared/schema";
 const UserManagementPage = lazy(() => import("./user-management").then(module => ({ default: module.UserManagementPage })));
 const PaymentAnalytics = lazy(() => import("@/components/admin/payment-analytics").then(module => ({ default: module.PaymentAnalytics })));
 const PaymentHistory = lazy(() => import("@/components/admin/payment-history").then(module => ({ default: module.PaymentHistory })));
-const UserBulkOperations = lazy(() => import("@/components/admin/user-bulk-operations").then(module => ({ default: module.UserBulkOperations })));
 const AgencyManagement = lazy(() => import("@/components/admin/agency-management").then(module => ({ default: module.AgencyManagement })));
 const AgencyPermissions = lazy(() => import("@/components/admin/agency-permissions").then(module => ({ default: module.AgencyPermissions })));
 
@@ -59,7 +58,7 @@ interface BillingData {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
-  
+
   // State management
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
@@ -119,19 +118,19 @@ export default function AdminDashboard() {
   });
 
   // Queries
-  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
 
-  const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
+  const { data: organizations = [] } = useQuery<Organization[]>({
     queryKey: ["/api/admin/organizations"],
   });
 
-  const { data: billingData, isLoading: billingLoading } = useQuery<BillingData>({
+  const { data: billingData } = useQuery<BillingData>({
     queryKey: ["/api/admin/billing"],
   });
 
-  const { data: billingPackages = [], isLoading: packagesLoading } = useQuery<BillingPackage[]>({
+  const { data: billingPackages = [] } = useQuery<BillingPackage[]>({
     queryKey: ["/api/admin/billing-packages"],
   });
 
@@ -167,10 +166,10 @@ export default function AdminDashboard() {
       });
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Failed to create user", 
+      toast({
+        title: "Failed to create user",
         description: error.message || "An error occurred",
-        variant: "destructive" 
+        variant: "destructive"
       });
     },
   });
@@ -241,43 +240,43 @@ export default function AdminDashboard() {
       });
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Failed to create billing package", 
+      toast({
+        title: "Failed to create billing package",
         description: error.message || "An error occurred",
-        variant: "destructive" 
+        variant: "destructive"
       });
     },
   });
 
   // Update billing package mutation
-  const updatePackageMutation = useMutation({
-    mutationFn: async (data: { id: string; updates: Partial<BillingPackage> }) => {
-      return await apiRequest("PATCH", `/api/admin/billing-packages/${data.id}`, data.updates);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/billing-packages"] });
-      toast({ title: "Billing package updated successfully" });
-      setEditingPackage(null);
-    },
-    onError: () => {
-      toast({ title: "Failed to update billing package", variant: "destructive" });
-    },
-  });
+  // const updatePackageMutation = useMutation({
+  //   mutationFn: async (data: { id: string; updates: Partial<BillingPackage> }) => {
+  //     return await apiRequest("PATCH", `/api/admin/billing-packages/${data.id}`, data.updates);
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ["/api/admin/billing-packages"] });
+  //     toast({ title: "Billing package updated successfully" });
+  //     setEditingPackage(null);
+  //   },
+  //   onError: () => {
+  //     toast({ title: "Failed to update billing package", variant: "destructive" });
+  //   },
+  // });
 
   // Delete billing package mutation
-  const deletePackageMutation = useMutation({
-    mutationFn: async (packageId: string) => {
-      return await apiRequest("DELETE", `/api/admin/billing-packages/${packageId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/billing-packages"] });
-      toast({ title: "Billing package deleted successfully" });
-      setDeletingPackage(null);
-    },
-    onError: () => {
-      toast({ title: "Failed to delete billing package", variant: "destructive" });
-    },
-  });
+  // const deletePackageMutation = useMutation({
+  //   mutationFn: async (packageId: string) => {
+  //     return await apiRequest("DELETE", `/api/admin/billing-packages/${packageId}`);
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ["/api/admin/billing-packages"] });
+  //     toast({ title: "Billing package deleted successfully" });
+  //     setDeletingPackage(null);
+  //   },
+  //   onError: () => {
+  //     toast({ title: "Failed to delete billing package", variant: "destructive" });
+  //   },
+  // });
 
   // Update organization mutation
   const updateOrgMutation = useMutation({
@@ -399,7 +398,7 @@ export default function AdminDashboard() {
         <TabsContent value="billing" className="space-y-4 sm:space-y-6">
           <Card className="p-3 sm:p-6">
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Organization Billing Settings</h2>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px]">
                 <thead>
@@ -415,7 +414,6 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {billingData?.organizationsData.map((org) => {
-                    const orgDetails = organizations.find(o => o.id === org.id);
                     return (
                       <tr key={org.id} className="border-b hover:bg-muted/50">
                         <td className="py-3 px-2">
@@ -432,7 +430,7 @@ export default function AdminDashboard() {
                             <span className="text-sm">{org.usedCredits || 0}</span>
                             {org.monthlyCredits && org.monthlyCredits > 0 && (
                               <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden hidden lg:block">
-                                <div 
+                                <div
                                   className="h-full bg-primary"
                                   style={{ width: `${Math.min(100, ((org.usedCredits || 0) / org.monthlyCredits) * 100)}%` }}
                                 />
@@ -484,7 +482,7 @@ export default function AdminDashboard() {
                 <span className="sm:hidden">Add Package</span>
               </Button>
             </div>
-            
+
             {billingPackages.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No billing packages defined yet.</p>
@@ -590,7 +588,7 @@ export default function AdminDashboard() {
                 Manage and monitor all organizations on the platform
               </p>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px]">
                 <thead>
@@ -609,7 +607,7 @@ export default function AdminDashboard() {
                   {organizations.map((org) => {
                     const orgBilling = billingData?.organizationsData.find(o => o.id === org.id);
                     const userCount = users.filter(u => u.organizationId === org.id).length;
-                    
+
                     return (
                       <tr key={org.id} className="border-b hover:bg-muted/50">
                         <td className="py-3 px-2">
@@ -686,8 +684,8 @@ export default function AdminDashboard() {
                                   setManagingPermissionsOrg({
                                     id: org.id,
                                     name: org.name,
-                                    organizationType: org.organizationType,
-                                    billingPackage: org.billingPackage
+                                    organizationType: org.organizationType || 'end_customer',
+                                    billingPackage: org.billingPackage || 'starter'
                                   });
                                 }}
                               >
@@ -727,7 +725,7 @@ export default function AdminDashboard() {
                   })}
                 </tbody>
               </table>
-              
+
               {organizations.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -794,13 +792,13 @@ export default function AdminDashboard() {
         <TabsContent value="payments" className="space-y-6">
           {/* Payment Analytics */}
           <Suspense fallback={<AdminSectionLoader />}>
-            <PaymentAnalytics 
-              transactions={transactions} 
-              organizations={organizations} 
-              billingData={billingData} 
+            <PaymentAnalytics
+              transactions={transactions}
+              organizations={organizations}
+              billingData={billingData}
             />
           </Suspense>
-          
+
           {/* Payment History */}
           <Suspense fallback={<AdminSectionLoader />}>
             <PaymentHistory
@@ -810,925 +808,286 @@ export default function AdminDashboard() {
               isLoading={transactionsLoading}
             />
           </Suspense>
-
-          {/* Payment Gateway Configuration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Stripe Configuration */}
-            <Card className="p-4 sm:p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Stripe</h3>
-                      <p className="text-sm text-muted-foreground">Accept credit cards and digital wallets</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Not Connected
-                  </Badge>
-                </div>
-                
-                <div className="space-y-3 pt-2">
-                  <div className="p-4 bg-muted/50 rounded-lg text-center">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Stripe is not configured</p>
-                    <p className="text-xs mt-1">Connect your Stripe account to start accepting payments</p>
-                  </div>
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  size="sm"
-                  onClick={() => setConnectingStripe(true)}
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Connect Stripe Account
-                </Button>
-              </div>
-            </Card>
-
-            {/* PayPal Configuration */}
-            <Card className="p-4 sm:p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                      <Wallet className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">PayPal</h3>
-                      <p className="text-sm text-muted-foreground">Accept PayPal and Venmo payments</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Not Connected
-                  </Badge>
-                </div>
-                
-                <div className="space-y-3 pt-2">
-                  <div className="p-4 bg-muted/50 rounded-lg text-center">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">PayPal is not configured</p>
-                    <p className="text-xs mt-1">Connect your PayPal business account to start accepting payments</p>
-                  </div>
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  size="sm"
-                  onClick={() => setConnectingPayPal(true)}
-                >
-                  <Wallet className="w-4 h-4 mr-2" />
-                  Connect PayPal Account
-                </Button>
-              </div>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
 
-      {/* Create User Dialog */}
-      <Dialog open={creatingUser} onOpenChange={setCreatingUser}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Create New User</DialogTitle>
-            <DialogDescription>Add a new user or agency to the platform</DialogDescription>
+      {/* Dialogs */}
+      <Dialog open={creatingPackage} onOpenChange={setCreatingPackage}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create Billing Package</DialogTitle>
+            <DialogDescription>
+              Create a new billing package for organizations.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div>
-              <Label>User Type</Label>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pkg-name">Internal Name</Label>
+                <Input
+                  id="pkg-name"
+                  value={newPackage.name}
+                  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+                  placeholder="e.g. starter_plan"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pkg-display">Display Name</Label>
+                <Input
+                  id="pkg-display"
+                  value={newPackage.displayName}
+                  onChange={(e) => setNewPackage({ ...newPackage, displayName: e.target.value })}
+                  placeholder="e.g. Starter Plan"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pkg-price">Monthly Price ($)</Label>
+                <Input
+                  id="pkg-price"
+                  type="number"
+                  value={newPackage.monthlyPrice}
+                  onChange={(e) => setNewPackage({ ...newPackage, monthlyPrice: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pkg-call-rate">Per Call ($)</Label>
+                <Input
+                  id="pkg-call-rate"
+                  type="number"
+                  step="0.01"
+                  value={newPackage.perCallRate}
+                  onChange={(e) => setNewPackage({ ...newPackage, perCallRate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pkg-min-rate">Per Minute ($)</Label>
+                <Input
+                  id="pkg-min-rate"
+                  type="number"
+                  step="0.01"
+                  value={newPackage.perMinuteRate}
+                  onChange={(e) => setNewPackage({ ...newPackage, perMinuteRate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pkg-credits">Monthly Credits</Label>
+                <Input
+                  id="pkg-credits"
+                  type="number"
+                  value={newPackage.monthlyCredits}
+                  onChange={(e) => setNewPackage({ ...newPackage, monthlyCredits: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pkg-agents">Max Agents</Label>
+                <Input
+                  id="pkg-agents"
+                  type="number"
+                  value={newPackage.maxAgents}
+                  onChange={(e) => setNewPackage({ ...newPackage, maxAgents: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pkg-users">Max Users</Label>
+                <Input
+                  id="pkg-users"
+                  type="number"
+                  value={newPackage.maxUsers}
+                  onChange={(e) => setNewPackage({ ...newPackage, maxUsers: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pkg-type">Available To</Label>
               <Select
-                value={newUser.userType}
-                onValueChange={(value: "regular" | "agency") => setNewUser({ ...newUser, userType: value })}
+                value={newPackage.availableToType}
+                onValueChange={(value: "agency" | "end_customer") =>
+                  setNewPackage({ ...newPackage, availableToType: value })
+                }
               >
-                <SelectTrigger data-testid="select-user-type">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="regular">Regular User</SelectItem>
-                  <SelectItem value="agency">Agency</SelectItem>
+                  <SelectItem value="end_customer">End Customers</SelectItem>
+                  <SelectItem value="agency">Agencies Only</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {newUser.userType === "agency" 
-                  ? "Agencies can buy plans and manage their own users" 
-                  : "Regular users have access to the dashboard"}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>First Name</Label>
-                <Input
-                  value={newUser.firstName}
-                  onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
-                  placeholder="John"
-                  data-testid="input-new-user-firstname"
-                />
-              </div>
-              <div>
-                <Label>Last Name</Label>
-                <Input
-                  value={newUser.lastName}
-                  onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
-                  placeholder="Doe"
-                  data-testid="input-new-user-lastname"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                placeholder="john.doe@example.com"
-                data-testid="input-new-user-email"
-              />
-            </div>
-            <div>
-              <Label>Password</Label>
-              <Input
-                type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                placeholder="••••••••"
-                data-testid="input-new-user-password"
-              />
-            </div>
-            <div>
-              <Label>{newUser.userType === "agency" ? "Agency Name" : "Company Name (Optional)"}</Label>
-              <Input
-                value={newUser.companyName}
-                onChange={(e) => setNewUser({ ...newUser, companyName: e.target.value })}
-                placeholder={newUser.userType === "agency" ? "Acme Agency" : "Acme Corp (optional)"}
-                data-testid="input-new-user-company"
-                required={newUser.userType === "agency"}
-              />
-            </div>
-            {newUser.userType === "agency" && (
-              <div>
-                <Label>Commission Rate (%)</Label>
-                <Input
-                  type="number"
-                  value={newUser.commissionRate}
-                  onChange={(e) => setNewUser({ ...newUser, commissionRate: e.target.value })}
-                  placeholder="30"
-                  min="0"
-                  max="100"
-                  data-testid="input-commission-rate"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Percentage of revenue the agency keeps from their clients
-                </p>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="newUserAdmin"
-                checked={newUser.isAdmin}
-                onCheckedChange={(checked) => setNewUser({ ...newUser, isAdmin: checked })}
-                data-testid="switch-new-user-admin"
-              />
-              <Label htmlFor="newUserAdmin">Grant Admin Access</Label>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setCreatingUser(false)}>
-              Cancel
-            </Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreatingPackage(false)}>Cancel</Button>
             <Button
-              onClick={() => createUserMutation.mutate(newUser)}
-              disabled={createUserMutation.isPending || !newUser.email || !newUser.password}
-              data-testid="button-create-user"
+              onClick={() => createPackageMutation.mutate(newPackage)}
+              disabled={createPackageMutation.isPending}
             >
-              Create User
+              {createPackageMutation.isPending ? "Creating..." : "Create Package"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Edit User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div>
-              <Label>First Name</Label>
-              <Input
-                value={editingUser?.firstName || ""}
-                onChange={(e) => setEditingUser(editingUser ? { ...editingUser, firstName: e.target.value } : null)}
-                data-testid="input-user-firstname"
-              />
-            </div>
-            <div>
-              <Label>Last Name</Label>
-              <Input
-                value={editingUser?.lastName || ""}
-                onChange={(e) => setEditingUser(editingUser ? { ...editingUser, lastName: e.target.value } : null)}
-                data-testid="input-user-lastname"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="editUserAdmin"
-                checked={editingUser?.isAdmin || false}
-                onCheckedChange={(checked) => setEditingUser(editingUser ? { ...editingUser, isAdmin: checked } : null)}
-                data-testid="switch-user-admin"
-              />
-              <Label htmlFor="editUserAdmin">Admin Access</Label>
-            </div>
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (editingUser) {
-                  updateUserMutation.mutate({
-                    id: editingUser.id,
-                    updates: {
-                      firstName: editingUser.firstName,
-                      lastName: editingUser.lastName,
-                      isAdmin: editingUser.isAdmin,
-                    },
-                  });
-                }
-              }}
-              disabled={updateUserMutation.isPending}
-              data-testid="button-save-user"
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Organization Billing Dialog */}
-      <Dialog open={!!editingOrg} onOpenChange={() => setEditingOrg(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col">
+      {/* Edit Organization Dialog */}
+      <Dialog open={!!editingOrg} onOpenChange={(open) => !open && setEditingOrg(null)}>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Edit Organization Billing Settings</DialogTitle>
-            <DialogDescription>Manage billing configuration for {editingOrg?.name}</DialogDescription>
+            <DialogTitle>Edit Organization: {editingOrg?.name}</DialogTitle>
+            <DialogDescription>
+              Modify billing settings and limits for this organization.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Organization Name</Label>
-                <Input
-                  value={editingOrg?.name || ""}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, name: e.target.value } : null)}
-                  data-testid="input-org-name"
-                />
-              </div>
-              <div>
-                <Label>Billing Package</Label>
+          {editingOrg && (
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="org-package">Billing Package</Label>
                 <Select
-                  value={editingOrg?.billingPackage || "starter"}
-                  onValueChange={(value) => setEditingOrg(editingOrg ? { ...editingOrg, billingPackage: value } : null)}
+                  value={editingOrg.billingPackage}
+                  onValueChange={(value) => {
+                    const pkg = billingPackages.find(p => p.name === value);
+                    if (pkg) {
+                      setEditingOrg({
+                        ...editingOrg,
+                        billingPackage: value,
+                        perCallRate: String(pkg.perCallRate),
+                        perMinuteRate: String(pkg.perMinuteRate),
+                        monthlyCredits: String(pkg.monthlyCredits),
+                        maxAgents: String(pkg.maxAgents),
+                        maxUsers: String(pkg.maxUsers),
+                      });
+                    } else {
+                      setEditingOrg({ ...editingOrg, billingPackage: value });
+                    }
+                  }}
                 >
-                  <SelectTrigger data-testid="select-org-package">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="starter">Starter</SelectItem>
-                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="pro">Pro</SelectItem>
                     <SelectItem value="enterprise">Enterprise</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
+                    {billingPackages.map(pkg => (
+                      <SelectItem key={pkg.id} value={pkg.name}>{pkg.displayName}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Per Call Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editingOrg?.perCallRate || "0.30"}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, perCallRate: e.target.value } : null)}
-                  data-testid="input-org-per-call-rate"
-                />
-              </div>
-              <div>
-                <Label>Per Minute Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editingOrg?.perMinuteRate || "0.30"}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, perMinuteRate: e.target.value } : null)}
-                  data-testid="input-org-per-minute-rate"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Monthly Credits</Label>
-                <Input
-                  type="number"
-                  value={editingOrg?.monthlyCredits || "0"}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, monthlyCredits: e.target.value } : null)}
-                  data-testid="input-org-monthly-credits"
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="custom-rates"
+                  checked={editingOrg.customRateEnabled}
+                  onCheckedChange={(checked) => setEditingOrg({ ...editingOrg, customRateEnabled: checked })}
                 />
+                <Label htmlFor="custom-rates">Enable Custom Rates & Limits</Label>
               </div>
-              <div>
-                <Label>Max Agents</Label>
-                <Input
-                  type="number"
-                  value={editingOrg?.maxAgents || "5"}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, maxAgents: e.target.value } : null)}
-                  data-testid="input-org-max-agents"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Max Users</Label>
-                <Input
-                  type="number"
-                  value={editingOrg?.maxUsers || "10"}
-                  onChange={(e) => setEditingOrg(editingOrg ? { ...editingOrg, maxUsers: e.target.value } : null)}
-                  data-testid="input-org-max-users"
-                />
-              </div>
-              <div>
-                <Label>Custom Rate</Label>
-                <div className="flex items-center gap-2 mt-2">
-                  <Switch
-                    id="customRate"
-                    checked={editingOrg?.customRateEnabled || false}
-                    onCheckedChange={(checked) => setEditingOrg(editingOrg ? { ...editingOrg, customRateEnabled: checked } : null)}
-                    data-testid="switch-org-custom-rate"
-                  />
-                  <Label htmlFor="customRate">Enable custom rates</Label>
-                </div>
-              </div>
+              {editingOrg.customRateEnabled && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="org-call-rate">Per Call Rate ($)</Label>
+                      <Input
+                        id="org-call-rate"
+                        type="number"
+                        step="0.01"
+                        value={editingOrg.perCallRate}
+                        onChange={(e) => setEditingOrg({ ...editingOrg, perCallRate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-min-rate">Per Minute Rate ($)</Label>
+                      <Input
+                        id="org-min-rate"
+                        type="number"
+                        step="0.01"
+                        value={editingOrg.perMinuteRate}
+                        onChange={(e) => setEditingOrg({ ...editingOrg, perMinuteRate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="org-credits">Monthly Credits</Label>
+                      <Input
+                        id="org-credits"
+                        type="number"
+                        value={editingOrg.monthlyCredits}
+                        onChange={(e) => setEditingOrg({ ...editingOrg, monthlyCredits: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-agents">Max Agents</Label>
+                      <Input
+                        id="org-agents"
+                        type="number"
+                        value={editingOrg.maxAgents}
+                        onChange={(e) => setEditingOrg({ ...editingOrg, maxAgents: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-users">Max Users</Label>
+                      <Input
+                        id="org-users"
+                        type="number"
+                        value={editingOrg.maxUsers}
+                        onChange={(e) => setEditingOrg({ ...editingOrg, maxUsers: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            
-            <div className="bg-muted p-4 rounded-lg space-y-2">
-              <p className="text-sm"><strong>Organization ID:</strong> {editingOrg?.id}</p>
-              <p className="text-sm"><strong>Current Users:</strong> {editingOrg?.userCount || 0}</p>
-              <p className="text-sm"><strong>Total Calls:</strong> {editingOrg?.totalCalls || 0}</p>
-              <p className="text-sm"><strong>Used Credits:</strong> {editingOrg?.usedCredits || 0}</p>
-              <p className="text-sm"><strong>Revenue Generated:</strong> ${editingOrg?.estimatedCost?.toFixed(2) || "0.00"}</p>
-            </div>
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
+          )}
+          <DialogFooter>
             <Button variant="outline" onClick={() => setEditingOrg(null)}>Cancel</Button>
             <Button
               onClick={() => {
-                if (editingOrg) {
-                  updateOrgMutation.mutate({
-                    id: editingOrg.id,
-                    updates: {
-                      name: editingOrg.name,
-                      billingPackage: editingOrg.billingPackage as "starter" | "professional" | "enterprise" | "custom",
-                      perCallRate: String(parseFloat(editingOrg.perCallRate)),
-                      perMinuteRate: String(parseFloat(editingOrg.perMinuteRate)),
-                      monthlyCredits: parseInt(editingOrg.monthlyCredits),
-                      maxAgents: parseInt(editingOrg.maxAgents),
-                      maxUsers: parseInt(editingOrg.maxUsers),
-                      customRateEnabled: editingOrg.customRateEnabled,
-                    },
-                  });
-                }
+                if (!editingOrg) return;
+                updateOrgMutation.mutate({
+                  id: editingOrg.id,
+                  updates: {
+                    billingPackage: editingOrg.billingPackage as any,
+                    perCallRate: editingOrg.perCallRate,
+                    perMinuteRate: editingOrg.perMinuteRate,
+                    monthlyCredits: parseInt(editingOrg.monthlyCredits),
+                    maxAgents: parseInt(editingOrg.maxAgents),
+                    maxUsers: parseInt(editingOrg.maxUsers),
+                    customRateEnabled: editingOrg.customRateEnabled,
+                  }
+                });
               }}
               disabled={updateOrgMutation.isPending}
-              data-testid="button-save-org"
             >
-              Save Billing Settings
+              {updateOrgMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Agency Permissions Dialog */}
-      <Dialog open={!!managingPermissionsOrg} onOpenChange={() => setManagingPermissionsOrg(null)}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Manage Agency Permissions</DialogTitle>
+      <Dialog open={!!managingPermissionsOrg} onOpenChange={(open) => !open && setManagingPermissionsOrg(null)}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Agency Permissions: {managingPermissionsOrg?.name}</DialogTitle>
             <DialogDescription>
-              Configure what features and capabilities {managingPermissionsOrg?.name} can access
+              Manage permissions and access levels for this agency.
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto flex-1 pr-2">
-            {managingPermissionsOrg && (
-              <Suspense fallback={<AdminSectionLoader />}>
-                <AgencyPermissions
-                  organizationId={managingPermissionsOrg.id}
-                  organizationName={managingPermissionsOrg.name}
-                  organizationType={managingPermissionsOrg.organizationType}
-                  billingPackage={managingPermissionsOrg.billingPackage}
-                />
-              </Suspense>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Connect Stripe Dialog */}
-      <Dialog open={connectingStripe} onOpenChange={setConnectingStripe}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Connect Stripe Account</DialogTitle>
-            <DialogDescription>
-              Enter your Stripe API keys to enable payment processing. You can find these in your Stripe dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div>
-              <Label>Publishable Key</Label>
-              <Input
-                type="text"
-                value={stripeKeys.publishableKey}
-                onChange={(e) => setStripeKeys({ ...stripeKeys, publishableKey: e.target.value })}
-                placeholder="pk_test_..."
-                data-testid="input-stripe-publishable-key"
+          {managingPermissionsOrg && (
+            <Suspense fallback={<AdminSectionLoader />}>
+              <AgencyPermissions
+                organizationId={managingPermissionsOrg.id}
+                organizationName={managingPermissionsOrg.name}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Starts with pk_test_ for test mode or pk_live_ for live mode
-              </p>
-            </div>
-            <div>
-              <Label>Secret Key</Label>
-              <Input
-                type="password"
-                value={stripeKeys.secretKey}
-                onChange={(e) => setStripeKeys({ ...stripeKeys, secretKey: e.target.value })}
-                placeholder="sk_test_..."
-                data-testid="input-stripe-secret-key"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Starts with sk_test_ for test mode or sk_live_ for live mode. Keep this key secure!
-              </p>
-            </div>
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Note:</strong> Use test keys for development and live keys for production. Never share your secret key.
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setConnectingStripe(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                // Here you would normally save the keys to the backend
-                toast({ 
-                  title: "Stripe configuration saved",
-                  description: "To complete setup, configure environment variables on the server."
-                });
-                setConnectingStripe(false);
-                setStripeKeys({ publishableKey: '', secretKey: '' });
-              }}
-              disabled={!stripeKeys.publishableKey || !stripeKeys.secretKey}
-              data-testid="button-save-stripe"
-            >
-              Save Configuration
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Connect PayPal Dialog */}
-      <Dialog open={connectingPayPal} onOpenChange={setConnectingPayPal}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Connect PayPal Account</DialogTitle>
-            <DialogDescription>
-              Enter your PayPal API credentials to enable payment processing. You can find these in your PayPal developer dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div>
-              <Label>Client ID</Label>
-              <Input
-                type="text"
-                value={paypalKeys.clientId}
-                onChange={(e) => setPaypalKeys({ ...paypalKeys, clientId: e.target.value })}
-                placeholder="AX1234567890..."
-                data-testid="input-paypal-client-id"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Found in your PayPal app settings
-              </p>
-            </div>
-            <div>
-              <Label>Client Secret</Label>
-              <Input
-                type="password"
-                value={paypalKeys.clientSecret}
-                onChange={(e) => setPaypalKeys({ ...paypalKeys, clientSecret: e.target.value })}
-                placeholder="EK1234567890..."
-                data-testid="input-paypal-client-secret"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Keep this key secure and never share it
-              </p>
-            </div>
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Note:</strong> Use sandbox credentials for testing and live credentials for production.
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setConnectingPayPal(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                // Here you would normally save the keys to the backend
-                toast({ 
-                  title: "PayPal configuration saved",
-                  description: "To complete setup, configure environment variables on the server."
-                });
-                setConnectingPayPal(false);
-                setPaypalKeys({ clientId: '', clientSecret: '' });
-              }}
-              disabled={!paypalKeys.clientId || !paypalKeys.clientSecret}
-              data-testid="button-save-paypal"
-            >
-              Save Configuration
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User Confirmation */}
-      <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {deletingUser?.firstName} {deletingUser?.lastName} ({deletingUser?.email})?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deletingUser && deleteUserMutation.mutate(deletingUser.id)}
-              className="bg-red-500 hover:bg-red-600"
-              data-testid="button-confirm-delete-user"
-            >
-              Delete User
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Create Billing Package Dialog */}
-      <Dialog open={creatingPackage} onOpenChange={setCreatingPackage}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Create Billing Package</DialogTitle>
-            <DialogDescription>Define a new billing package with custom rates and limits</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Package ID</Label>
-                <Input
-                  value={newPackage.id}
-                  onChange={(e) => setNewPackage({ ...newPackage, id: e.target.value })}
-                  placeholder="e.g., starter, pro, enterprise"
-                  data-testid="input-package-id"
-                />
-              </div>
-              <div>
-                <Label>Display Name</Label>
-                <Input
-                  value={newPackage.displayName}
-                  onChange={(e) => setNewPackage({ ...newPackage, displayName: e.target.value })}
-                  placeholder="e.g., Professional Plan"
-                  data-testid="input-package-display-name"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Name (Internal)</Label>
-                <Input
-                  value={newPackage.name}
-                  onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
-                  placeholder="e.g., Professional"
-                  data-testid="input-package-name"
-                />
-              </div>
-              <div>
-                <Label>Monthly Price ($)</Label>
-                <Input
-                  type="number"
-                  value={newPackage.monthlyPrice}
-                  onChange={(e) => setNewPackage({ ...newPackage, monthlyPrice: e.target.value })}
-                  placeholder="99.00"
-                  data-testid="input-package-price"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Per Call Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newPackage.perCallRate}
-                  onChange={(e) => setNewPackage({ ...newPackage, perCallRate: e.target.value })}
-                  data-testid="input-package-call-rate"
-                />
-              </div>
-              <div>
-                <Label>Per Minute Rate ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newPackage.perMinuteRate}
-                  onChange={(e) => setNewPackage({ ...newPackage, perMinuteRate: e.target.value })}
-                  data-testid="input-package-minute-rate"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <Label>Monthly Credits</Label>
-                <Input
-                  type="number"
-                  value={newPackage.monthlyCredits}
-                  onChange={(e) => setNewPackage({ ...newPackage, monthlyCredits: e.target.value })}
-                  data-testid="input-package-credits"
-                />
-              </div>
-              <div>
-                <Label>Max Agents</Label>
-                <Input
-                  type="number"
-                  value={newPackage.maxAgents}
-                  onChange={(e) => setNewPackage({ ...newPackage, maxAgents: e.target.value })}
-                  data-testid="input-package-max-agents"
-                />
-              </div>
-              <div>
-                <Label>Max Users</Label>
-                <Input
-                  type="number"
-                  value={newPackage.maxUsers}
-                  onChange={(e) => setNewPackage({ ...newPackage, maxUsers: e.target.value })}
-                  data-testid="input-package-max-users"
-                />
-              </div>
-            </div>
-
-            {/* Tier-based availability */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="font-medium">Tier Availability & Agency Settings</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Available To</Label>
-                  <Select 
-                    value={newPackage.availableToType}
-                    onValueChange={(value) => setNewPackage({ ...newPackage, availableToType: value as "agency" | "end_customer" })}
-                  >
-                    <SelectTrigger data-testid="select-available-to">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="end_customer">End Customers</SelectItem>
-                      <SelectItem value="agency">Agencies Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {newPackage.availableToType === "agency" 
-                      ? "Only agencies can purchase this package"
-                      : "End customers and agencies can purchase this package"}
-                  </p>
-                </div>
-                <div>
-                  <Label>Agency Margin (%)</Label>
-                  <Input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="100"
-                    value={newPackage.marginPercentage}
-                    onChange={(e) => setNewPackage({ ...newPackage, marginPercentage: e.target.value })}
-                    data-testid="input-margin-percentage"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Maximum margin agencies can add when reselling
-                  </p>
-                </div>
-              </div>
-              <div>
-                <Label>Base Cost ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={newPackage.baseCost}
-                  onChange={(e) => setNewPackage({ ...newPackage, baseCost: e.target.value })}
-                  data-testid="input-base-cost"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Cost for agencies (leave 0 if not applicable)
-                </p>
-              </div>
-            </div>
-            
-            <div>
-              <Label>Features (one per line)</Label>
-              <textarea
-                className="w-full min-h-[100px] p-2 border rounded-md bg-background"
-                value={newPackage.features.join('\n')}
-                onChange={(e) => setNewPackage({ ...newPackage, features: e.target.value.split('\n').filter(f => f.trim()) })}
-                placeholder="Priority support&#10;Advanced analytics&#10;Custom integrations"
-                data-testid="textarea-package-features"
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setCreatingPackage(false)}>Cancel</Button>
-            <Button
-              onClick={() => createPackageMutation.mutate(newPackage)}
-              disabled={createPackageMutation.isPending || !newPackage.id || !newPackage.displayName}
-              data-testid="button-create-package"
-            >
-              Create Package
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Billing Package Dialog */}
-      <Dialog open={!!editingPackage} onOpenChange={() => setEditingPackage(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Edit Billing Package</DialogTitle>
-            <DialogDescription>Update the billing package settings</DialogDescription>
-          </DialogHeader>
-          {editingPackage && (
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Package ID</Label>
-                  <Input
-                    value={editingPackage.id}
-                    disabled
-                    className="bg-muted"
-                    data-testid="input-edit-package-id"
-                  />
-                </div>
-                <div>
-                  <Label>Display Name</Label>
-                  <Input
-                    value={editingPackage.displayName}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, displayName: e.target.value })}
-                    data-testid="input-edit-package-display-name"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Name (Internal)</Label>
-                  <Input
-                    value={editingPackage.name}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, name: e.target.value })}
-                    data-testid="input-edit-package-name"
-                  />
-                </div>
-                <div>
-                  <Label>Monthly Price ($)</Label>
-                  <Input
-                    type="number"
-                    value={editingPackage.monthlyPrice}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, monthlyPrice: e.target.value })}
-                    data-testid="input-edit-package-price"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Per Call Rate ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editingPackage.perCallRate}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, perCallRate: e.target.value })}
-                    data-testid="input-edit-package-call-rate"
-                  />
-                </div>
-                <div>
-                  <Label>Per Minute Rate ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editingPackage.perMinuteRate}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, perMinuteRate: e.target.value })}
-                    data-testid="input-edit-package-minute-rate"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label>Monthly Credits</Label>
-                  <Input
-                    type="number"
-                    value={editingPackage.monthlyCredits}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, monthlyCredits: parseInt(e.target.value) || 0 })}
-                    data-testid="input-edit-package-credits"
-                  />
-                </div>
-                <div>
-                  <Label>Max Agents</Label>
-                  <Input
-                    type="number"
-                    value={editingPackage.maxAgents}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, maxAgents: parseInt(e.target.value) || 0 })}
-                    data-testid="input-edit-package-max-agents"
-                  />
-                </div>
-                <div>
-                  <Label>Max Users</Label>
-                  <Input
-                    type="number"
-                    value={editingPackage.maxUsers}
-                    onChange={(e) => setEditingPackage({ ...editingPackage, maxUsers: parseInt(e.target.value) || 0 })}
-                    data-testid="input-edit-package-max-users"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label>Features (one per line)</Label>
-                <textarea
-                  className="w-full min-h-[100px] p-2 border rounded-md bg-background"
-                  value={(editingPackage.features as string[] || []).join('\n')}
-                  onChange={(e) => setEditingPackage({ ...editingPackage, features: e.target.value.split('\n').filter(f => f.trim()) as any })}
-                  placeholder="Priority support&#10;Advanced analytics&#10;Custom integrations"
-                  data-testid="textarea-edit-package-features"
-                />
-              </div>
-            </div>
+            </Suspense>
           )}
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button variant="outline" onClick={() => setEditingPackage(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (editingPackage) {
-                  updatePackageMutation.mutate({
-                    id: editingPackage.id,
-                    updates: {
-                      ...editingPackage,
-                      perCallRate: String(typeof editingPackage.perCallRate === 'string' ? parseFloat(editingPackage.perCallRate) || 0 : editingPackage.perCallRate),
-                      perMinuteRate: String(typeof editingPackage.perMinuteRate === 'string' ? parseFloat(editingPackage.perMinuteRate) || 0 : editingPackage.perMinuteRate),
-                      monthlyPrice: String(typeof editingPackage.monthlyPrice === 'string' ? parseFloat(editingPackage.monthlyPrice) || 0 : editingPackage.monthlyPrice),
-                      monthlyCredits: typeof editingPackage.monthlyCredits === 'string' ? parseInt(editingPackage.monthlyCredits) || 0 : editingPackage.monthlyCredits,
-                      maxAgents: typeof editingPackage.maxAgents === 'string' ? parseInt(editingPackage.maxAgents) || 0 : editingPackage.maxAgents,
-                      maxUsers: typeof editingPackage.maxUsers === 'string' ? parseInt(editingPackage.maxUsers) || 0 : editingPackage.maxUsers,
-                      features: editingPackage.features || [],
-                    },
-                  });
-                }
-              }}
-              disabled={updatePackageMutation.isPending}
-              data-testid="button-update-package"
-            >
-              Update Package
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Package Confirmation */}
-      <AlertDialog open={!!deletingPackage} onOpenChange={() => setDeletingPackage(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Billing Package</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the "{deletingPackage?.displayName}" billing package?
-              This action cannot be undone. Organizations using this package will need to be reassigned.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deletingPackage && deletePackageMutation.mutate(deletingPackage.id)}
-              className="bg-red-500 hover:bg-red-600"
-              data-testid="button-confirm-delete-package"
-            >
-              Delete Package
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

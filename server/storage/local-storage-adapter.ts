@@ -32,19 +32,19 @@ export class LocalStorageAdapter implements StorageAdapter {
   async save(key: string, buffer: Buffer, metadata?: StorageMetadata): Promise<string> {
     const filePath = path.join(this.baseDir, key);
     const dir = path.dirname(filePath);
-    
+
     // Ensure directory exists
     await this.ensureDirectoryExists(dir);
-    
+
     // Save file
     await fs.writeFile(filePath, buffer);
-    
+
     // Save metadata if provided
     if (metadata) {
       const metaPath = `${filePath}.meta.json`;
       await fs.writeFile(metaPath, JSON.stringify(metadata, null, 2));
     }
-    
+
     return key;
   }
 
@@ -56,13 +56,13 @@ export class LocalStorageAdapter implements StorageAdapter {
   async delete(key: string): Promise<void> {
     const filePath = path.join(this.baseDir, key);
     const metaPath = `${filePath}.meta.json`;
-    
+
     try {
       await fs.unlink(filePath);
     } catch (error: any) {
       if (error.code !== 'ENOENT') throw error;
     }
-    
+
     try {
       await fs.unlink(metaPath);
     } catch (error: any) {
@@ -86,7 +86,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     return `/api/audio/${key}`;
   }
 
-  async getSignedUrl(key: string, expiresIn?: number): Promise<string | null> {
+  async getSignedUrl(key: string, _expiresIn: number = 3600): Promise<string | null> {
     // Local storage doesn't support signed URLs
     // Return the same as public URL
     return this.getPublicUrl(key);

@@ -14,9 +14,7 @@ import fetch from 'node-fetch';
 const BASE_URL = process.env.PUBLIC_URL || 'http://localhost:5000';
 const TEST_RESULTS: any[] = [];
 let authCookie = '';
-let testOrganizationId = '';
 let testAgentId = '';
-let testUserId = '';
 
 // Helper to log test results
 function logTest(category: string, name: string, passed: boolean, details?: any) {
@@ -53,7 +51,10 @@ async function authenticatedRequest(
   // Capture cookies from response
   const setCookie = response.headers.get('set-cookie');
   if (setCookie && !authCookie) {
-    authCookie = setCookie.split(';')[0];
+    const parts = setCookie.split(';');
+    if (parts && parts.length > 0) {
+      authCookie = parts[0] || '';
+    }
   }
 
   return response;
@@ -92,18 +93,13 @@ async function testAuthentication() {
 
     const data = await response.json();
     const loginSuccess = response.status === 200 || response.status === 401;
-    
-    if (response.status === 200 && data.user) {
-      testUserId = data.user.id;
-      testOrganizationId = data.user.organizationId;
-    }
 
     logTest(
       'Auth',
       'User login',
       loginSuccess,
-      { 
-        status: response.status, 
+      {
+        status: response.status,
         hasUser: !!data.user,
         note: response.status === 401 ? 'Test user not found (expected in fresh DB)' : undefined
       }
@@ -115,13 +111,13 @@ async function testAuthentication() {
   // Test 1.3: Get current user
   try {
     const response = await authenticatedRequest('/api/auth/me');
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Auth',
       'Get current user',
       response.status === 200 || response.status === 401,
-      { 
+      {
         status: response.status,
         authenticated: response.status === 200
       }
@@ -133,7 +129,7 @@ async function testAuthentication() {
   // Test 1.4: Session validation
   try {
     const response = await authenticatedRequest('/api/auth/session');
-    
+
     logTest(
       'Auth',
       'Session validation',
@@ -156,12 +152,12 @@ async function testAgentManagement() {
   try {
     const response = await authenticatedRequest('/api/agents');
     const data = await response.json();
-    
+
     logTest(
       'Agents',
       'List agents',
       response.status === 200 || response.status === 401,
-      { 
+      {
         status: response.status,
         agentCount: Array.isArray(data) ? data.length : 0
       }
@@ -180,12 +176,12 @@ async function testAgentManagement() {
     try {
       const response = await authenticatedRequest(`/api/agents/${testAgentId}`);
       const data = await response.json();
-      
+
       logTest(
         'Agents',
         'Get agent details',
         response.status === 200,
-        { 
+        {
           status: response.status,
           hasWebhookConfig: !!data.tools?.postCallWebhook
         }
@@ -210,12 +206,12 @@ async function testAgentManagement() {
 
     const data = await response.json();
     const hasWebhookConfig = data.tools?.postCallWebhook?.enabled === true;
-    
+
     logTest(
       'Agents',
       'Agent creation includes webhook config',
       response.status === 401 || (response.status === 200 && hasWebhookConfig) || response.status === 400,
-      { 
+      {
         status: response.status,
         hasWebhookConfig,
         note: response.status === 401 ? 'Not authenticated' : response.status === 400 ? 'Validation error (expected)' : undefined
@@ -255,13 +251,13 @@ async function testWebhookIntegration() {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Webhooks',
       'Post-call webhook endpoint',
       response.status === 200 || response.status === 400 || response.status === 404,
-      { 
+      {
         status: response.status,
         note: response.status === 404 ? 'Agent not found (expected for test agent)' : undefined
       }
@@ -285,8 +281,8 @@ async function testWebhookIntegration() {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Webhooks',
       'Conversation init webhook endpoint',
@@ -313,8 +309,8 @@ async function testWebhookIntegration() {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Webhooks',
       'Events webhook endpoint',
@@ -346,12 +342,12 @@ async function testCallLogging() {
   try {
     const response = await authenticatedRequest('/api/call-logs');
     const data = await response.json();
-    
+
     logTest(
       'Calls',
       'List call logs',
       response.status === 200 || response.status === 401,
-      { 
+      {
         status: response.status,
         callCount: data.data ? data.data.length : 0
       }
@@ -363,8 +359,8 @@ async function testCallLogging() {
   // Test 4.2: Summary status endpoint
   try {
     const response = await authenticatedRequest('/api/call-logs/summary-status');
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Calls',
       'Summary status endpoint',
@@ -380,15 +376,15 @@ async function testCallLogging() {
     const response = await authenticatedRequest('/api/call-logs/test-id/summary', {
       method: 'POST'
     });
-    
+
     const data = await response.json();
     const hasWebhookMessage = data.message && data.message.toLowerCase().includes('webhook');
-    
+
     logTest(
       'Calls',
       'Manual summary returns webhook info',
       response.status === 401 || (response.status === 200 && hasWebhookMessage) || response.status === 404,
-      { 
+      {
         status: response.status,
         hasWebhookMessage,
         note: response.status === 404 ? 'Call not found (expected)' : undefined
@@ -409,8 +405,8 @@ async function testRealtimeSync() {
   // Test 5.1: Sync status endpoint
   try {
     const response = await authenticatedRequest('/api/sync/status');
-    const data = await response.json();
-    
+    await response.json();
+
     logTest(
       'Sync',
       'Sync status endpoint',
@@ -426,7 +422,7 @@ async function testRealtimeSync() {
     const response = await authenticatedRequest('/api/sync/trigger', {
       method: 'POST'
     });
-    
+
     logTest(
       'Sync',
       'Manual sync trigger',
@@ -449,12 +445,12 @@ async function testIntegrations() {
   try {
     const response = await authenticatedRequest('/api/integrations');
     const data = await response.json();
-    
+
     logTest(
       'Integrations',
       'List integrations',
       response.status === 200 || response.status === 401,
-      { 
+      {
         status: response.status,
         integrationCount: Array.isArray(data) ? data.length : 0
       }
@@ -466,7 +462,7 @@ async function testIntegrations() {
   // Test 6.2: ElevenLabs integration status
   try {
     const response = await authenticatedRequest('/api/integrations/elevenlabs/status');
-    
+
     logTest(
       'Integrations',
       'ElevenLabs integration status',
@@ -501,7 +497,7 @@ async function testStorage() {
       const path = await import('path');
       const audioDir = path.join(process.cwd(), 'audio-storage');
       const exists = fs.existsSync(audioDir);
-      
+
       logTest(
         'Storage',
         'Local audio storage directory exists',
@@ -527,7 +523,7 @@ async function testDatabase() {
   try {
     const response = await fetch(`${BASE_URL}/health`);
     const data = await response.json();
-    
+
     logTest(
       'Database',
       'Database connection',
@@ -541,7 +537,7 @@ async function testDatabase() {
   // Test 8.2: Organizations table
   try {
     const response = await authenticatedRequest('/api/organizations');
-    
+
     logTest(
       'Database',
       'Organizations table accessible',
@@ -559,10 +555,10 @@ async function testDatabase() {
 
 async function runAllTests() {
   console.log('🧪 Starting Critical Path Test Suite for EchoSenseiX\n');
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Test Started: ${new Date().toISOString()}`);
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
 
   try {
     await testAuthentication();
@@ -590,7 +586,7 @@ async function runAllTests() {
     const categorySet = new Set(TEST_RESULTS.map(r => r.category));
     const categories = Array.from(categorySet);
     console.log('\n📋 Results by Category:\n');
-    
+
     categories.forEach(category => {
       const categoryTests = TEST_RESULTS.filter(r => r.category === category);
       const categoryPassed = categoryTests.filter(r => r.passed).length;

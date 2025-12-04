@@ -47,7 +47,7 @@ class ProviderRegistry {
         if (providers.length === 0) {
             throw new Error(`No providers found for type '${type}'`);
         }
-        return providers[0];
+        return providers[0] as T;
     }
 
     getAllProviders(): IProvider[] {

@@ -25,23 +25,24 @@ export function registerRoutes(app: Express): Server {
   // Readiness check - verifies all dependencies are ready
   app.get('/health/ready', async (_req, res) => {
     const checks: Record<string, { status: string; latency?: number; error?: string }> = {};
-    
+
     // Check database connectivity
     const dbStart = Date.now();
     try {
-      await db.execute('SELECT 1');
+      // Use raw query to check DB connection
+      await (db as any).execute('SELECT 1');
       checks.database = { status: 'healthy', latency: Date.now() - dbStart };
     } catch (error) {
-      checks.database = { 
-        status: 'unhealthy', 
+      checks.database = {
+        status: 'unhealthy',
         error: error instanceof Error ? error.message : 'Unknown error',
-        latency: Date.now() - dbStart 
+        latency: Date.now() - dbStart
       };
     }
 
     // Overall status
     const isHealthy = Object.values(checks).every(c => c.status === 'healthy');
-    
+
     res.status(isHealthy ? 200 : 503).json({
       status: isHealthy ? 'ready' : 'not_ready',
       timestamp: new Date().toISOString(),

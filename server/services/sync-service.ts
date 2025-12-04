@@ -12,7 +12,7 @@
 import { storage } from "../storage";
 import { providerRegistry } from "./providers/registry";
 import { IConversationalAIProvider } from "./providers/types";
-import type { InsertCallLog, InsertAgent, Integration } from "@shared/schema";
+import type { InsertCallLog, InsertAgent } from "@shared/schema";
 
 export interface SyncResult {
   success: boolean;
@@ -479,9 +479,9 @@ export class SyncService {
 
     // Find the most recent sync time
     const lastSync = activeIntegrations.reduce((latest, current) => {
-      if (!current.lastSyncAt) return latest;
-      return !latest || new Date(current.lastSyncAt) > new Date(latest)
-        ? current.lastSyncAt
+      if (!current.lastTested) return latest;
+      return !latest || new Date(current.lastTested) > new Date(latest)
+        ? current.lastTested
         : latest;
     }, null as Date | null);
 

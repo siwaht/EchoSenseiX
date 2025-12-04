@@ -8,7 +8,7 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
             return res.status(401).json({ message: "Unauthorized" });
         }
         // console.log("Authentication successful for user:", req.user?.email || req.user?.id);
-        next();
+        return next();
     } catch (error) {
         console.error("Authentication middleware error:", error);
         return res.status(500).json({ message: "Authentication error" });
@@ -24,7 +24,7 @@ export const isAdmin = async (req: Request, res: Response, next: NextFunction) =
     if (!user?.isAdmin) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
-    next();
+    return next();
 };
 
 export const checkPermission = (permission: string) => {

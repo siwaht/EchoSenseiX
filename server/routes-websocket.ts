@@ -4,7 +4,7 @@
  * Handles WebSocket connections for real-time dashboard updates
  */
 
-import { Express, Request, Response } from "express";
+import { Express } from "express";
 import { WebSocketServer, WebSocket } from 'ws';
 import { realtimeSyncService } from './services/realtime-sync';
 
@@ -16,9 +16,9 @@ const isAuthenticated = (req: any, res: any, next: any) => {
   next();
 };
 
-export function setupWebSocketRoutes(app: Express, server: any) {
+export function setupWebSocketRoutes(_app: Express, server: any) {
   // Create WebSocket server
-  const wss = new WebSocketServer({ 
+  const wss = new WebSocketServer({
     server,
     path: '/ws/realtime-sync'
   });
@@ -32,7 +32,7 @@ export function setupWebSocketRoutes(app: Express, server: any) {
       // Extract user info from query parameters or headers
       const url = new URL(req.url!, `http://${req.headers.host}`);
       const token = url.searchParams.get('token') || req.headers.authorization?.replace('Bearer ', '');
-      
+
       if (!token) {
         console.log('[WEBSOCKET] No authentication token provided');
         ws.close(1008, 'Authentication required');
@@ -43,7 +43,7 @@ export function setupWebSocketRoutes(app: Express, server: any) {
       // This is a simplified version - you might want to implement proper JWT verification
       const userId = url.searchParams.get('userId');
       const organizationId = url.searchParams.get('organizationId');
-      
+
       if (!userId || !organizationId) {
         console.log('[WEBSOCKET] Missing userId or organizationId');
         ws.close(1008, 'Missing user or organization information');
@@ -52,7 +52,7 @@ export function setupWebSocketRoutes(app: Express, server: any) {
 
       // Register the client for real-time updates
       realtimeSyncService.registerClient(ws, organizationId, userId);
-      
+
       console.log(`[WEBSOCKET] Client connected: ${organizationId}-${userId}`);
 
       // Send welcome message
@@ -70,7 +70,7 @@ export function setupWebSocketRoutes(app: Express, server: any) {
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString());
-          
+
           switch (message.type) {
             case 'ping':
               ws.send(JSON.stringify({
@@ -78,12 +78,12 @@ export function setupWebSocketRoutes(app: Express, server: any) {
                 data: { timestamp: new Date().toISOString() }
               }));
               break;
-              
+
             case 'sync_request':
               // Handle sync request from client
               handleSyncRequest(organizationId, userId, message.data, ws);
               break;
-              
+
             default:
               console.log('[WEBSOCKET] Unknown message type:', message.type);
           }
@@ -115,7 +115,7 @@ export function setupWebSocketRoutes(app: Express, server: any) {
 async function handleSyncRequest(organizationId: string, userId: string, data: any, ws: WebSocket) {
   try {
     console.log(`[WEBSOCKET] Sync request from ${organizationId}-${userId}`);
-    
+
     // Check if sync is already in progress
     if (realtimeSyncService.isSyncInProgress(organizationId)) {
       ws.send(JSON.stringify({
@@ -130,7 +130,7 @@ async function handleSyncRequest(organizationId: string, userId: string, data: a
 
     // Start real-time sync
     const result = await realtimeSyncService.startRealtimeSync(organizationId, data.agentId);
-    
+
     // Send success confirmation
     ws.send(JSON.stringify({
       type: 'sync_success',
@@ -142,7 +142,7 @@ async function handleSyncRequest(organizationId: string, userId: string, data: a
 
   } catch (error: any) {
     console.error(`[WEBSOCKET] Sync request failed for ${organizationId}-${userId}:`, error);
-    
+
     ws.send(JSON.stringify({
       type: 'sync_error',
       data: {
@@ -162,13 +162,13 @@ export function setupWebSocketEndpoints(app: Express) {
     try {
       const user = req.user;
       const organizationId = user.organizationId;
-      
+
       const connectionInfo = {
         wsUrl: `/ws/realtime-sync?token=${user.id}&userId=${user.id}&organizationId=${organizationId}`,
         connectedClients: realtimeSyncService.getConnectedClientsCount(organizationId),
         syncInProgress: realtimeSyncService.isSyncInProgress(organizationId)
       };
-      
+
       res.json(connectionInfo);
     } catch (error: any) {
       console.error('[WEBSOCKET] Error getting connection info:', error);
@@ -182,19 +182,19 @@ export function setupWebSocketEndpoints(app: Express) {
       const user = req.user;
       const organizationId = user.organizationId;
       const { agentId } = req.body;
-      
+
       console.log(`[WEBSOCKET] HTTP sync request from user ${user.id}`);
-      
+
       // Start real-time sync
       const result = await realtimeSyncService.startRealtimeSync(organizationId, agentId);
-      
+
       res.json({
         success: true,
         message: 'Real-time sync completed',
         result,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error('[WEBSOCKET] HTTP sync request failed:', error);
       res.status(500).json({

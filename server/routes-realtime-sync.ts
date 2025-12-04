@@ -16,12 +16,12 @@ async function getUserFromRequest(req: any) {
   if (!userId) {
     throw new Error("User not authenticated");
   }
-  
+
   const user = await storage.getUser(userId);
   if (!user) {
     throw new Error("User not found");
   }
-  
+
   return user;
 }
 
@@ -35,7 +35,7 @@ async function getElevenLabsIntegration(organizationId: string) {
 }
 
 export function registerRealtimeSyncRoutes(app: Express) {
-  
+
   /**
    * POST /api/realtime-sync/all
    * Comprehensive real-time sync of all ElevenLabs data
@@ -44,19 +44,19 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
+
       console.log(`[API] User ${user.email} initiated comprehensive real-time sync`);
-      
+
       // Create real-time sync instance
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
-      
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
+
       // Perform comprehensive sync
       const result = await syncService.syncAllData();
-      
+
       // Update integration last tested timestamp to reflect successful sync
       await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
-      
-      res.json({
+
+      return res.json({
         success: result.success,
         message: "Real-time sync completed",
         data: result.data,
@@ -64,10 +64,10 @@ export function registerRealtimeSyncRoutes(app: Express) {
         duration: result.duration,
         timestamp: result.timestamp
       });
-      
+
     } catch (error: any) {
       console.error("[API] Real-time sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to perform real-time sync",
         data: {},
@@ -86,20 +86,20 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
+
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
       const result = await syncService.syncCreditsData();
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: "Credits data synced successfully",
         data: result,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] Credits sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to sync credits data",
         data: null,
@@ -116,20 +116,20 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
+
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
       const result = await syncService.syncDashboardData();
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: "Dashboard data synced successfully",
         data: result,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] Dashboard sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to sync dashboard data",
         data: null,
@@ -146,22 +146,22 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
-      const { includeTranscripts = true, includeRecordings = true, limit = 100 } = req.body;
-      
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
+
+      const { includeTranscripts: _includeTranscripts = true, includeRecordings: _includeRecordings = true, limit: _limit = 100 } = req.body;
+
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
       const result = await syncService.syncCallsData();
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: "Calls data synced successfully",
         data: result,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] Calls sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to sync calls data",
         data: null,
@@ -178,20 +178,20 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
+
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
       const result = await syncService.syncAnalyticsData();
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: "Analytics data synced successfully",
         data: result,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] Analytics sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to sync analytics data",
         data: null,
@@ -208,11 +208,11 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
+
       // Test API connectivity
-      const client = createElevenLabsClient(integration.apiKey);
+      const client = createElevenLabsClient(integration.apiKey as string);
       const testResult = await client.getUser();
-      
+
       const status: {
         isConfigured: boolean;
         apiKeyValid: boolean;
@@ -230,20 +230,20 @@ export function registerRealtimeSyncRoutes(app: Express) {
         timestamp: new Date().toISOString(),
         error: undefined
       };
-      
+
       if (!testResult.success) {
         status.apiKeyValid = false;
         status.error = testResult.error;
       }
-      
-      res.json({
+
+      return res.json({
         success: true,
         data: status
       });
-      
+
     } catch (error: any) {
       console.error("[API] Status check error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to check sync status",
         data: {
@@ -262,7 +262,7 @@ export function registerRealtimeSyncRoutes(app: Express) {
   app.post("/api/realtime-sync/force-sync", async (req: Request, res: Response) => {
     try {
       const user = await getUserFromRequest(req);
-      
+
       // Check if user has admin permissions
       if (user.role !== 'admin') {
         return res.status(403).json({
@@ -270,14 +270,14 @@ export function registerRealtimeSyncRoutes(app: Express) {
           message: "Admin permissions required"
         });
       }
-      
+
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
+
       console.log(`[API] Admin ${user.email} initiated force sync`);
-      
-      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey);
+
+      const syncService = new ElevenLabsRealtimeSync(user.organizationId, integration.apiKey as string);
       const result = await syncService.syncAllData();
-      
+
       // Update all organizations' integration last tested if admin
       if (user.role === 'admin') {
         const organizations = await storage.getAllOrganizations();
@@ -288,8 +288,8 @@ export function registerRealtimeSyncRoutes(app: Express) {
           }
         }
       }
-      
-      res.json({
+
+      return res.json({
         success: result.success,
         message: "Force sync completed",
         data: result.data,
@@ -297,10 +297,10 @@ export function registerRealtimeSyncRoutes(app: Express) {
         duration: result.duration,
         timestamp: result.timestamp
       });
-      
+
     } catch (error: any) {
       console.error("[API] Force sync error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to perform force sync",
         data: {},
@@ -319,16 +319,16 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const integration = await getElevenLabsIntegration(user.organizationId);
-      
-      const client = createElevenLabsClient(integration.apiKey);
-      
+
+      const client = createElevenLabsClient(integration.apiKey as string);
+
       // Test multiple endpoints
       const [userResult, agentsResult, conversationsResult] = await Promise.allSettled([
         client.getUser(),
         client.getAgents(),
         client.getConversations({ page_size: 5 })
       ]);
-      
+
       const testResults = {
         user: userResult.status === 'fulfilled' ? {
           success: userResult.value.success,
@@ -338,32 +338,32 @@ export function registerRealtimeSyncRoutes(app: Express) {
           } : null,
           error: userResult.value.error
         } : { success: false, error: userResult.reason },
-        
+
         agents: agentsResult.status === 'fulfilled' ? {
           success: agentsResult.value.success,
           count: agentsResult.value.data ? (agentsResult.value.data.agents || agentsResult.value.data || []).length : 0,
           error: agentsResult.value.error
         } : { success: false, error: agentsResult.reason },
-        
+
         conversations: conversationsResult.status === 'fulfilled' ? {
           success: conversationsResult.value.success,
           count: conversationsResult.value.data ? (conversationsResult.value.data.conversations || conversationsResult.value.data || []).length : 0,
           error: conversationsResult.value.error
         } : { success: false, error: conversationsResult.reason }
       };
-      
+
       const allSuccessful = Object.values(testResults).every((result: any) => result.success);
-      
-      res.json({
+
+      return res.json({
         success: allSuccessful,
         message: allSuccessful ? "API connectivity test successful" : "API connectivity test failed",
         results: testResults,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] API test error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to test API connectivity",
         results: null,
@@ -380,30 +380,30 @@ export function registerRealtimeSyncRoutes(app: Express) {
     try {
       const user = await getUserFromRequest(req);
       const { apiKey } = req.body;
-      
+
       if (!apiKey) {
         return res.status(400).json({
           success: false,
           message: "API key is required"
         });
       }
-      
+
       // Test the API key
       const testClient = new (await import("./services/elevenlabs")).default({ apiKey });
       const testResult = await testClient.getUser();
-      
+
       if (!testResult.success) {
         return res.status(400).json({
           success: false,
           message: "Invalid API key: " + testResult.error
         });
       }
-      
+
       // Upsert integration with encrypted key and metadata
       const encrypted = encryptApiKey(apiKey.trim());
       const apiKeyLast4 = apiKey.slice(-4);
 
-      const integration = await storage.upsertIntegration({
+      await storage.upsertIntegration({
         organizationId: user.organizationId,
         provider: "elevenlabs",
         apiKey: encrypted,
@@ -411,8 +411,8 @@ export function registerRealtimeSyncRoutes(app: Express) {
         status: "ACTIVE",
         lastTested: new Date()
       });
-      
-      res.json({
+
+      return res.json({
         success: true,
         message: "ElevenLabs integration setup successfully",
         data: {
@@ -423,10 +423,10 @@ export function registerRealtimeSyncRoutes(app: Express) {
         },
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error("[API] Setup error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || "Failed to setup integration",
         timestamp: new Date().toISOString()

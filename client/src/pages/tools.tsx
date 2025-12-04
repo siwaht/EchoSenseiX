@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,33 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Plus, Trash2, Save, Globe, Code, Wrench, Webhook,
-  ChevronDown, ChevronRight, Settings2, Zap, Hammer,
-  CheckCircle, XCircle, Database,
-  Brain, FileText, Upload, Search, Phone, Languages,
-  SkipForward, UserPlus, Voicemail, Hash, Server,
-  Mic, AudioLines, Bot, Key, Shield, ShieldAlert, ShieldOff, Sparkles, Settings,
-  Info, RefreshCw, File, PlayCircle, Loader2, UserCheck, Clock, SendHorizontal
+import {
+  Plus, Trash2, Save, Webhook, Settings2,
+  CheckCircle, XCircle, Server,
+  Shield, ShieldAlert, ShieldOff, Settings,
+  Info, PlayCircle, Loader2, Clock, SendHorizontal
 } from "lucide-react";
 import type { Agent, CustomTool } from "@shared/schema";
 import { MCPServerDialog } from "@/components/mcp-server-dialog";
 import { WebhookToolDialog } from "@/components/webhook-tool-dialog";
-
-interface WebhookParameter {
-  name: string;
-  type?: string;
-  required?: boolean;
-  valueType?: string;
-  description?: string;
-}
 
 interface WebhookConfig {
   id: string;
@@ -96,11 +83,6 @@ export default function Tools() {
   const { toast } = useToast();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    webhooks: true,
-    integrations: false,
-    custom: false,
-  });
   const [mcpServerDialog, setMcpServerDialog] = useState<{
     isOpen: boolean;
     server?: CustomTool;
@@ -153,7 +135,7 @@ export default function Tools() {
     if (selectedAgent) {
       const tools = selectedAgent.tools as any || {};
       const mcpServers = tools.customTools?.filter((t: any) => t.type === 'mcp') || [];
-      
+
       setToolsConfig({
         conversationInitiationWebhook: tools.conversationInitiationWebhook || {
           enabled: false,
@@ -195,10 +177,10 @@ export default function Tools() {
       setHasUnsavedChanges(false);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Failed to update tools configuration", 
+      toast({
+        title: "Failed to update tools configuration",
         description: error.message || "An error occurred",
-        variant: "destructive" 
+        variant: "destructive"
       });
     },
   });
@@ -206,10 +188,10 @@ export default function Tools() {
 
   const handleSave = () => {
     if (!selectedAgentId) {
-      toast({ 
-        title: "No agent selected", 
+      toast({
+        title: "No agent selected",
         description: "Please select an agent first",
-        variant: "destructive" 
+        variant: "destructive"
       });
       return;
     }
@@ -219,7 +201,7 @@ export default function Tools() {
 
     // Build custom tools array
     const customTools = [...toolsConfig.customTools.filter(t => t.type !== 'mcp')];
-    
+
     // Add MCP servers to custom tools
     if (toolsConfig.mcpServers && toolsConfig.mcpServers.length > 0) {
       customTools.push(...toolsConfig.mcpServers.map(server => ({
@@ -239,21 +221,6 @@ export default function Tools() {
         toolIds: [], // Maintain backward compatibility
       } as any,
     });
-  };
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const addWebhook = () => {
-    setWebhookDialog({ isOpen: true });
-  };
-
-  const updateWebhook = (index: number, updates: Partial<WebhookConfig>) => {
-    const updated = [...toolsConfig.webhooks];
-    updated[index] = { ...updated[index], ...updates };
-    setToolsConfig({ ...toolsConfig, webhooks: updated });
-    setHasUnsavedChanges(true);
   };
 
   const deleteWebhook = (index: number) => {
@@ -443,7 +410,7 @@ export default function Tools() {
             Configure webhooks, integrations, and custom tools for your agents
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select
             value={selectedAgentId || ""}
@@ -460,8 +427,8 @@ export default function Tools() {
               ))}
             </SelectContent>
           </Select>
-          
-          <Button 
+
+          <Button
             onClick={handleSave}
             disabled={!hasUnsavedChanges || !selectedAgentId || updateAgentMutation.isPending}
             data-testid="button-save"
@@ -492,7 +459,7 @@ export default function Tools() {
       {!selectedAgentId ? (
         <Card className="p-8">
           <div className="text-center">
-            <Hammer className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <Settings2 className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
             <h3 className="text-lg font-medium mb-2">Select an Agent</h3>
             <p className="text-muted-foreground">
               Choose an agent from the dropdown above to configure its tools
@@ -511,7 +478,7 @@ export default function Tools() {
               <span className="hidden sm:inline">Webhooks</span>
             </TabsTrigger>
             <TabsTrigger value="custom" className="gap-2">
-              <Code className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Custom</span>
             </TabsTrigger>
           </TabsList>
@@ -595,11 +562,10 @@ export default function Tools() {
                     />
                   )}
                   {testResults['conversation-initiation'] && (
-                    <div className={`mt-3 p-3 rounded-md text-xs ${
-                      testResults['conversation-initiation'].success 
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-                    }`}>
+                    <div className={`mt-3 p-3 rounded-md text-xs ${testResults['conversation-initiation'].success
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                      }`}>
                       <p className="font-medium mb-1">
                         {testResults['conversation-initiation'].success ? '✓ Test Passed' : '✗ Test Failed'}
                       </p>
@@ -848,11 +814,10 @@ export default function Tools() {
                     </div>
                   )}
                   {testResults['post-call'] && (
-                    <div className={`mt-3 p-3 rounded-md text-xs ${
-                      testResults['post-call'].success 
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-                    }`}>
+                    <div className={`mt-3 p-3 rounded-md text-xs ${testResults['post-call'].success
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                      }`}>
                       <p className="font-medium mb-1">
                         {testResults['post-call'].success ? '✓ Test Passed' : '✗ Test Failed'}
                       </p>
@@ -890,17 +855,17 @@ export default function Tools() {
               <Alert className="mb-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
                 <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Approval Required:</strong> All webhook configurations must be submitted for admin approval before they become active. 
+                  <strong>Approval Required:</strong> All webhook configurations must be submitted for admin approval before they become active.
                   Click the "Submit for Approval" button next to each webhook after configuration.
                 </AlertDescription>
               </Alert>
-              
+
               {/* Sync Information Alert */}
               {toolsConfig.webhooks.length > 0 && hasUnsavedChanges && (
                 <Alert className="mb-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
                   <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong>Important:</strong> Webhooks are only synced to your voice agents when you click "Save" at the top of the page. 
+                    <strong>Important:</strong> Webhooks are only synced to your voice agents when you click "Save" at the top of the page.
                     Make sure to save your changes to activate the webhooks in your voice agent.
                   </AlertDescription>
                 </Alert>
@@ -1011,16 +976,15 @@ export default function Tools() {
                         </div>
                       </div>
                       {testResults[webhook.id] && (
-                        <div className={`mt-3 p-3 rounded-md text-xs ${
-                          testResults[webhook.id].success 
-                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
-                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-                        }`}>
+                        <div className={`mt-3 p-3 rounded-md text-xs ${testResults[webhook.id]?.success
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                          }`}>
                           <p className="font-medium mb-1">
-                            {testResults[webhook.id].success ? '✓ Test Passed' : '✗ Test Failed'}
+                            {testResults[webhook.id]?.success ? '✓ Test Passed' : '✗ Test Failed'}
                           </p>
                           <pre className="whitespace-pre-wrap break-all font-mono text-xs opacity-90">
-                            {testResults[webhook.id].message}
+                            {testResults[webhook.id]?.message}
                           </pre>
                         </div>
                       )}
@@ -1033,42 +997,28 @@ export default function Tools() {
 
           {/* Custom Tools Tab */}
           <TabsContent value="custom" className="space-y-4">
-            {/* MCP Servers Card */}
             <Card className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                    <Server className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold">MCP Servers</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Connect to Model Context Protocol servers for extended capabilities
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold">MCP Servers</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                    Configure Model Context Protocol servers
+                  </p>
                 </div>
-                <Button 
-                  onClick={() => setMcpServerDialog({ isOpen: true })}
+                <Button
                   size="sm"
+                  onClick={() => setMcpServerDialog({ isOpen: true })}
+                  data-testid="button-add-mcp-server"
                 >
-                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <Plus className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Add MCP Server</span>
                 </Button>
               </div>
 
-              {/* MCP Servers Information */}
-              <Alert className="mb-4">
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Model Context Protocol (MCP)</strong> servers enable your agents to connect with external services like Zapier, HubSpot, Gmail, and custom APIs. MCP is an open standard that allows AI models to interact with diverse data sources and tools.
-                </AlertDescription>
-              </Alert>
-              
-              {/* Approval Information Alert */}
               <Alert className="mb-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-                <ShieldAlert className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Admin Approval Required:</strong> MCP server configurations must be reviewed and approved by an administrator before activation. 
+                  <strong>Admin Approval Required:</strong> MCP server configurations must be reviewed and approved by an administrator before activation.
                   Submit each configuration for approval using the "Submit for Approval" button.
                 </AlertDescription>
               </Alert>
@@ -1172,9 +1122,9 @@ export default function Tools() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setMcpServerDialog({ 
-                              isOpen: true, 
-                              server: server 
+                            onClick={() => setMcpServerDialog({
+                              isOpen: true,
+                              server: server
                             })}
                           >
                             <Settings2 className="h-4 w-4" />
@@ -1216,7 +1166,6 @@ export default function Tools() {
                 </AlertDescription>
               </Alert>
             </Card>
-
           </TabsContent>
         </Tabs>
       )}

@@ -4,12 +4,12 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Plus, Trash2, Play, RefreshCw, Settings, FlaskConical, Sparkles } from "lucide-react";
+import { Bot, Plus, Trash2, RefreshCw, Settings, FlaskConical, Sparkles } from "lucide-react";
 import { AddAgentModal } from "@/components/modals/add-agent-modal";
 import { AgentDetailModal } from "@/components/modals/agent-detail-modal";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -24,7 +24,7 @@ import {
 import type { Agent } from "@shared/schema";
 
 export default function Agents() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);

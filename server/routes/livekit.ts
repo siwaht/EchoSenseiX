@@ -35,14 +35,14 @@ router.get("/token", async (req, res) => {
 
         const token = await at.toJwt();
 
-        res.json({ token });
+        return res.json({ token });
     } catch (error) {
         if (error instanceof z.ZodError) {
             console.error("LiveKit Environment Error:", error.errors);
             return res.status(500).json({ error: "Server configuration error: Missing LiveKit credentials" });
         }
         console.error("Error generating LiveKit token:", error);
-        res.status(500).json({ error: "Failed to generate token" });
+        return res.status(500).json({ error: "Failed to generate token" });
     }
 });
 

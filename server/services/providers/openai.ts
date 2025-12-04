@@ -24,7 +24,7 @@ export class OpenAIProvider implements ILLMProvider {
             ...options
         });
 
-        return response.choices[0].message.content || "";
+        return response.choices[0]?.message?.content || "";
     }
 
     async streamResponse(prompt: string, context?: any[], options?: any): Promise<ReadableStream> {
@@ -37,7 +37,7 @@ export class OpenAIProvider implements ILLMProvider {
             messages: messages,
             stream: true,
             ...options
-        });
+        }) as unknown as AsyncIterable<any>;
 
         // Convert OpenAI stream to ReadableStream
         return new ReadableStream({

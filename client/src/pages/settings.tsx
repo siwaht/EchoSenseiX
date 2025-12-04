@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Settings as SettingsIcon, User, Bell, Shield, Trash2 } from "lucide-react";
+import { User, Bell, Shield, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Settings() {
@@ -86,7 +86,7 @@ export default function Settings() {
                 data-testid="input-first-name"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
               <Input
@@ -97,7 +97,7 @@ export default function Settings() {
                 data-testid="input-last-name"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -111,8 +111,8 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full"
               disabled={updateProfileMutation.isPending}
               data-testid="button-save-profile"
@@ -211,8 +211,8 @@ export default function Settings() {
               <p className="text-sm text-muted-foreground mb-4">
                 These actions cannot be undone. Please be careful.
               </p>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 size="sm"
                 className="flex items-center gap-2"
                 data-testid="button-delete-account"

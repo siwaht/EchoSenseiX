@@ -14,12 +14,12 @@ const defaultKeyGenerator = (req: Request): string => {
   const user = (req as any).user;
   const userId = user?.id || 'anonymous';
   const organizationId = user?.organizationId || 'global';
-  
+
   // Include query params in cache key
-  const queryString = Object.keys(req.query).length > 0 
+  const queryString = Object.keys(req.query).length > 0
     ? '?' + new URLSearchParams(req.query as any).toString()
     : '';
-  
+
   return `api:${organizationId}:${userId}:${req.path}${queryString}`;
 };
 
@@ -50,10 +50,10 @@ export function createCacheMiddleware(options: CacheOptions = {}) {
     }
 
     // Generate cache key
-    const cacheKey = typeof key === 'function' 
-      ? key(req) 
-      : typeof key === 'string' 
-        ? key 
+    const cacheKey = typeof key === 'function'
+      ? key(req)
+      : typeof key === 'string'
+        ? key
         : defaultKeyGenerator(req);
 
     // Use stale-while-revalidate for better performance
@@ -66,9 +66,9 @@ export function createCacheMiddleware(options: CacheOptions = {}) {
           cacheKey,
           async () => {
             // This will be called if cache miss or background revalidation
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, _reject) => {
               const originalJson = res.json;
-              res.json = function(data: any) {
+              res.json = function (data: any) {
                 resolve(data);
                 return originalJson.call(this, data);
               };
@@ -78,7 +78,7 @@ export function createCacheMiddleware(options: CacheOptions = {}) {
           },
           { ttl }
         );
-        
+
         // Only set headers if response hasn't been sent yet
         if (!res.headersSent) {
           res.setHeader('X-Cache', 'HIT-STALE');
@@ -103,19 +103,19 @@ export function createCacheMiddleware(options: CacheOptions = {}) {
 
     // Cache miss - capture response and cache it
     const originalJson = res.json;
-    res.json = function(data: any) {
+    res.json = function (data: any) {
       // Add cache headers
       res.setHeader('X-Cache', 'MISS');
       res.setHeader('X-Cache-TTL', ttl.toString());
       res.setHeader('Cache-Control', `private, max-age=${Math.floor(ttl / 1000)}`);
-      
+
       // Cache successful responses only
       if (res.statusCode >= 200 && res.statusCode < 300) {
         cacheManager.set(cacheKey, data, { ttl }).catch(() => {
           // Silent fail - caching is not critical
         });
       }
-      
+
       return originalJson.call(this, data);
     };
 
@@ -207,7 +207,7 @@ export const cacheMiddleware = {
 // Cache invalidation helper for all cache managers
 export async function invalidateCache(pattern: string, organizationId?: string) {
   const finalPattern = pattern.replace('{org}', organizationId || '*');
-  
+
   // Invalidate across all cache managers
   await Promise.all([
     cacheManagers.default().invalidate(finalPattern),
@@ -227,7 +227,7 @@ export async function getCacheStats() {
     user: cacheManagers.user().getStats(),
     static: cacheManagers.static().getStats(),
   };
-  
+
   // Calculate total stats
   const total = {
     hits: 0,
@@ -235,17 +235,17 @@ export async function getCacheStats() {
     size: 0,
     hitRate: '0.00%'
   };
-  
+
   Object.values(stats).forEach(stat => {
     total.hits += stat.hits;
     total.misses += stat.misses;
     total.size += stat.size;
   });
-  
+
   if (total.hits + total.misses > 0) {
     total.hitRate = `${(total.hits / (total.hits + total.misses) * 100).toFixed(2)}%`;
   }
-  
+
   return { ...stats, total };
 }
 

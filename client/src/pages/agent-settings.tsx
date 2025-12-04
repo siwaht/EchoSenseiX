@@ -13,12 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { 
-  ArrowLeft, 
-  Save, 
-  Play, 
-  MessageSquare, 
-  Mic, 
+import {
+  ArrowLeft,
+  Save,
+  Play,
+  MessageSquare,
+  Mic,
   Brain,
   Sparkles,
   Globe,
@@ -26,39 +26,52 @@ import {
   Settings,
   Variable,
   Clock,
-  Users
+  Users,
+  X,
+  Plus
 } from "lucide-react";
 import type { Agent, User } from "@shared/schema";
 import { MultilingualConfig } from "@/components/agents/multilingual-config";
 import { KnowledgeBaseManager } from "@/components/knowledge-base/knowledge-base-manager";
 import { VoiceConfiguration } from "@/components/agents/voice-configuration";
 
+interface AgentVoiceProfile {
+  voiceId: string;
+  name: string;
+  character?: string;
+  description?: string;
+  triggerKeywords?: string[];
+  triggerCondition?: string;
+  stability?: number;
+  similarityBoost?: number;
+}
+
 export default function AgentSettings() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const params = useParams();
-  
+
   // Get agentId from URL params or query params
   const urlParams = new URLSearchParams(window.location.search);
   const agentId = params.id || urlParams.get("agentId");
-  
+
   // Redirect to agents page if no agent ID is provided
   useEffect(() => {
     if (!agentId) {
       setLocation("/agents");
     }
   }, [agentId, setLocation]);
-  
+
   const [activeTab, setActiveTab] = useState("chat");
   const [hasChanges, setHasChanges] = useState(false);
-  
+
   // Get current user to check permissions
   const { data: user } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     retry: false,
   });
-  
+
   // Form states
   const [name, setName] = useState("");
   const [firstMessage, setFirstMessage] = useState("");
@@ -71,70 +84,72 @@ export default function AgentSettings() {
   const [model, setModel] = useState("gpt-4o-mini");
   const [temperature, setTemperature] = useState([0.7]);
   const [maxTokens, setMaxTokens] = useState("150");
-  
+
   // Enhanced prompt fields
   const [personality, setPersonality] = useState("");
   const [tone, setTone] = useState("");
   const [guardrails, setGuardrails] = useState("");
   const [responseGuidelines, setResponseGuidelines] = useState("");
-  
+
   // Turn-taking settings
   const [turnTimeout, setTurnTimeout] = useState([7]);
   const [silenceTimeout, setSilenceTimeout] = useState([-1]);
   const [interruptionSensitivity, setInterruptionSensitivity] = useState([0.5]);
-  
+
   // Privacy settings
   const [recordVoice, setRecordVoice] = useState(true);
   const [retentionDays, setRetentionDays] = useState(-1);
   const [zeroRetention, setZeroRetention] = useState(false);
-  
+
   // Authentication settings
   const [enableAuth, setEnableAuth] = useState(false);
   const [allowedNumbers, setAllowedNumbers] = useState("");
-  
+
   // Dynamic variables
   const [dynamicVariables, setDynamicVariables] = useState<Record<string, string>>({});
-  
+
   // Evaluation criteria
   const [evaluationEnabled, setEvaluationEnabled] = useState(false);
   const [evaluationCriteria, setEvaluationCriteria] = useState("");
-  
+
   // Multi-voice configuration
   const [multiVoiceEnabled, setMultiVoiceEnabled] = useState(false);
   const [voiceSwitchingMode, setVoiceSwitchingMode] = useState<"keyword" | "character" | "manual">("keyword");
-  const [voiceProfiles, setVoiceProfiles] = useState<Array<{
-    voiceId: string;
-    name: string;
-    character?: string;
-    description?: string;
-    triggerKeywords?: string[];
-    triggerCondition?: string;
-    stability?: number;
-    similarityBoost?: number;
-  }>>([{ voiceId: "", name: "", description: "" }]);
-  const [defaultVoice, setDefaultVoice] = useState("");
-  
+  const [voiceProfiles, setVoiceProfiles] = useState<AgentVoiceProfile[]>([{ voiceId: "", name: "", description: "" }]);
+  const [defaultVoice] = useState("");
+
   // Helper functions for multi-voice
   const addVoiceProfile = () => {
     setVoiceProfiles([...voiceProfiles, { voiceId: "", name: "", description: "" }]);
     setHasChanges(true);
   };
-  
+
   const removeVoiceProfile = (index: number) => {
     setVoiceProfiles(voiceProfiles.filter((_, i) => i !== index));
     setHasChanges(true);
   };
-  
-  const updateVoiceProfile = (index: number, field: string, value: any) => {
+
+  const updateVoiceProfile = (index: number, field: keyof AgentVoiceProfile, value: any) => {
     const updated = [...voiceProfiles];
-    updated[index] = { ...updated[index], [field]: value };
+    const profile = { ...updated[index] };
+
+    if (field === 'voiceId') {
+      profile.voiceId = (value as string) || "";
+    } else if (field === 'name') {
+      profile.name = (value as string) || "";
+    } else {
+      // @ts-ignore
+      profile[field] = value;
+    }
+
+    updated[index] = profile as AgentVoiceProfile;
     setVoiceProfiles(updated);
     setHasChanges(true);
   };
-  
+
   // Check if user has advanced settings permission
   const hasAdvancedSettingsPermission = user?.isAdmin || user?.permissions?.includes("advanced_agent_settings");
-  
+
   const { data: agent, isLoading, isError } = useQuery<Agent>({
     queryKey: ["/api/agents", agentId],
     queryFn: async () => {
@@ -152,9 +167,9 @@ export default function AgentSettings() {
     enabled: !!agentId,
   });
 
-  const { data: voices } = useQuery({
+  const { data: voices = [] } = useQuery<any[]>({
     queryKey: ["/api/voiceai/voices"],
-    enabled: activeTab === "voice",
+    enabled: activeTab === "voice" || activeTab === "multivoice",
   });
 
   // Load agent data into form
@@ -186,6 +201,7 @@ export default function AgentSettings() {
       toast({
         title: "Success",
         description: "Agent settings synced successfully",
+        variant: "default",
       });
       setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
@@ -208,7 +224,7 @@ export default function AgentSettings() {
       });
       return;
     }
-    
+
     // Generate a comprehensive prompt based on description
     const generatedPrompt = `You are an expert ${promptGenerator}. Your role is to provide helpful, accurate, and professional assistance. You should:
 
@@ -219,7 +235,7 @@ export default function AgentSettings() {
 5. Provide actionable advice and solutions
 
 Always maintain a professional yet conversational tone, and ensure all responses are helpful and relevant to the user's needs.`;
-    
+
     setSystemPrompt(generatedPrompt);
     setHasChanges(true);
     toast({
@@ -295,8 +311,8 @@ Always maintain a professional yet conversational tone, and ensure all responses
             <p className="text-muted-foreground">
               {isError ? "You don't have permission to access this agent or it doesn't exist." : "Agent not found"}
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => setLocation("/agents")}
             >
@@ -382,8 +398,8 @@ Always maintain a professional yet conversational tone, and ensure all responses
             <Sparkles className="h-4 w-4" />
             <span className="hidden md:inline">Knowledge</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="turntaking" 
+          <TabsTrigger
+            value="turntaking"
             className="flex items-center gap-2"
             disabled={!hasAdvancedSettingsPermission}
             title={!hasAdvancedSettingsPermission ? "Admin approval required" : ""}
@@ -393,10 +409,10 @@ Always maintain a professional yet conversational tone, and ensure all responses
             {!hasAdvancedSettingsPermission && <span className="text-xs">🔒</span>}
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger 
-            value="privacy" 
+          <TabsTrigger
+            value="privacy"
             className="flex items-center gap-2"
             disabled={!hasAdvancedSettingsPermission}
             title={!hasAdvancedSettingsPermission ? "Admin approval required" : ""}
@@ -405,8 +421,8 @@ Always maintain a professional yet conversational tone, and ensure all responses
             <span className="hidden md:inline">Privacy</span>
             {!hasAdvancedSettingsPermission && <span className="text-xs">🔒</span>}
           </TabsTrigger>
-          <TabsTrigger 
-            value="variables" 
+          <TabsTrigger
+            value="variables"
             className="flex items-center gap-2"
             disabled={!hasAdvancedSettingsPermission}
             title={!hasAdvancedSettingsPermission ? "Admin approval required" : ""}
@@ -415,8 +431,8 @@ Always maintain a professional yet conversational tone, and ensure all responses
             <span className="hidden md:inline">Variables</span>
             {!hasAdvancedSettingsPermission && <span className="text-xs">🔒</span>}
           </TabsTrigger>
-          <TabsTrigger 
-            value="advanced" 
+          <TabsTrigger
+            value="advanced"
             className="flex items-center gap-2"
             disabled={!hasAdvancedSettingsPermission}
             title={!hasAdvancedSettingsPermission ? "Admin approval required" : ""}
@@ -435,7 +451,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
         <TabsContent value="chat" className="space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Conversation Settings</h2>
-            
+
             <div className="space-y-4">
               {/* Agent Name */}
               <div>
@@ -490,7 +506,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
               {/* Enhanced Prompt Fields */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-sm font-medium">Structured Configuration</h3>
-                
+
                 {/* Personality */}
                 <div>
                   <Label htmlFor="personality">Personality Traits</Label>
@@ -611,13 +627,13 @@ Always maintain a professional yet conversational tone, and ensure all responses
         <TabsContent value="llm" className="space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Language Model Settings</h2>
-            
+
             <div className="space-y-4">
               {/* Model Selection */}
               <div>
                 <Label htmlFor="model">Model</Label>
-                <Select 
-                  value={model} 
+                <Select
+                  value={model}
                   onValueChange={(value) => {
                     setModel(value);
                     setHasChanges(true);
@@ -634,7 +650,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
                     <SelectItem value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</SelectItem>
                     <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
                     <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
-                    
+
                     {/* OpenAI Models */}
                     <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">OpenAI</div>
                     <SelectItem value="gpt-4.1">GPT-4.1 (Latest)</SelectItem>
@@ -645,7 +661,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
                     <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
                     <SelectItem value="gpt-4">GPT-4</SelectItem>
                     <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                    
+
                     {/* Anthropic Models */}
                     <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Anthropic</div>
                     <SelectItem value="claude-sonnet-4">Claude Sonnet 4 (Latest)</SelectItem>
@@ -653,13 +669,13 @@ Always maintain a professional yet conversational tone, and ensure all responses
                     <SelectItem value="claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
                     <SelectItem value="claude-3.5-sonnet-v1">Claude 3.5 Sonnet v1</SelectItem>
                     <SelectItem value="claude-3.0-haiku">Claude 3.0 Haiku</SelectItem>
-                    
+
                     {/* ElevenLabs Experimental Models */}
                     <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">ElevenLabs (Experimental)</div>
                     <SelectItem value="gpt-oss-120b">GPT-OSS-120B</SelectItem>
                     <SelectItem value="gpt-oss-20b">GPT-OSS-20B</SelectItem>
                     <SelectItem value="qwen3-30b-a3b">Qwen3-30B-A3B</SelectItem>
-                    
+
                     {/* Custom Models */}
                     <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Other</div>
                     <SelectItem value="custom">Custom Model (via server)</SelectItem>
@@ -729,12 +745,12 @@ Always maintain a professional yet conversational tone, and ensure all responses
         <TabsContent value="turntaking" className="space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Turn-taking & Conversation Flow</h2>
-            
+
             <div className="space-y-6">
               {/* Core Settings */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Response Timing</h3>
-                
+
                 {/* Turn Timeout */}
                 <div>
                   <div className="flex justify-between mb-2">
@@ -787,7 +803,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
               {/* Interruption Settings */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Interruption Handling</h3>
-                
+
                 {/* Interruption Sensitivity */}
                 <div>
                   <div className="flex justify-between mb-2">
@@ -806,20 +822,7 @@ Always maintain a professional yet conversational tone, and ensure all responses
                     className="mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    How easily the agent can be interrupted (0 = hard, 1 = easy)
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Advanced Turn-taking */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Advanced Configuration</h3>
-                
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Additional turn-taking options like backchanneling, overlap handling, and custom speech detection thresholds can be configured through the ElevenLabs API directly.
+                    How easily the agent stops speaking when user talks (0 = never, 1 = instantly)
                   </p>
                 </div>
               </div>
@@ -830,193 +833,124 @@ Always maintain a professional yet conversational tone, and ensure all responses
         {/* Privacy Settings */}
         <TabsContent value="privacy" className="space-y-6">
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Privacy & Compliance</h2>
-            
+            <h2 className="text-lg font-semibold mb-4">Privacy & Data Retention</h2>
+
             <div className="space-y-6">
-              {/* Data Recording Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Data Recording</h3>
-                
-                {/* Record Voice */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Record Voice Conversations</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Store audio recordings of conversations for analytics
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={recordVoice}
-                    onChange={(e) => {
-                      setRecordVoice(e.target.checked);
-                      setHasChanges(true);
-                    }}
-                    className="toggle"
-                  />
-                </div>
-
-                {/* Zero Retention Mode */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Zero Retention Mode</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Delete all conversation data immediately after call ends
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={zeroRetention}
-                    onChange={(e) => {
-                      setZeroRetention(e.target.checked);
-                      setHasChanges(true);
-                    }}
-                    className="toggle"
-                  />
-                </div>
-
-                {/* Retention Days */}
-                <div>
-                  <Label htmlFor="retentionDays">Data Retention Period (days)</Label>
-                  <Input
-                    id="retentionDays"
-                    type="number"
-                    value={retentionDays}
-                    onChange={(e) => {
-                      setRetentionDays(parseInt(e.target.value));
-                      setHasChanges(true);
-                    }}
-                    placeholder="-1"
-                    className="mt-2"
-                    min="-1"
-                    max="365"
-                  disabled={zeroRetention}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  How long to retain data (-1 for indefinite)
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Authentication Settings */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Access Control</h3>
-              
-              {/* Enable Authentication */}
               <div className="flex items-center justify-between">
-                <div>
-                  <Label>Require Authentication</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Only allow authorized users to interact with agent
+                <div className="space-y-0.5">
+                  <Label>Record Voice</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Record audio of conversations for quality assurance
                   </p>
                 </div>
                 <input
                   type="checkbox"
-                  checked={enableAuth}
+                  checked={recordVoice}
                   onChange={(e) => {
-                    setEnableAuth(e.target.checked);
+                    setRecordVoice(e.target.checked);
                     setHasChanges(true);
                   }}
                   className="toggle"
                 />
               </div>
 
-              {/* Allowed Numbers */}
-              {enableAuth && (
-                <div>
-                  <Label htmlFor="allowedNumbers">Authorized Phone Numbers</Label>
-                  <Textarea
-                    id="allowedNumbers"
-                    value={allowedNumbers}
-                    onChange={(e) => {
-                      setAllowedNumbers(e.target.value);
-                      setHasChanges(true);
-                    }}
-                    placeholder="+1234567890&#10;+0987654321&#10;One number per line"
-                    className="mt-2 min-h-[100px] font-mono text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Enter one phone number per line (with country code)
-                  </p>
+              <Separator />
+
+              <div className="space-y-4">
+                <Label>Data Retention Policy</Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1.5 block">Retention Period (Days)</Label>
+                    <Input
+                      type="number"
+                      value={retentionDays}
+                      onChange={(e) => {
+                        setRetentionDays(parseInt(e.target.value));
+                        setHasChanges(true);
+                      }}
+                      min={-1}
+                      disabled={zeroRetention}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      -1 for indefinite retention
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      checked={zeroRetention}
+                      onChange={(e) => {
+                        setZeroRetention(e.target.checked);
+                        if (e.target.checked) setRetentionDays(0);
+                        setHasChanges(true);
+                      }}
+                      id="zero-retention"
+                    />
+                    <Label htmlFor="zero-retention">Zero Retention (Don't store logs)</Label>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
+          </Card>
+        </TabsContent>
 
-            <Separator />
-
-            {/* Compliance Information */}
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium mb-2">Compliance Notes</h3>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Ensure compliance with local privacy regulations (GDPR, CCPA, etc.)</li>
-                <li>• Inform users about data recording when applicable</li>
-                <li>• Implement appropriate consent mechanisms for your use case</li>
-                <li>• Review ElevenLabs' privacy policy and terms of service</li>
-              </ul>
-            </div>
-          </div>
-        </Card>
-      </TabsContent>
-
-        {/* Dynamic Variables */}
+        {/* Variables Settings */}
         <TabsContent value="variables" className="space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Dynamic Variables</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Define variables that can be dynamically set per conversation
+              Define variables that can be injected into the conversation context.
             </p>
-            
+
             <div className="space-y-4">
-              <div className="space-y-2">
-                {Object.entries(dynamicVariables).map(([key, value]) => (
-                  <div key={key} className="flex gap-2">
-                    <Input
-                      value={key}
-                      placeholder="Variable name"
-                      className="flex-1"
-                      disabled
-                    />
-                    <Input
-                      value={value}
-                      placeholder="Default value"
-                      className="flex-1"
-                      onChange={(e) => {
-                        setDynamicVariables({
-                          ...dynamicVariables,
-                          [key]: e.target.value,
-                        });
-                        setHasChanges(true);
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        const newVars = { ...dynamicVariables };
-                        delete newVars[key];
-                        setDynamicVariables(newVars);
-                        setHasChanges(true);
-                      }}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
+              {Object.entries(dynamicVariables).map(([key, value], index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={key}
+                    onChange={(e) => {
+                      const newVars = { ...dynamicVariables };
+                      const val = newVars[key] || "";
+                      delete newVars[key];
+                      newVars[e.target.value] = val;
+                      setDynamicVariables(newVars);
+                      setHasChanges(true);
+                    }}
+                    placeholder="Variable Name"
+                  />
+                  <Input
+                    value={value}
+                    onChange={(e) => {
+                      setDynamicVariables({
+                        ...dynamicVariables,
+                        [key]: e.target.value
+                      });
+                      setHasChanges(true);
+                    }}
+                    placeholder="Default Value"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const newVars = { ...dynamicVariables };
+                      delete newVars[key];
+                      setDynamicVariables(newVars);
+                      setHasChanges(true);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+
               <Button
                 variant="outline"
                 onClick={() => {
-                  const varName = prompt("Enter variable name:");
-                  if (varName && !dynamicVariables[varName]) {
-                    setDynamicVariables({
-                      ...dynamicVariables,
-                      [varName]: "",
-                    });
-                    setHasChanges(true);
-                  }
+                  setDynamicVariables({
+                    ...dynamicVariables,
+                    [`var_${Object.keys(dynamicVariables).length + 1}`]: ""
+                  });
+                  setHasChanges(true);
                 }}
               >
                 Add Variable
@@ -1029,62 +963,51 @@ Always maintain a professional yet conversational tone, and ensure all responses
         <TabsContent value="advanced" className="space-y-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Advanced Configuration</h2>
-            
+
             <div className="space-y-6">
-              {/* Integration Settings */}
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Integration Options</h3>
-                
-                <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Function Calling</p>
-                      <p className="text-xs text-muted-foreground">Connect your agent to external APIs and services</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Custom LLM Server</p>
-                      <p className="text-xs text-muted-foreground">Use your own language model server endpoint</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <div>
-                      <p className="text-sm font-medium">Webhook Events</p>
-                      <p className="text-xs text-muted-foreground">Receive real-time event notifications</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Performance Tuning */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Performance Tuning</h3>
-                
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Advanced performance options like custom timeout settings, concurrency limits, and resource optimization can be configured through the ElevenLabs API directly or contact support for enterprise configurations.
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Evaluation Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">Quality Assurance</h3>
-                
-                {/* Enable Evaluation */}
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Enable Quality Evaluation</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Track and evaluate conversation quality metrics
+                  <div className="space-y-0.5">
+                    <Label>Authentication</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Require authentication for inbound calls
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={enableAuth}
+                    onChange={(e) => {
+                      setEnableAuth(e.target.checked);
+                      setHasChanges(true);
+                    }}
+                    className="toggle"
+                  />
+                </div>
+
+                {enableAuth && (
+                  <div className="pt-2">
+                    <Label>Allowed Phone Numbers (one per line)</Label>
+                    <Textarea
+                      value={allowedNumbers}
+                      onChange={(e) => {
+                        setAllowedNumbers(e.target.value);
+                        setHasChanges(true);
+                      }}
+                      placeholder="+1234567890&#10;+9876543210"
+                      className="mt-2 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Automated Evaluation</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically evaluate calls based on criteria
                     </p>
                   </div>
                   <input
@@ -1098,23 +1021,18 @@ Always maintain a professional yet conversational tone, and ensure all responses
                   />
                 </div>
 
-                {/* Evaluation Criteria */}
                 {evaluationEnabled && (
-                  <div>
-                    <Label htmlFor="evaluationCriteria">Evaluation Criteria</Label>
+                  <div className="pt-2">
+                    <Label>Evaluation Criteria (one per line)</Label>
                     <Textarea
-                      id="evaluationCriteria"
                       value={evaluationCriteria}
                       onChange={(e) => {
                         setEvaluationCriteria(e.target.value);
                         setHasChanges(true);
                       }}
-                      placeholder="Enter evaluation criteria, one per line:&#10;• Customer satisfaction&#10;• Issue resolution&#10;• Response accuracy&#10;• Conversation flow"
-                      className="mt-2 min-h-[120px] font-mono text-sm"
+                      placeholder="Did the agent greet the user?&#10;Was the issue resolved?&#10;Did the agent remain polite?"
+                      className="mt-2"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Define criteria to measure agent performance
-                    </p>
                   </div>
                 )}
               </div>
@@ -1125,18 +1043,17 @@ Always maintain a professional yet conversational tone, and ensure all responses
         {/* Multi-Voice Settings */}
         <TabsContent value="multivoice" className="space-y-6">
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Multi-Voice Configuration</h2>
-            
-            <div className="space-y-6">
-              {/* Enable Multi-Voice */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Enable Multi-Voice Support</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Allow your agent to dynamically switch between different voices during conversations
-                  </p>
-                </div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold">Multi-Voice Configuration</h2>
+                <p className="text-sm text-muted-foreground">
+                  Enable multiple voices for different characters or scenarios
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="multivoice-toggle">Enable</Label>
                 <input
+                  id="multivoice-toggle"
                   type="checkbox"
                   checked={multiVoiceEnabled}
                   onChange={(e) => {
@@ -1146,181 +1063,106 @@ Always maintain a professional yet conversational tone, and ensure all responses
                   className="toggle"
                 />
               </div>
+            </div>
 
-              {multiVoiceEnabled && (
-                <>
-                  <Separator />
+            {multiVoiceEnabled && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Switching Mode</Label>
+                  <Select
+                    value={voiceSwitchingMode}
+                    onValueChange={(value: any) => {
+                      setVoiceSwitchingMode(value);
+                      setHasChanges(true);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="keyword">Keyword Trigger</SelectItem>
+                      <SelectItem value="character">Character Based</SelectItem>
+                      <SelectItem value="manual">Manual Control</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {/* Voice Switching Mode */}
-                  <div>
-                    <Label htmlFor="switchingMode">Voice Switching Mode</Label>
-                    <Select 
-                      value={voiceSwitchingMode} 
-                      onValueChange={(value) => {
-                        setVoiceSwitchingMode(value as "keyword" | "character" | "manual");
-                        setHasChanges(true);
-                      }}
-                    >
-                      <SelectTrigger id="switchingMode" className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="keyword">Keyword-based Switching</SelectItem>
-                        <SelectItem value="character">Character-based (Story Mode)</SelectItem>
-                        <SelectItem value="manual">Manual Control via API</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Choose how the agent switches between voices
-                    </p>
-                  </div>
+                <div className="space-y-4">
+                  <Label>Voice Profiles</Label>
+                  {voiceProfiles.map((profile, index) => (
+                    <Card key={index} className="p-4 border border-muted">
+                      <div className="grid gap-4">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium">Profile {index + 1}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeVoiceProfile(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
 
-                  <Separator />
-
-                  {/* Voice Profiles */}
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-sm font-medium">Voice Profiles</h3>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={addVoiceProfile}
-                      >
-                        Add Voice
-                      </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {voiceProfiles.map((profile, index) => (
-                        <div key={index} className="border rounded-lg p-4 space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1 space-y-3">
-                              {/* Voice Selection */}
-                              <div>
-                                <Label>Voice {index + 1}</Label>
-                                <Select 
-                                  value={profile.voiceId} 
-                                  onValueChange={(value) => updateVoiceProfile(index, "voiceId", value)}
-                                >
-                                  <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Select a voice" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {voices && Array.isArray(voices) ? (
-                                      voices.map((voice: any) => (
-                                        <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                                          {voice.name}
-                                        </SelectItem>
-                                      ))
-                                    ) : (
-                                      <SelectItem value="rachel">Rachel</SelectItem>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {/* Character Name (for story mode) */}
-                              {voiceSwitchingMode === "character" && (
-                                <div>
-                                  <Label>Character Name</Label>
-                                  <Input
-                                    value={profile.character || ""}
-                                    onChange={(e) => updateVoiceProfile(index, "character", e.target.value)}
-                                    placeholder="e.g., Narrator, Hero, Villain"
-                                    className="mt-1"
-                                  />
-                                </div>
-                              )}
-
-                              {/* Trigger Keywords (for keyword mode) */}
-                              {voiceSwitchingMode === "keyword" && (
-                                <div>
-                                  <Label>Trigger Keywords</Label>
-                                  <Input
-                                    value={profile.triggerKeywords?.join(", ") || ""}
-                                    onChange={(e) => updateVoiceProfile(
-                                      index, 
-                                      "triggerKeywords", 
-                                      e.target.value.split(",").map(k => k.trim()).filter(k => k)
-                                    )}
-                                    placeholder="e.g., technical, sales, support (comma-separated)"
-                                    className="mt-1"
-                                  />
-                                </div>
-                              )}
-
-                              {/* Description */}
-                              <div>
-                                <Label>Description</Label>
-                                <Input
-                                  value={profile.description || ""}
-                                  onChange={(e) => updateVoiceProfile(index, "description", e.target.value)}
-                                  placeholder="When should this voice be used?"
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Remove Button */}
-                            {voiceProfiles.length > 1 && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => removeVoiceProfile(index)}
-                                className="ml-2"
-                              >
-                                Remove
-                              </Button>
-                            )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Name</Label>
+                            <Input
+                              value={profile.name}
+                              onChange={(e) => updateVoiceProfile(index, 'name', e.target.value)}
+                              placeholder="e.g. Narrator"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Voice</Label>
+                            <Select
+                              value={profile.voiceId || ""}
+                              onValueChange={(value) => updateVoiceProfile(index, 'voiceId', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a voice" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.isArray(voices) && voices.map((voice: any) => (
+                                  <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                                    {voice.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <Separator />
+                        <div className="space-y-2">
+                          <Label>Description</Label>
+                          <Input
+                            value={profile.description || ""}
+                            onChange={(e) => updateVoiceProfile(index, 'description', e.target.value)}
+                            placeholder="Role description"
+                          />
+                        </div>
 
-                  {/* Default Voice */}
-                  <div>
-                    <Label htmlFor="defaultVoice">Default Voice</Label>
-                    <Select 
-                      value={defaultVoice} 
-                      onValueChange={(value) => {
-                        setDefaultVoice(value);
-                        setHasChanges(true);
-                      }}
-                    >
-                      <SelectTrigger id="defaultVoice" className="mt-2">
-                        <SelectValue placeholder="Select default voice" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {voiceProfiles.map((profile, index) => (
-                          profile.voiceId && (
-                            <SelectItem key={index} value={profile.voiceId}>
-                              {profile.character || profile.description || `Voice ${index + 1}`}
-                            </SelectItem>
-                          )
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      The voice to use when no specific trigger is matched
-                    </p>
-                  </div>
-                </>
-              )}
+                        {voiceSwitchingMode === 'keyword' && (
+                          <div className="space-y-2">
+                            <Label>Trigger Keywords (comma separated)</Label>
+                            <Input
+                              value={profile.triggerKeywords?.join(', ') || ""}
+                              onChange={(e) => updateVoiceProfile(index, 'triggerKeywords', e.target.value.split(',').map(s => s.trim()))}
+                              placeholder="e.g. [narrator], switch to narrator"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
 
-              {/* Multi-Voice Examples */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Use Cases</h4>
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <p>• <strong>Story Telling:</strong> Different voices for narrator and characters</p>
-                  <p>• <strong>Role-based Support:</strong> Technical vs sales vs customer service voices</p>
-                  <p>• <strong>Language Detection:</strong> Switch voices based on detected language</p>
-                  <p>• <strong>Emotional Context:</strong> Adapt voice tone based on conversation mood</p>
+                  <Button variant="outline" onClick={addVoiceProfile} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Voice Profile
+                  </Button>
                 </div>
               </div>
-            </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>

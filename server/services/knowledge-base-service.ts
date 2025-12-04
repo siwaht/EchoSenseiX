@@ -37,12 +37,12 @@ export class KnowledgeBaseService {
    * Search knowledge base using natural language queries
    */
   static async searchKnowledgeBase(
-    organizationId: string, 
+    organizationId: string,
     query: KnowledgeBaseQuery
   ): Promise<KnowledgeBaseResponse> {
     try {
       console.log(`[KNOWLEDGE-BASE] Searching for: "${query.query}"`);
-      
+
       // Get ElevenLabs integration
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
@@ -50,7 +50,7 @@ export class KnowledgeBaseService {
       }
 
       const client = createElevenLabsClient(integration.apiKey);
-      
+
       // Enhanced system prompt for knowledge base queries
       const knowledgeBasePrompt = `
 You are an intelligent knowledge base assistant. Your role is to:
@@ -81,11 +81,11 @@ Please provide a comprehensive answer based on the available information. If you
 
       // Parse the response to extract answer and sources
       const knowledgeResponse = this.parseKnowledgeResponse(response.data);
-      
+
       console.log(`[KNOWLEDGE-BASE] Found ${knowledgeResponse.sources.length} relevant sources`);
-      
+
       return knowledgeResponse;
-      
+
     } catch (error: any) {
       console.error(`[KNOWLEDGE-BASE] Search failed:`, error);
       throw new Error(`Knowledge base search failed: ${error.message}`);
@@ -101,13 +101,13 @@ Please provide a comprehensive answer based on the available information. If you
   ): Promise<KnowledgeBaseEntry> {
     try {
       console.log(`[KNOWLEDGE-BASE] Adding entry: "${entry.title}"`);
-      
+
       // Store in database
-      const newEntry = await storage.createKnowledgeEntry(organizationId, entry);
+      const newEntry = await storage.createKnowledgeEntry(organizationId, { ...entry, organizationId });
 
       console.log(`[KNOWLEDGE-BASE] Entry added with ID: ${newEntry.id}`);
-      return newEntry;
-      
+      return newEntry as unknown as KnowledgeBaseEntry;
+
     } catch (error: any) {
       console.error(`[KNOWLEDGE-BASE] Failed to add entry:`, error);
       throw new Error(`Failed to add knowledge entry: ${error.message}`);
@@ -132,7 +132,7 @@ Please provide a comprehensive answer based on the available information. If you
       }
 
       console.log(`[KNOWLEDGE-BASE] Entry updated: ${entryId}`);
-      return updatedEntry;
+      return updatedEntry as unknown as KnowledgeBaseEntry;
 
     } catch (error: any) {
       console.error(`[KNOWLEDGE-BASE] Failed to update entry:`, error);
@@ -180,7 +180,7 @@ Tags: ${JSON.stringify(entry.tags || [])}
     try {
       // Extract answer from response
       const answer = response.text || response.content || "I found some relevant information, but I need to process it further.";
-      
+
       // For now, return mock sources - in real implementation, this would parse actual sources
       const sources: KnowledgeBaseEntry[] = [
         {
@@ -220,11 +220,11 @@ Tags: ${JSON.stringify(entry.tags || [])}
   static async enhanceAgentWithKnowledgeBase(
     organizationId: string,
     agentId: string,
-    knowledgeBaseId?: string
+    _knowledgeBaseId?: string
   ): Promise<void> {
     try {
       console.log(`[KNOWLEDGE-BASE] Enhancing agent ${agentId} with knowledge base`);
-      
+
       // Get the agent
       const agent = await storage.getAgent(agentId, organizationId);
       if (!agent) {
@@ -258,10 +258,10 @@ Always be helpful, accurate, and transparent about the source of your informatio
       await storage.updateAgent(agentId, organizationId, {
         systemPrompt: enhancedPrompt,
         lastSynced: new Date()
-      });
+      } as any);
 
       console.log(`[KNOWLEDGE-BASE] Agent ${agentId} enhanced with knowledge base capabilities`);
-      
+
     } catch (error: any) {
       console.error(`[KNOWLEDGE-BASE] Failed to enhance agent:`, error);
       throw new Error(`Failed to enhance agent with knowledge base: ${error.message}`);

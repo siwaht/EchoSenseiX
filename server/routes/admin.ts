@@ -1,20 +1,19 @@
 import { Router, Request, Response } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, isAdmin } from "../middleware/auth";
-import { encryptCredentials, decryptCredentials, encryptApiKey, decryptApiKey } from "../utils/encryption";
-import { providerRegistry } from "../services/providers/registry";
+import { encryptApiKey, decryptApiKey } from "../utils/encryption";
 import SyncService from "../services/sync-service";
-import * as unifiedPayment from "../unified-payment";
-import { z } from "zod";
-import crypto from "crypto";
+// import * as unifiedPayment from "../unified-payment";
+// import { z } from "zod";
+// import crypto from "crypto";
 import { Integration } from "@shared/schema";
-import { cacheMiddleware } from "../middleware/cache-middleware";
-import {
-    insertBillingPackageSchema,
-    insertSystemTemplateSchema,
-    insertQuickActionButtonSchema,
-    insertAdminTaskSchema
-} from "@shared/schema";
+// import { cacheMiddleware } from "../middleware/cache-middleware";
+// import {
+//     insertBillingPackageSchema,
+//     insertSystemTemplateSchema,
+//     insertQuickActionButtonSchema,
+//     insertAdminTaskSchema
+// } from "@shared/schema";
 
 const router = Router();
 
@@ -25,7 +24,7 @@ router.use(isAuthenticated, isAdmin);
 // Admin Billing & Payments Routes
 // ==========================================
 
-router.get('/billing', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.get('/billing', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         const billingData = await storage.getAdminBillingData();
         res.json(billingData);
@@ -35,7 +34,7 @@ router.get('/billing', isAuthenticated, isAdmin, async (req: Request, res: Respo
     }
 });
 
-router.get('/payments', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.get('/payments', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         const payments = await storage.getAllPayments();
         res.json(payments);
@@ -48,7 +47,7 @@ router.get('/payments', isAuthenticated, isAdmin, async (req: Request, res: Resp
 // ==========================================
 
 // Get all users (admin only)
-router.get('/users', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.get('/users', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         const users = await storage.getUsers();
         res.json(users);
@@ -62,14 +61,15 @@ router.get('/users', isAuthenticated, isAdmin, async (req: Request, res: Respons
 router.get('/users/:userId', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
+        if (!userId) return res.status(400).json({ message: "User ID is required" });
         const user = await storage.getUser(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        res.json(user);
+        return res.json(user);
     } catch (error) {
         console.error("Error fetching user:", error);
-        res.status(500).json({ message: "Failed to fetch user" });
+        return res.status(500).json({ message: "Failed to fetch user" });
     }
 });
 
@@ -77,12 +77,13 @@ router.get('/users/:userId', isAuthenticated, isAdmin, async (req: Request, res:
 router.patch('/users/:userId', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
+        if (!userId) return res.status(400).json({ message: "User ID is required" });
         const updates = req.body;
         const updatedUser = await storage.updateUser(userId, updates);
-        res.json(updatedUser);
+        return res.json(updatedUser);
     } catch (error) {
         console.error("Error updating user:", error);
-        res.status(500).json({ message: "Failed to update user" });
+        return res.status(500).json({ message: "Failed to update user" });
     }
 });
 
@@ -90,16 +91,17 @@ router.patch('/users/:userId', isAuthenticated, isAdmin, async (req: Request, re
 router.delete('/users/:userId', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
+        if (!userId) return res.status(400).json({ message: "User ID is required" });
         await storage.deleteUser(userId);
-        res.json({ message: "User deleted successfully" });
+        return res.json({ message: "User deleted successfully" });
     } catch (error) {
         console.error("Error deleting user:", error);
-        res.status(500).json({ message: "Failed to delete user" });
+        return res.status(500).json({ message: "Failed to delete user" });
     }
 });
 
 // User-Agent assignment routes
-router.get('/users/:userId/agents', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/users/:userId/agents', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { userId } = req.params;
         const user = await storage.getUser(userId);
@@ -120,14 +122,14 @@ router.get('/users/:userId/agents', isAuthenticated, isAdmin, async (req: Reques
             assigned: assignedAgentIds.includes(agent.id)
         }));
 
-        res.json(agentsWithAssignment);
+        return res.json(agentsWithAssignment);
     } catch (error) {
         console.error("Error fetching user agent assignments:", error);
-        res.status(500).json({ message: "Failed to fetch agent assignments" });
+        return res.status(500).json({ message: "Failed to fetch agent assignments" });
     }
 });
 
-router.post('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { userId, agentId } = req.params;
         await storage.assignAgentToUser(userId, agentId, req.user.id);
@@ -138,7 +140,7 @@ router.post('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (r
     }
 });
 
-router.delete('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.delete('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { userId, agentId } = req.params;
         await storage.unassignAgentFromUser(userId, agentId);
@@ -153,40 +155,42 @@ router.delete('/users/:userId/agents/:agentId', isAuthenticated, isAdmin, async 
 // Admin Organization Management Routes
 // ==========================================
 
-router.get('/organizations', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.get('/organizations', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         const orgs = await storage.getOrganizations();
-        res.json(orgs);
+        return res.json(orgs);
     } catch (error) {
         console.error("Error fetching organizations:", error);
-        res.status(500).json({ message: "Failed to fetch organizations" });
+        return res.status(500).json({ message: "Failed to fetch organizations" });
     }
 });
 
 router.patch('/organizations/:orgId', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
         const { orgId } = req.params;
+        if (!orgId) return res.status(400).json({ message: "Organization ID is required" });
         const updates = req.body;
         const updatedOrg = await storage.updateOrganization(orgId, updates);
-        res.json(updatedOrg);
+        return res.json(updatedOrg);
     } catch (error) {
         console.error("Error updating organization:", error);
-        res.status(500).json({ message: "Failed to update organization" });
+        return res.status(500).json({ message: "Failed to update organization" });
     }
 });
 
 router.delete('/organizations/:orgId', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
         const { orgId } = req.params;
+        if (!orgId) return res.status(400).json({ message: "Organization ID is required" });
         await storage.deleteOrganization(orgId);
-        res.json({ message: "Organization deleted successfully" });
+        return res.json({ message: "Organization deleted successfully" });
     } catch (error) {
         console.error("Error deleting organization:", error);
-        res.status(500).json({ message: "Failed to delete organization" });
+        return res.status(500).json({ message: "Failed to delete organization" });
     }
 });
 
-router.patch('/organizations/:orgId/permissions', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/organizations/:orgId/permissions', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { permissions, role } = req.body;
         if (!Array.isArray(permissions)) {
@@ -204,25 +208,25 @@ router.patch('/organizations/:orgId/permissions', isAuthenticated, isAdmin, asyn
 
         const updatedOrg = await storage.updateOrganization(req.params.orgId, updateData);
 
-        res.json({
+        return res.json({
             message: "Agency permissions updated successfully",
             permissions: updatedOrg.agencyPermissions,
             role: updatedOrg.agencyRole
         });
     } catch (error) {
         console.error("Error updating agency permissions:", error);
-        res.status(500).json({ message: "Failed to update agency permissions" });
+        return res.status(500).json({ message: "Failed to update agency permissions" });
     }
 });
 
-router.get('/organizations/:orgId/permissions', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/organizations/:orgId/permissions', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const org = await storage.getOrganization(req.params.orgId);
         if (!org) {
             return res.status(404).json({ message: "Organization not found" });
         }
 
-        res.json({
+        return res.json({
             organizationId: org.id,
             organizationName: org.name,
             permissions: org.agencyPermissions || [],
@@ -232,21 +236,21 @@ router.get('/organizations/:orgId/permissions', isAuthenticated, isAdmin, async 
         });
     } catch (error) {
         console.error("Error fetching agency permissions:", error);
-        res.status(500).json({ message: "Failed to fetch agency permissions" });
+        return res.status(500).json({ message: "Failed to fetch agency permissions" });
     }
 });
 
-router.patch('/organizations/:orgId/status', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/organizations/:orgId/status', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { isActive } = req.body;
         if (typeof isActive !== 'boolean') {
             return res.status(400).json({ message: "Invalid isActive value" });
         }
         const updatedOrg = await storage.toggleOrganizationStatus(req.params.orgId, isActive);
-        res.json(updatedOrg);
+        return res.json(updatedOrg);
     } catch (error) {
         console.error("Error updating organization status:", error);
-        res.status(500).json({ message: "Failed to update organization status" });
+        return res.status(500).json({ message: "Failed to update organization status" });
     }
 });
 
@@ -254,7 +258,7 @@ router.patch('/organizations/:orgId/status', isAuthenticated, isAdmin, async (re
 // Admin Sync Management Routes
 // ==========================================
 
-router.get('/sync/status', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.get('/sync/status', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         const status = await SyncService.getSyncStatus();
         res.json(status);
@@ -264,7 +268,7 @@ router.get('/sync/status', isAuthenticated, isAdmin, async (req: Request, res: R
     }
 });
 
-router.post('/sync/run', isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+router.post('/sync/run', isAuthenticated, isAdmin, async (_req: Request, res: Response) => {
     try {
         await SyncService.runSync();
         res.json({ message: "Sync started successfully" });
@@ -274,7 +278,7 @@ router.post('/sync/run', isAuthenticated, isAdmin, async (req: Request, res: Res
     }
 });
 
-router.get('/sync/endpoints', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/sync/endpoints', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         // Define all ElevenLabs API endpoints we use
         const endpoints = [
@@ -341,7 +345,7 @@ router.get('/sync/endpoints', isAuthenticated, isAdmin, async (req: Request & { 
     }
 });
 
-router.get('/sync/logs', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/sync/logs', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         // In a real implementation, these would be stored in the database
         const logs = [
@@ -372,7 +376,7 @@ router.get('/sync/logs', isAuthenticated, isAdmin, async (req: Request & { user:
     }
 });
 
-router.post('/sync/validate', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/sync/validate', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const endpoint = req.body;
         // For admin sync validation, try to find any organization with a configured API key
@@ -409,18 +413,18 @@ router.post('/sync/validate', isAuthenticated, isAdmin, async (req: Request & { 
 
         const valid = response.status !== 404;
 
-        res.json({
+        return res.json({
             valid,
             status: response.status,
             message: valid ? 'Endpoint is valid' : 'Endpoint not found or changed'
         });
     } catch (error) {
         console.error('Error validating endpoint:', error);
-        res.status(500).json({ valid: false, message: 'Validation failed' });
+        return res.status(500).json({ valid: false, message: 'Validation failed' });
     }
 });
 
-router.post('/sync/update-endpoint', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/sync/update-endpoint', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const endpoint = req.body;
 
@@ -443,7 +447,7 @@ router.post('/sync/update-endpoint', isAuthenticated, isAdmin, async (req: Reque
 // Admin Encryption Migration Route
 // ==========================================
 
-router.post('/migrate-encryption', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/migrate-encryption', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         console.log("Starting encryption migration...");
         const integrations = await storage.getAllIntegrations();
@@ -481,7 +485,7 @@ router.post('/migrate-encryption', isAuthenticated, isAdmin, async (req: Request
     }
 });
 
-router.post('/billing-packages', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/billing-packages', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const newPackage = await storage.createBillingPackage(req.body);
         res.json(newPackage);
@@ -491,7 +495,7 @@ router.post('/billing-packages', isAuthenticated, isAdmin, async (req: Request &
     }
 });
 
-router.patch('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const updatedPackage = await storage.updateBillingPackage(req.params.pkgId, req.body);
         res.json(updatedPackage);
@@ -501,7 +505,7 @@ router.patch('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: R
     }
 });
 
-router.delete('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.delete('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         await storage.deleteBillingPackage(req.params.pkgId);
         res.json({ message: "Billing package deleted successfully" });
@@ -515,7 +519,7 @@ router.delete('/billing-packages/:pkgId', isAuthenticated, isAdmin, async (req: 
 // Admin System Templates Management
 // ==========================================
 
-router.get('/system-templates', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/system-templates', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         const templates = await storage.getSystemTemplates();
         res.json(templates);
@@ -525,7 +529,7 @@ router.get('/system-templates', isAuthenticated, isAdmin, async (req: Request & 
     }
 });
 
-router.post('/system-templates', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/system-templates', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const newTemplate = await storage.createSystemTemplate(req.body);
         res.json(newTemplate);
@@ -535,7 +539,7 @@ router.post('/system-templates', isAuthenticated, isAdmin, async (req: Request &
     }
 });
 
-router.patch('/system-templates/:templateId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/system-templates/:templateId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const updatedTemplate = await storage.updateSystemTemplate(req.params.templateId, req.body);
         res.json(updatedTemplate);
@@ -545,7 +549,7 @@ router.patch('/system-templates/:templateId', isAuthenticated, isAdmin, async (r
     }
 });
 
-router.delete('/system-templates/:templateId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.delete('/system-templates/:templateId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         await storage.deleteSystemTemplate(req.params.templateId);
         res.json({ message: "System template deleted successfully" });
@@ -559,7 +563,7 @@ router.delete('/system-templates/:templateId', isAuthenticated, isAdmin, async (
 // Admin Quick Action Buttons Management
 // ==========================================
 
-router.get('/quick-action-buttons', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/quick-action-buttons', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         const buttons = await storage.getQuickActionButtons();
         res.json(buttons);
@@ -569,7 +573,7 @@ router.get('/quick-action-buttons', isAuthenticated, isAdmin, async (req: Reques
     }
 });
 
-router.post('/quick-action-buttons', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/quick-action-buttons', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const buttonData = {
             ...req.body,
@@ -584,7 +588,7 @@ router.post('/quick-action-buttons', isAuthenticated, isAdmin, async (req: Reque
     }
 });
 
-router.patch('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const button = await storage.getQuickActionButton(req.params.buttonId);
         if (!button) {
@@ -597,14 +601,14 @@ router.patch('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async 
         }
 
         const updatedButton = await storage.updateQuickActionButton(req.params.buttonId, req.body);
-        res.json(updatedButton);
+        return res.json(updatedButton);
     } catch (error) {
         console.error("Error updating quick action button:", error);
-        res.status(500).json({ message: "Failed to update quick action button" });
+        return res.status(500).json({ message: "Failed to update quick action button" });
     }
 });
 
-router.delete('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.delete('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const button = await storage.getQuickActionButton(req.params.buttonId);
         if (!button) {
@@ -617,10 +621,10 @@ router.delete('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async
         }
 
         await storage.deleteQuickActionButton(req.params.buttonId);
-        res.json({ message: "Quick action button deleted successfully" });
+        return res.json({ message: "Quick action button deleted successfully" });
     } catch (error) {
         console.error("Error deleting quick action button:", error);
-        res.status(500).json({ message: "Failed to delete quick action button" });
+        return res.status(500).json({ message: "Failed to delete quick action button" });
     }
 });
 
@@ -628,7 +632,7 @@ router.delete('/quick-action-buttons/:buttonId', isAuthenticated, isAdmin, async
 // Admin Approval Tasks Management
 // ==========================================
 
-router.get('/tasks', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/tasks', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const status = req.query.status as "pending" | "in_progress" | "completed" | "rejected" | undefined;
         const tasks = await storage.getAdminTasks(status);
@@ -639,31 +643,35 @@ router.get('/tasks', isAuthenticated, isAdmin, async (req: Request & { user: any
     }
 });
 
-router.get('/tasks/:taskId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/tasks/:taskId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
-        const task = await storage.getAdminTask(req.params.taskId);
+        const taskId = req.params.taskId;
+        if (!taskId) {
+            return res.status(400).json({ message: "Task ID is required" });
+        }
+        const task = await storage.getAdminTask(taskId);
         if (!task) {
             return res.status(404).json({ message: "Task not found" });
         }
-        res.json(task);
+        return res.json(task);
     } catch (error) {
         console.error("Error fetching admin task:", error);
-        res.status(500).json({ message: "Failed to fetch admin task" });
+        return res.status(500).json({ message: "Failed to fetch admin task" });
     }
 });
 
-router.patch('/tasks/:taskId', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.patch('/tasks/:taskId', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const updates = req.body;
         const task = await storage.updateAdminTask(req.params.taskId, updates);
-        res.json(task);
+        return res.json(task);
     } catch (error) {
         console.error("Error updating admin task:", error);
-        res.status(500).json({ message: "Failed to update admin task" });
+        return res.status(500).json({ message: "Failed to update admin task" });
     }
 });
 
-router.post('/tasks/:taskId/approve', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/tasks/:taskId/approve', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const adminId = req.user.id;
         const taskId = req.params.taskId;
@@ -692,14 +700,14 @@ router.post('/tasks/:taskId/approve', isAuthenticated, isAdmin, async (req: Requ
             metadata: task.metadata
         });
 
-        res.json({ message: "Task approved successfully" });
+        return res.json({ message: "Task approved successfully" });
     } catch (error) {
         console.error("Error approving task:", error);
-        res.status(500).json({ message: "Failed to approve task" });
+        return res.status(500).json({ message: "Failed to approve task" });
     }
 });
 
-router.post('/tasks/:taskId/reject', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/tasks/:taskId/reject', isAuthenticated, isAdmin, async (req: any, res: Response) => {
     try {
         const { reason } = req.body;
         const adminId = req.user.id;
@@ -731,10 +739,10 @@ router.post('/tasks/:taskId/reject', isAuthenticated, isAdmin, async (req: Reque
             metadata: task.metadata
         });
 
-        res.json({ message: "Task rejected successfully" });
+        return res.json({ message: "Task rejected successfully" });
     } catch (error) {
         console.error("Error rejecting task:", error);
-        res.status(500).json({ message: "Failed to reject task" });
+        return res.status(500).json({ message: "Failed to reject task" });
     }
 });
 
@@ -800,7 +808,7 @@ async function triggerApprovalWebhooks(event: string, taskData: any) {
     }
 }
 
-router.get('/approval-webhooks', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.get('/approval-webhooks', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         const webhooks = await storage.getApprovalWebhooks();
         res.json(webhooks);
@@ -811,7 +819,7 @@ router.get('/approval-webhooks', isAuthenticated, isAdmin, async (req: Request &
 });
 
 // Create Test Agency
-router.post('/create-test-agency', isAuthenticated, isAdmin, async (req: Request & { user: any }, res: Response) => {
+router.post('/create-test-agency', isAuthenticated, isAdmin, async (_req: any, res: Response) => {
     try {
         // Create a test agency organization
         const testAgency = await storage.createOrganization({

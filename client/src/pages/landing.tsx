@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/components/theme-provider";
-import { Moon, Sun, Shield, TrendingUp, Users, Mic, LogIn, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { Moon, Sun, Shield, TrendingUp, Users, Mic, Mail, Lock, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -33,7 +33,7 @@ export default function Landing() {
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
         if (parts.length >= 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
-          setSubdomain(parts[0]);
+          setSubdomain(parts[0] || null);
         }
       }
     }
@@ -86,7 +86,7 @@ export default function Landing() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation(buildPath("/"));
     },
-    onError: (error: Error) => {
+    onError: (_error: Error) => {
       toast({
         title: "Login failed",
         description: "Invalid email or password",
@@ -111,7 +111,7 @@ export default function Landing() {
         <div className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] bg-gradient-to-br from-primary/30 to-purple-500/20 rounded-full blur-[120px] animate-float-slow" />
         <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] bg-gradient-to-tl from-pink-500/20 to-primary/25 rounded-full blur-[100px] animate-float-slow" style={{ animationDelay: '-4s' }} />
         <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-gradient-to-br from-violet-500/15 to-transparent rounded-full blur-[80px] animate-pulse-glow" />
-        
+
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 z-5 opacity-[0.015] dark:opacity-[0.03]"
           style={{
@@ -273,7 +273,7 @@ export default function Landing() {
                   <span className="text-xs font-medium text-muted-foreground">Enterprise Grade AI Platform</span>
                 </div>
                 <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed" data-testid="text-info-description">
-                  Experience the next generation of voice AI monitoring with real-time analytics, 
+                  Experience the next generation of voice AI monitoring with real-time analytics,
                   secure multi-tenant architecture, and seamless integrations.
                 </p>
               </div>
@@ -294,7 +294,7 @@ export default function Landing() {
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000" />
                   </div>
-                  
+
                   <div className="relative z-10">
                     <div className="w-11 h-11 bg-background/80 dark:bg-background/50 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300 shadow-sm">
                       <feature.icon className="w-5 h-5 text-primary" />
@@ -308,7 +308,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
-      
+
       {/* Footer subtle branding */}
       {!whitelabelConfig?.removePlatformBranding && (
         <footer className="relative z-20 py-4 text-center">

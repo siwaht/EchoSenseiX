@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,22 +6,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX,
-  Loader2, Activity, Circle, AlertCircle, Send, MessageSquare,
-  Bot, User, Sparkles, RefreshCw, Trash2, FileText
+  Mic, MicOff, Volume2, VolumeX,
+  Loader2, Activity, MessageSquare,
+  Bot, User, Trash2, FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Agent, Integration } from "@shared/schema";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import type { Agent } from "@shared/schema";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { useAgentContext } from "@/contexts/agent-context";
 import { useAuth } from "@/hooks/useAuth";
 import { VoiceButton } from "@/components/ui/voice-button";
 import { Waveform } from "@/components/ui/waveform";
-import { AudioPlayer } from "@/components/ui/audio-player";
 
 interface ConversationMessage {
   role: "assistant" | "user";
@@ -38,7 +34,7 @@ export default function Playground() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [transcript, setTranscript] = useState<ConversationMessage[]>([]);
-  const [audioLevel, setAudioLevel] = useState(0);
+
   // Check if user has WebRTC permission
   const hasWebRTCPermission = user?.permissions?.includes('use_webrtc') || user?.isAdmin || false;
   const [connectionType, setConnectionType] = useState<'websocket' | 'webrtc'>('websocket');
@@ -46,7 +42,6 @@ export default function Playground() {
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
@@ -60,7 +55,7 @@ export default function Playground() {
   const agentsLoading = agents.length === 0;
 
   // Fetch integration to get API key status
-  const { data: integration, isLoading: integrationLoading, error: integrationError } = useQuery<any>({
+  const { data: integration } = useQuery<any>({
     queryKey: ["/api/integrations"],
     retry: 1,
     queryFn: async () => {
@@ -180,16 +175,6 @@ export default function Playground() {
       // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
-
-      // Setup audio context for visualization
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
-      analyserRef.current.fftSize = 256;
-
-      // Start audio level monitoring
-      monitorAudioLevel();
 
       if (!selectedAgent) return;
 
@@ -332,7 +317,6 @@ export default function Playground() {
 
     setIsCallActive(false);
     setIsConnecting(false);
-    setAudioLevel(0);
 
     // Clear audio queue
     audioQueueRef.current = [];
@@ -356,24 +340,6 @@ export default function Playground() {
     setIsSpeakerOn(!isSpeakerOn);
   };
 
-  const monitorAudioLevel = () => {
-    if (!analyserRef.current) return;
-
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-    const checkAudioLevel = () => {
-      if (!analyserRef.current || !isCallActive) return;
-
-      analyserRef.current.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-      setAudioLevel(average / 255); // Normalize to 0-1
-
-      requestAnimationFrame(checkAudioLevel);
-    };
-
-    checkAudioLevel();
-  };
-
   const startAudioStreaming = (stream: MediaStream, ws: WebSocket) => {
     // Starting audio streaming to WebSocket
 
@@ -392,7 +358,7 @@ export default function Playground() {
 
         // Convert float32 to PCM 16-bit and add to buffer
         for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
+          const s = Math.max(-1, Math.min(1, inputData[i] || 0));
           const sample = s < 0 ? s * 0x8000 : s * 0x7FFF;
           audioBuffer.push(sample);
         }
@@ -551,7 +517,7 @@ export default function Playground() {
 
     // Copy PCM data with proper byte order
     for (let i = 0; i < pcmData.length; i++) {
-      view.setInt16(44 + i * 2, pcmData[i], true); // little-endian
+      view.setInt16(44 + i * 2, pcmData[i] || 0, true); // little-endian
     }
 
     return arrayBuffer;
@@ -781,8 +747,8 @@ export default function Playground() {
 
                       <div
                         className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-tr-none"
-                            : "bg-muted rounded-tl-none"
+                          ? "bg-primary text-primary-foreground rounded-tr-none"
+                          : "bg-muted rounded-tl-none"
                           }`}
                       >
                         <p>{msg.message}</p>

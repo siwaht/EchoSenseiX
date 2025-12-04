@@ -6,14 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -35,22 +34,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { 
-  ArrowLeft, 
-  UserPlus, 
-  Settings, 
-  Mail, 
-  Shield, 
-  Users, 
+import {
+  ArrowLeft,
+  UserPlus,
+  Mail,
+  Users,
   Bot,
-  Phone,
   Trash2,
   Edit,
   Send,
-  Key,
-  AlertCircle,
-  CheckCircle,
-  Clock,
   X
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -122,13 +114,13 @@ export default function AgencyUsers() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
   const [assignAgentsDialogOpen, setAssignAgentsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
+
   // Form states for direct user creation
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
@@ -136,7 +128,7 @@ export default function AgencyUsers() {
   const [createLastName, setCreateLastName] = useState("");
   const [createRole, setCreateRole] = useState<"admin" | "manager" | "user">("user");
   const [createPermissions, setCreatePermissions] = useState<string[]>([]);
-  
+
   // Form states for invitations
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "user">("user");
@@ -165,13 +157,13 @@ export default function AgencyUsers() {
 
   // Create user directly mutation
   const createUserMutation = useMutation({
-    mutationFn: async (data: { 
-      email: string; 
+    mutationFn: async (data: {
+      email: string;
       firstName: string;
       lastName: string;
       password: string;
-      role: string; 
-      permissions: string[] 
+      role: string;
+      permissions: string[]
     }) => {
       const response = await apiRequest("POST", "/api/agency/users", data);
       if (!response.ok) {
@@ -379,13 +371,13 @@ export default function AgencyUsers() {
     }
 
     const permissions = createPermissions.length > 0 ? createPermissions : rolePermissions[createRole];
-    createUserMutation.mutate({ 
-      email: createEmail, 
+    createUserMutation.mutate({
+      email: createEmail,
       firstName: createFirstName,
       lastName: createLastName,
       password: createPassword,
-      role: createRole, 
-      permissions 
+      role: createRole,
+      permissions
     });
   };
 
@@ -498,7 +490,7 @@ export default function AgencyUsers() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="create-email">Email Address</Label>
                     <Input
@@ -509,7 +501,7 @@ export default function AgencyUsers() {
                       onChange={(e) => setCreateEmail(e.target.value)}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="create-password">Password</Label>
                     <Input
@@ -523,7 +515,7 @@ export default function AgencyUsers() {
                       User will be able to change this password after first login
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="create-role">Role</Label>
                     <Select value={createRole} onValueChange={handleCreateRoleChange}>
@@ -601,65 +593,65 @@ export default function AgencyUsers() {
               </DialogHeader>
               <div className="flex-1 overflow-y-auto px-1 py-4">
                 <div className="space-y-4 pr-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={inviteRole} onValueChange={handleRoleChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {user?.role === "agency" ? (
-                        <SelectItem value="user">User - Limited access</SelectItem>
-                      ) : (
-                        <>
-                          <SelectItem value="admin">Admin - Full access</SelectItem>
-                          <SelectItem value="manager">Manager - Moderate access</SelectItem>
-                          <SelectItem value="user">User - Limited access</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>Permissions</Label>
-                  <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-                    <div className="space-y-3">
-                      {availablePermissions.map((permission) => (
-                        <div key={permission.id} className="flex items-start space-x-2">
-                          <Checkbox
-                            id={permission.id}
-                            checked={invitePermissions.includes(permission.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setInvitePermissions([...invitePermissions, permission.id]);
-                              } else {
-                                setInvitePermissions(invitePermissions.filter(p => p !== permission.id));
-                              }
-                            }}
-                          />
-                          <div className="flex-1">
-                            <Label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
-                              {permission.name}
-                            </Label>
-                            <p className="text-xs text-muted-foreground">{permission.description}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select value={inviteRole} onValueChange={handleRoleChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {user?.role === "agency" ? (
+                          <SelectItem value="user">User - Limited access</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="admin">Admin - Full access</SelectItem>
+                            <SelectItem value="manager">Manager - Moderate access</SelectItem>
+                            <SelectItem value="user">User - Limited access</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Permissions</Label>
+                    <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
+                      <div className="space-y-3">
+                        {availablePermissions.map((permission) => (
+                          <div key={permission.id} className="flex items-start space-x-2">
+                            <Checkbox
+                              id={permission.id}
+                              checked={invitePermissions.includes(permission.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setInvitePermissions([...invitePermissions, permission.id]);
+                                } else {
+                                  setInvitePermissions(invitePermissions.filter(p => p !== permission.id));
+                                }
+                              }}
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
+                                {permission.name}
+                              </Label>
+                              <p className="text-xs text-muted-foreground">{permission.description}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
               <DialogFooter className="flex-shrink-0">
@@ -744,7 +736,7 @@ export default function AgencyUsers() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {user.lastLoginAt 
+                          {user.lastLoginAt
                             ? new Date(user.lastLoginAt).toLocaleDateString()
                             : "Never"
                           }
@@ -801,56 +793,57 @@ export default function AgencyUsers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invitations.map((invitation) => (
-                    <TableRow key={invitation.id}>
-                      <TableCell className="font-medium">
-                        {invitation.email}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getRoleBadgeVariant(invitation.role)}>
-                          {invitation.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${getStatusColor(invitation.status)}`} />
-                          <span className="text-sm capitalize">{invitation.status}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(invitation.invitedAt).toLocaleDateString()}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(invitation.expiresAt).toLocaleDateString()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {invitation.status === "pending" && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => resendInvitationMutation.mutate(invitation.id)}
-                              >
-                                <Send className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => cancelInvitationMutation.mutate(invitation.id)}
-                              >
-                                <X className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                  {invitations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No pending invitations
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    invitations.map((invitation) => (
+                      <TableRow key={invitation.id}>
+                        <TableCell>{invitation.email}</TableCell>
+                        <TableCell>
+                          <Badge variant={getRoleBadgeVariant(invitation.role)}>
+                            {invitation.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={invitation.status === "pending" ? "outline" : "secondary"}>
+                            {invitation.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(invitation.invitedAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(invitation.expiresAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to cancel this invitation?")) {
+                                  cancelInvitationMutation.mutate(invitation.id);
+                                }
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -860,194 +853,95 @@ export default function AgencyUsers() {
 
       {/* Edit User Dialog */}
       <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Edit User Settings</DialogTitle>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user role and permissions
+              Update user details and permissions
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <div className="flex-1 overflow-y-auto px-1 py-4">
-              <div className="space-y-4 pr-2">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>User</Label>
-                <div className="text-sm">
-                  {selectedUser.firstName} {selectedUser.lastName} ({selectedUser.email})
+                <Label>Name</Label>
+                <div className="font-medium">
+                  {selectedUser.firstName} {selectedUser.lastName}
                 </div>
               </div>
-              
               <div className="space-y-2">
-                <Label htmlFor="edit-role">Role</Label>
-                <Select 
-                  value={selectedUser.role} 
+                <Label>Email</Label>
+                <div className="text-sm text-muted-foreground">
+                  {selectedUser.email}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <Select
+                  value={selectedUser.role}
                   onValueChange={(value: "admin" | "manager" | "user") => {
-                    setSelectedUser({ ...selectedUser, role: value });
+                    updateUserMutation.mutate({
+                      userId: selectedUser.id,
+                      updates: { role: value }
+                    });
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {user?.role === "agency" ? (
-                      <SelectItem value="user">User - Limited access</SelectItem>
-                    ) : (
-                      <>
-                        <SelectItem value="admin">Admin - Full access</SelectItem>
-                        <SelectItem value="manager">Manager - Moderate access</SelectItem>
-                        <SelectItem value="user">User - Limited access</SelectItem>
-                      </>
-                    )}
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select 
-                  value={selectedUser.status} 
-                  onValueChange={(value: "active" | "inactive" | "pending") => {
-                    setSelectedUser({ ...selectedUser, status: value });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Permissions</Label>
-                <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="space-y-3">
-                    {availablePermissions.map((permission) => (
-                      <div key={permission.id} className="flex items-start space-x-2">
-                        <Checkbox
-                          id={`edit-${permission.id}`}
-                          checked={selectedUser.permissions.includes(permission.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedUser({
-                                ...selectedUser,
-                                permissions: [...selectedUser.permissions, permission.id]
-                              });
-                            } else {
-                              setSelectedUser({
-                                ...selectedUser,
-                                permissions: selectedUser.permissions.filter(p => p !== permission.id)
-                              });
-                            }
-                          }}
-                        />
-                        <div className="flex-1">
-                          <Label htmlFor={`edit-${permission.id}`} className="text-sm font-medium cursor-pointer">
-                            {permission.name}
-                          </Label>
-                          <p className="text-xs text-muted-foreground">{permission.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
               </div>
             </div>
           )}
-          <DialogFooter className="flex-shrink-0">
-            <Button variant="outline" onClick={() => setEditUserDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => {
-                if (selectedUser) {
-                  updateUserMutation.mutate({
-                    userId: selectedUser.id,
-                    updates: {
-                      role: selectedUser.role,
-                      status: selectedUser.status,
-                      permissions: selectedUser.permissions
-                    }
-                  });
-                }
-              }}
-              disabled={updateUserMutation.isPending}
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Assign Agents Dialog */}
       <Dialog open={assignAgentsDialogOpen} onOpenChange={setAssignAgentsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle>Assign Agents</DialogTitle>
             <DialogDescription>
               Select which agents this user can access
             </DialogDescription>
           </DialogHeader>
-          {selectedUser && (
-            <div className="flex-1 overflow-y-auto px-1 py-4">
-              <div className="space-y-4 pr-2">
-              <div className="space-y-2">
-                <Label>User</Label>
-                <div className="text-sm">
-                  {selectedUser.firstName} {selectedUser.lastName} ({selectedUser.email})
+          <div className="py-4">
+            <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2">
+              {agents.map((agent) => (
+                <div key={agent.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded">
+                  <Checkbox
+                    id={`agent-${agent.id}`}
+                    checked={selectedAgents.includes(agent.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedAgents([...selectedAgents, agent.id]);
+                      } else {
+                        setSelectedAgents(selectedAgents.filter(id => id !== agent.id));
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`agent-${agent.id}`} className="flex-1 cursor-pointer">
+                    {agent.name}
+                  </Label>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Available Agents</Label>
-                <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="space-y-3">
-                    {agents.map((agent) => (
-                      <div key={agent.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`agent-${agent.id}`}
-                          checked={selectedAgents.includes(agent.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedAgents([...selectedAgents, agent.id]);
-                            } else {
-                              setSelectedAgents(selectedAgents.filter(id => id !== agent.id));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`agent-${agent.id}`} className="flex-1 cursor-pointer">
-                          <div>
-                            <div className="font-medium">{agent.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              ID: {agent.elevenLabsAgentId}
-                            </div>
-                          </div>
-                        </Label>
-                        <Badge variant={agent.isActive ? "default" : "secondary"}>
-                          {agent.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
+              ))}
+              {agents.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">
+                  No agents available
                 </div>
-              </div>
-              </div>
+              )}
             </div>
-          )}
-          <DialogFooter className="flex-shrink-0">
+          </div>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setAssignAgentsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveAgentAssignment}
-              disabled={assignAgentsMutation.isPending}
-            >
-              <Bot className="h-4 w-4 mr-2" />
-              Save Agent Assignment
+            <Button onClick={handleSaveAgentAssignment} disabled={assignAgentsMutation.isPending}>
+              Save Assignments
             </Button>
           </DialogFooter>
         </DialogContent>

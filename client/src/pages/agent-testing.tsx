@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AudioPlayer } from "@/components/ui/audio-player";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,22 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft,
   Play,
-  Square,
   Plus,
   Trash,
-  Copy,
   CheckCircle,
   XCircle,
   Clock,
   AlertCircle,
   FileText,
-  Mic,
   Target,
   TrendingUp,
   MessageSquare
@@ -71,7 +66,6 @@ export default function AgentTesting() {
   const agentId = params.get("agentId");
 
   const [activeTab, setActiveTab] = useState("scenarios");
-  const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [showNewScenario, setShowNewScenario] = useState(false);
 
   // New scenario form
@@ -485,13 +479,6 @@ export default function AgentTesting() {
                       >
                         <Play className="h-3 w-3 mr-1" />
                         Run
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelectedScenario(scenario.id)}
-                      >
-                        View
                       </Button>
                       <Button
                         size="sm"

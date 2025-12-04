@@ -10,7 +10,7 @@ import { config } from '../config';
  * Security headers middleware
  * Implements best practices for HTTP security headers
  */
-export function securityHeaders(req: Request, res: Response, next: NextFunction) {
+export function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   // Strict Transport Security - enforce HTTPS in production
   if (config.isProduction) {
     res.setHeader(
@@ -71,7 +71,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
  * Request sanitization middleware
  * Removes potentially dangerous characters from request parameters
  */
-export function sanitizeRequest(req: Request, res: Response, next: NextFunction) {
+export function sanitizeRequest(req: Request, _res: Response, next: NextFunction) {
   // Sanitize query parameters
   if (req.query) {
     for (const key in req.query) {
@@ -108,35 +108,35 @@ function sanitizeString(str: string): string {
 export function getCorsOptions() {
   const allowedOrigins = config.isProduction
     ? [
-        config.publicUrl,
-        config.baseDomain ? `https://*.${config.baseDomain}` : null,
-      ].filter(Boolean)
+      config.publicUrl,
+      config.baseDomain ? `https://*.${config.baseDomain}` : null,
+    ].filter(Boolean)
     : ['*'];
 
   return {
     origin: config.isProduction
       ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-          if (!origin) {
-            // Allow requests with no origin (like mobile apps or curl)
-            callback(null, true);
-            return;
-          }
-
-          const isAllowed = allowedOrigins.some((allowed) => {
-            if (allowed === '*') return true;
-            if (typeof allowed === 'string' && allowed.includes('*')) {
-              const regex = new RegExp('^' + allowed.replace('*', '.*') + '$');
-              return regex.test(origin);
-            }
-            return allowed === origin;
-          });
-
-          if (isAllowed) {
-            callback(null, true);
-          } else {
-            callback(new Error('Not allowed by CORS'));
-          }
+        if (!origin) {
+          // Allow requests with no origin (like mobile apps or curl)
+          callback(null, true);
+          return;
         }
+
+        const isAllowed = allowedOrigins.some((allowed) => {
+          if (allowed === '*') return true;
+          if (typeof allowed === 'string' && allowed.includes('*')) {
+            const regex = new RegExp('^' + allowed.replace('*', '.*') + '$');
+            return regex.test(origin);
+          }
+          return allowed === origin;
+        });
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -149,7 +149,7 @@ export function getCorsOptions() {
 /**
  * API version header middleware
  */
-export function apiVersionHeader(req: Request, res: Response, next: NextFunction) {
+export function apiVersionHeader(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-API-Version', '1.0.0');
   res.setHeader('X-Powered-By', 'EchoSenseiX');
   next();

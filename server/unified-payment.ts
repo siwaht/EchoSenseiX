@@ -1,9 +1,10 @@
 import Stripe from 'stripe';
 import { Request, Response } from 'express';
-import { db } from './db';
-import { 
-  organizations, 
-  payments, 
+import { db as _db } from './db';
+const db = _db as any;
+import {
+  organizations,
+  payments,
   paymentSplits,
   unifiedBillingPlans,
   unifiedSubscriptions,
@@ -30,11 +31,11 @@ function getStripe(): Stripe {
 export function calculatePaymentSplits(
   amount: number,
   platformFeePercentage: number,
-  agencyMarginPercentage: number = 0
+  _agencyMarginPercentage: number = 0
 ) {
   const platformFee = (amount * platformFeePercentage) / 100;
   const agencyAmount = amount - platformFee;
-  
+
   return {
     platformAmount: platformFee,
     agencyAmount: agencyAmount,
@@ -46,17 +47,17 @@ export function calculatePaymentSplits(
 export async function createStripeConnectAccount(req: Request, res: Response) {
   try {
     const { organizationId } = req.body;
-    
+
     // Get organization details
-    const [org] = await db()
+    const [org] = await db
       .select()
       .from(organizations)
       .where(eq(organizations.id, organizationId));
-      
+
     if (!org) {
       return res.status(404).json({ error: 'Organization not found' });
     }
-    
+
     // Create Stripe Connect account
     const account = await getStripe().accounts.create({
       type: 'express',
@@ -71,13 +72,13 @@ export async function createStripeConnectAccount(req: Request, res: Response) {
         name: org.name,
       },
     });
-    
+
     // Update organization with Stripe Connect account ID
-    await db()
+    await db
       .update(organizations)
       .set({ stripeConnectAccountId: account.id })
       .where(eq(organizations.id, organizationId));
-    
+
     // Create account link for onboarding
     const accountLink = await getStripe().accountLinks.create({
       account: account.id,
@@ -85,16 +86,16 @@ export async function createStripeConnectAccount(req: Request, res: Response) {
       return_url: `${process.env.FRONTEND_URL}/agency/billing-settings?connected=true`,
       type: 'account_onboarding',
     });
-    
-    res.json({ 
+
+    return res.json({
       accountId: account.id,
-      onboardingUrl: accountLink.url 
+      onboardingUrl: accountLink.url
     });
   } catch (error: any) {
     console.error('Error creating Stripe Connect account:', error);
-    res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to create Stripe Connect account',
-      message: error.message 
+      message: error.message
     });
   }
 }
@@ -102,49 +103,49 @@ export async function createStripeConnectAccount(req: Request, res: Response) {
 // Create unified payment intent with automatic splitting
 export async function createUnifiedPaymentIntent(req: Request, res: Response) {
   try {
-    const { 
+    const {
       organizationId, // Customer organization
       planId,         // Unified billing plan
       amount,
       metadata = {}
     } = req.body;
-    
+
     // Get the plan details
-    const [plan] = await db()
+    const [plan] = await db
       .select()
       .from(unifiedBillingPlans)
       .where(eq(unifiedBillingPlans.id, planId));
-      
+
     if (!plan) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    
+
     // Get customer organization
-    const [customerOrg] = await db()
+    const [customerOrg] = await db
       .select()
       .from(organizations)
       .where(eq(organizations.id, organizationId));
-      
+
     if (!customerOrg) {
       return res.status(404).json({ error: 'Customer organization not found' });
     }
-    
+
     // Get agency organization if customer has a parent
     let agencyOrg = null;
     if (customerOrg.parentOrganizationId) {
-      [agencyOrg] = await db()
+      [agencyOrg] = await db
         .select()
         .from(organizations)
         .where(eq(organizations.id, customerOrg.parentOrganizationId));
     }
-    
+
     // Calculate payment splits
     const splits = calculatePaymentSplits(
       amount,
       Number(plan.platformFeePercentage),
       Number(plan.agencyMarginPercentage)
     );
-    
+
     // Create payment intent with platform account
     const paymentIntent = await getStripe().paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
@@ -168,9 +169,9 @@ export async function createUnifiedPaymentIntent(req: Request, res: Response) {
         },
       }),
     });
-    
+
     // Record the payment attempt
-    const [payment] = await db()
+    const [payment] = await db
       .insert(payments)
       .values({
         organizationId,
@@ -183,11 +184,11 @@ export async function createUnifiedPaymentIntent(req: Request, res: Response) {
         transactionId: paymentIntent.id,
       })
       .returning();
-    
+
     // Create payment split records
     if (agencyOrg) {
       // Platform fee split
-      await db().insert(paymentSplits).values({
+      await db.insert(paymentSplits).values({
         paymentId: payment.id,
         fromOrganizationId: organizationId,
         toOrganizationId: 'platform', // Special ID for platform
@@ -196,9 +197,9 @@ export async function createUnifiedPaymentIntent(req: Request, res: Response) {
         percentage: plan.platformFeePercentage,
         transferStatus: 'pending',
       });
-      
+
       // Agency revenue split
-      await db().insert(paymentSplits).values({
+      await db.insert(paymentSplits).values({
         paymentId: payment.id,
         fromOrganizationId: organizationId,
         toOrganizationId: agencyOrg.id,
@@ -208,17 +209,17 @@ export async function createUnifiedPaymentIntent(req: Request, res: Response) {
         transferStatus: 'pending',
       });
     }
-    
-    res.json({ 
+
+    return res.json({
       clientSecret: paymentIntent.client_secret,
       paymentId: payment.id,
       splits: splits
     });
   } catch (error: any) {
     console.error('Error creating unified payment intent:', error);
-    res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to create payment intent',
-      message: error.message 
+      message: error.message
     });
   }
 }
@@ -227,29 +228,29 @@ export async function createUnifiedPaymentIntent(req: Request, res: Response) {
 export async function confirmUnifiedPayment(req: Request, res: Response) {
   try {
     const { paymentIntentId } = req.body;
-    
+
     // Retrieve the payment intent from Stripe
     const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
-    
+
     if (paymentIntent.status === 'succeeded') {
       // Update payment status
-      await db()
+      await db
         .update(payments)
-        .set({ 
+        .set({
           status: 'completed',
           completedAt: new Date()
         })
         .where(eq(payments.transactionId, paymentIntentId));
-      
+
       // Get payment splits
-      const [payment] = await db()
+      const [payment] = await db
         .select()
         .from(payments)
         .where(eq(payments.transactionId, paymentIntentId));
-        
+
       if (payment) {
         // Update payment splits as completed
-        await db()
+        await db
           .update(paymentSplits)
           .set({
             transferStatus: 'completed',
@@ -257,12 +258,12 @@ export async function confirmUnifiedPayment(req: Request, res: Response) {
             stripeTransferId: paymentIntent.id
           })
           .where(eq(paymentSplits.paymentId, payment.id));
-        
+
         // Create commission record for agency
         if (payment.agencyAmount && Number(payment.agencyAmount) > 0) {
           const metadata = paymentIntent.metadata;
           if (metadata.agencyOrgId) {
-            await db().insert(agencyCommissions).values({
+            await db.insert(agencyCommissions).values({
               agencyOrganizationId: metadata.agencyOrgId,
               customerOrganizationId: metadata.organizationId,
               paymentId: payment.id,
@@ -275,23 +276,23 @@ export async function confirmUnifiedPayment(req: Request, res: Response) {
           }
         }
       }
-      
-      res.json({ 
-        success: true, 
+
+      return res.json({
+        success: true,
         status: 'completed',
-        paymentId: payment?.id 
+        paymentId: payment?.id
       });
     } else {
-      res.json({ 
-        success: false, 
-        status: paymentIntent.status 
+      return res.json({
+        success: false,
+        status: paymentIntent.status
       });
     }
   } catch (error: any) {
     console.error('Error confirming payment:', error);
-    res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to confirm payment',
-      message: error.message 
+      message: error.message
     });
   }
 }
@@ -299,30 +300,30 @@ export async function confirmUnifiedPayment(req: Request, res: Response) {
 // Create unified subscription
 export async function createUnifiedSubscription(req: Request, res: Response) {
   try {
-    const { 
+    const {
       organizationId, // Customer organization
       planId,         // Unified billing plan
       paymentMethodId // Stripe payment method ID
     } = req.body;
-    
+
     // Get the plan details
-    const [plan] = await db()
+    const [plan] = await db
       .select()
       .from(unifiedBillingPlans)
       .where(eq(unifiedBillingPlans.id, planId));
-      
+
     if (!plan) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    
+
     // Get or create Stripe customer
-    const [org] = await db()
+    const [org] = await db
       .select()
       .from(organizations)
       .where(eq(organizations.id, organizationId));
-      
+
     let customerId = org.stripeCustomerId;
-    
+
     if (!customerId) {
       const customer = await getStripe().customers.create({
         metadata: {
@@ -330,25 +331,25 @@ export async function createUnifiedSubscription(req: Request, res: Response) {
         }
       });
       customerId = customer.id;
-      
-      await db()
+
+      await db
         .update(organizations)
         .set({ stripeCustomerId: customerId })
         .where(eq(organizations.id, organizationId));
     }
-    
+
     // Attach payment method to customer
     await getStripe().paymentMethods.attach(paymentMethodId, {
       customer: customerId,
     });
-    
+
     // Set as default payment method
     await getStripe().customers.update(customerId, {
       invoice_settings: {
         default_payment_method: paymentMethodId,
       },
     });
-    
+
     // Create subscription with Stripe
     const subscription = await getStripe().subscriptions.create({
       customer: customerId,
@@ -362,9 +363,9 @@ export async function createUnifiedSubscription(req: Request, res: Response) {
         planId,
       },
     }) as any; // Cast to any to avoid Response wrapper type issues
-    
+
     // Create unified subscription record
-    const [unifiedSub] = await db()
+    const [unifiedSub] = await db
       .insert(unifiedSubscriptions)
       .values({
         organizationId,
@@ -376,17 +377,17 @@ export async function createUnifiedSubscription(req: Request, res: Response) {
         currentUsage: {},
       })
       .returning();
-    
-    res.json({ 
+
+    return res.json({
       subscriptionId: unifiedSub.id,
       stripeSubscriptionId: subscription.id,
       clientSecret: subscription.latest_invoice?.payment_intent?.client_secret,
     });
   } catch (error: any) {
     console.error('Error creating subscription:', error);
-    res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to create subscription',
-      message: error.message 
+      message: error.message
     });
   }
 }
@@ -395,40 +396,40 @@ export async function createUnifiedSubscription(req: Request, res: Response) {
 export async function handleUnifiedWebhook(req: Request, res: Response) {
   const sig = req.headers['stripe-signature'] as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-  
+
   let event: Stripe.Event;
-  
+
   try {
     event = getStripe().webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-  
+
   try {
     // Handle different event types - cast to any to avoid strict type checking
     const eventType = event.type as any;
-    
+
     if (eventType === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      
+
       // Update payment status
-      await db()
+      await db
         .update(payments)
-        .set({ 
+        .set({
           status: 'completed',
           completedAt: new Date()
         })
         .where(eq(payments.transactionId, paymentIntent.id));
-      
+
       // Execute payment splits
       await executePaymentSplits(paymentIntent.id);
-    } 
+    }
     else if (eventType === 'subscription.created' || eventType === 'subscription.updated') {
       const subscription = event.data.object as any; // Cast to any to access all properties
-      
+
       // Update subscription status
-      await db()
+      await db
         .update(unifiedSubscriptions)
         .set({
           status: subscription.status as any,
@@ -439,28 +440,28 @@ export async function handleUnifiedWebhook(req: Request, res: Response) {
     }
     else if (eventType === 'invoice.payment_succeeded') {
       const invoice = event.data.object as any; // Cast to any to access all properties
-      
+
       // Create payment record for subscription payment
       if (invoice.subscription && invoice.payment_intent) {
         const metadata = invoice.metadata;
         if (metadata && metadata.planId && metadata.organizationId) {
-          const [plan] = await db()
+          const [plan] = await db
             .select()
             .from(unifiedBillingPlans)
             .where(eq(unifiedBillingPlans.id, metadata.planId));
-            
+
           if (plan) {
             const splits = calculatePaymentSplits(
               invoice.amount_paid / 100,
               Number(plan.platformFeePercentage),
               Number(plan.agencyMarginPercentage)
             );
-            
-            const paymentIntentId = typeof invoice.payment_intent === 'string' 
-              ? invoice.payment_intent 
+
+            const paymentIntentId = typeof invoice.payment_intent === 'string'
+              ? invoice.payment_intent
               : invoice.payment_intent?.id || '';
-            
-            await db().insert(payments).values({
+
+            await db.insert(payments).values({
               organizationId: metadata.organizationId,
               planId: metadata.planId,
               amount: (invoice.amount_paid / 100).toString(),
@@ -477,9 +478,9 @@ export async function handleUnifiedWebhook(req: Request, res: Response) {
     }
     else if (eventType === 'customer.subscription.deleted') {
       const deletedSub = event.data.object as Stripe.Subscription;
-      
+
       // Cancel subscription
-      await db()
+      await db
         .update(unifiedSubscriptions)
         .set({
           status: 'canceled',
@@ -487,11 +488,11 @@ export async function handleUnifiedWebhook(req: Request, res: Response) {
         })
         .where(eq(unifiedSubscriptions.stripeSubscriptionId, deletedSub.id));
     }
-    
-    res.json({ received: true });
+
+    return res.json({ received: true });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    return res.status(500).json({ error: 'Webhook processing failed' });
   }
 }
 
@@ -499,26 +500,26 @@ export async function handleUnifiedWebhook(req: Request, res: Response) {
 async function executePaymentSplits(paymentIntentId: string) {
   try {
     // Get payment and splits
-    const [payment] = await db()
+    const [payment] = await db
       .select()
       .from(payments)
       .where(eq(payments.transactionId, paymentIntentId));
-      
+
     if (!payment) return;
-    
-    const splits = await db()
+
+    const splits = await db
       .select()
       .from(paymentSplits)
       .where(eq(paymentSplits.paymentId, payment.id));
-    
+
     for (const split of splits) {
       if (split.splitType === 'agency_revenue' && split.toOrganizationId !== 'platform') {
         // Get agency organization
-        const [agencyOrg] = await db()
+        const [agencyOrg] = await db
           .select()
           .from(organizations)
           .where(eq(organizations.id, split.toOrganizationId));
-        
+
         if (agencyOrg?.stripeConnectAccountId) {
           try {
             // Create transfer to agency's Stripe Connect account
@@ -532,9 +533,9 @@ async function executePaymentSplits(paymentIntentId: string) {
                 splitId: split.id,
               },
             });
-            
+
             // Update split with transfer ID
-            await db()
+            await db
               .update(paymentSplits)
               .set({
                 transferStatus: 'completed',
@@ -544,9 +545,9 @@ async function executePaymentSplits(paymentIntentId: string) {
               .where(eq(paymentSplits.id, split.id));
           } catch (error) {
             console.error('Error creating transfer:', error);
-            
+
             // Update split with error
-            await db()
+            await db
               .update(paymentSplits)
               .set({
                 transferStatus: 'failed',
@@ -558,7 +559,7 @@ async function executePaymentSplits(paymentIntentId: string) {
         }
       } else if (split.splitType === 'platform_fee') {
         // Platform fee is automatically kept, just update status
-        await db()
+        await db
           .update(paymentSplits)
           .set({
             transferStatus: 'completed',
@@ -575,16 +576,16 @@ async function executePaymentSplits(paymentIntentId: string) {
 // Get payment analytics for unified billing
 export async function getUnifiedPaymentAnalytics(req: Request, res: Response) {
   try {
-    const { organizationId, startDate, endDate } = req.query;
-    
+    const { organizationId } = req.query;
+
     // Build query conditions
     const conditions = [];
     if (organizationId) {
       conditions.push(eq(payments.organizationId, organizationId as string));
     }
-    
+
     // Get payments with splits
-    const paymentsData = await db()
+    const paymentsData = await db
       .select({
         payment: payments,
         splits: sql<any>`
@@ -606,9 +607,9 @@ export async function getUnifiedPaymentAnalytics(req: Request, res: Response) {
       .leftJoin(paymentSplits, eq(payments.id, paymentSplits.paymentId))
       .where(conditions.length ? and(...conditions) : undefined)
       .groupBy(payments.id);
-    
+
     // Calculate totals
-    const totals = paymentsData.reduce((acc, { payment }) => {
+    const totals = paymentsData.reduce((acc: any, { payment }: any) => {
       if (payment.status === 'completed') {
         acc.totalRevenue += Number(payment.amount);
         acc.platformRevenue += Number(payment.platformAmount || 0);
@@ -628,16 +629,16 @@ export async function getUnifiedPaymentAnalytics(req: Request, res: Response) {
       pendingPayments: 0,
       failedPayments: 0,
     });
-    
+
     res.json({
       payments: paymentsData,
       totals,
     });
   } catch (error: any) {
     console.error('Error getting payment analytics:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get payment analytics',
-      message: error.message 
+      message: error.message
     });
   }
 }

@@ -1,12 +1,14 @@
 import { db } from './db';
-import { unifiedBillingPlans } from '@shared/schema';
+import { unifiedBillingPlans, billingPackages, agencyBillingPlans } from '@shared/schema';
 
 async function seedBillingPlans() {
   console.log('🌱 Seeding billing plans...');
 
   try {
     // Clear existing plans (optional - comment out if you want to keep existing)
-    await db().delete(unifiedBillingPlans);
+    await (db as any).delete(billingPackages);
+    await (db as any).delete(agencyBillingPlans);
+    await (db as any).delete(unifiedBillingPlans);
 
     // Use a special platform organization ID for system-created plans
     const PLATFORM_ORG_ID = 'platform-system';
@@ -234,9 +236,9 @@ async function seedBillingPlans() {
 
     // Insert all plans
     const allPlans = [...freeTrialPlans, ...customerPlans, ...agencyPlans];
-    
+
     for (const plan of allPlans) {
-      await db().insert(unifiedBillingPlans).values({
+      await (db as any).insert(unifiedBillingPlans).values({
         ...plan,
         createdAt: new Date(),
         updatedAt: new Date(),

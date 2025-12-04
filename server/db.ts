@@ -1,6 +1,7 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
+// @ts-ignore
 import Database from 'better-sqlite3';
 import ws from "ws";
 import * as schema from "@shared/schema";

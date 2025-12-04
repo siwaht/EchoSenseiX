@@ -7,6 +7,7 @@ interface VoiceButtonProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   isLoading?: boolean;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
   onStartRecording,
   onStopRecording,
   isLoading = false,
+  disabled = false,
   className,
 }) => {
   const [volume, setVolume] = useState(0);
@@ -35,11 +37,11 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
   return (
     <button
       onClick={isRecording ? onStopRecording : onStartRecording}
-      disabled={isLoading}
+      disabled={isLoading || disabled}
       className={cn(
         "relative flex items-center justify-center w-16 h-16 rounded-full transition-all duration-300",
         isRecording ? "bg-red-500 hover:bg-red-600" : "bg-white hover:bg-gray-100",
-        isLoading && "opacity-50 cursor-not-allowed",
+        (isLoading || disabled) && "opacity-50 cursor-not-allowed",
         className
       )}
     >
@@ -50,7 +52,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
 
       {/* Waveform ring */}
       {isRecording && (
-        <div 
+        <div
           className="absolute inset-0 rounded-full border-2 border-red-300 opacity-50 transition-all duration-100"
           style={{ transform: `scale(${1 + volume / 200})` }}
         />

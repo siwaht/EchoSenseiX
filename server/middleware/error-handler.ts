@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { AppError, isAppError, isOperationalError, formatErrorResponse } from '../utils/errors';
+import { isAppError, isOperationalError } from '../utils/errors';
 import logger from '../utils/logger';
 import { config } from '../config';
 
@@ -173,7 +173,7 @@ export const asyncHandler = (
  * Handle unhandled promise rejections
  */
 export const handleUnhandledRejection = () => {
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  process.on('unhandledRejection', (reason: any, _promise: Promise<any>) => {
     logger.error('Unhandled Promise Rejection', {
       reason: reason?.message || reason,
       stack: reason?.stack,

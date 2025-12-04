@@ -44,7 +44,7 @@ export default function Voices() {
   const { data: voicesData, isLoading } = useQuery<Voice[]>({
     queryKey: ["/api/voiceai/voices"],
   });
-  
+
   const voices: Voice[] = voicesData || [];
 
   // Fetch agents
@@ -80,7 +80,7 @@ export default function Voices() {
   // Filter voices based on search
   const filteredVoices = useMemo(() => {
     if (!searchQuery || !voices) return voices;
-    
+
     const query = searchQuery.toLowerCase();
     return voices.filter(
       (voice: Voice) => {
@@ -199,7 +199,7 @@ export default function Voices() {
       "bg-red-500",
     ];
     const index = voiceId.charCodeAt(0) % colors.length;
-    return colors[index];
+    return colors[index] || "bg-gray-500";
   };
 
   const handlePlayVoice = (voiceId: string, previewUrl?: string) => {
@@ -229,7 +229,7 @@ export default function Voices() {
           currentAudio.currentTime = 0;
         }
       }
-      
+
       // Start playing new audio
       setPlayingVoiceId(voiceId);
       const audio = document.getElementById(`audio-${voiceId}`) as HTMLAudioElement;
@@ -359,42 +359,42 @@ export default function Voices() {
 
                     {/* Metadata */}
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3">
-                    {/* Language */}
-                    {voice.labels && Object.entries(voice.labels).map(([key, value]) => {
-                      // Show all labels as badges
-                      if (key && value && typeof value === 'string') {
-                        let displayValue: string = value;
-                        let variant: "default" | "secondary" | "outline" = "secondary";
-                        
-                        // Format certain labels
-                        if (key === "language" || key === "lang") {
-                          displayValue = `${getLanguageEmoji(value)} ${formatLanguage(value)}`;
-                          variant = "default";
-                        } else if (key === "accent") {
-                          displayValue = value;
-                        } else if (key === "gender") {
-                          displayValue = value.charAt(0).toUpperCase() + value.slice(1);
-                        } else if (key === "use_case" || key === "use case") {
-                          variant = "outline";
-                          displayValue = value;
+                      {/* Language */}
+                      {voice.labels && Object.entries(voice.labels).map(([key, value]) => {
+                        // Show all labels as badges
+                        if (key && value && typeof value === 'string') {
+                          let displayValue: string = value;
+                          let variant: "default" | "secondary" | "outline" = "secondary";
+
+                          // Format certain labels
+                          if (key === "language" || key === "lang") {
+                            displayValue = `${getLanguageEmoji(value)} ${formatLanguage(value)}`;
+                            variant = "default";
+                          } else if (key === "accent") {
+                            displayValue = value;
+                          } else if (key === "gender") {
+                            displayValue = value.charAt(0).toUpperCase() + value.slice(1);
+                          } else if (key === "use_case" || key === "use case") {
+                            variant = "outline";
+                            displayValue = value;
+                          }
+
+                          return (
+                            <Badge key={key} variant={variant} className="text-xs px-2 py-0.5">
+                              {displayValue}
+                            </Badge>
+                          );
                         }
-                        
-                        return (
-                          <Badge key={key} variant={variant} className="text-xs px-2 py-0.5">
-                            {displayValue}
-                          </Badge>
-                        );
-                      }
-                      return null;
-                    })}
-                    
+                        return null;
+                      })}
+
                       {/* Show category if not in labels */}
                       {voice.category && !voice.labels?.use_case && !voice.labels?.["use case"] && (
                         <Badge variant="outline" className="text-xs px-2 py-0.5">
                           {voice.category}
                         </Badge>
                       )}
-                      
+
                       {/* HD indicator */}
                       {voice.high_quality_base_model_ids && voice.high_quality_base_model_ids.length > 0 && (
                         <Badge variant="secondary" className="text-xs px-2 py-0.5">
@@ -423,7 +423,7 @@ export default function Voices() {
                       setSelectedVoiceId(voice.voice_id);
                       // If there's only one agent, assign directly without dialog
                       if (agents.length === 1) {
-                        updateAgent.mutate({ agentId: agents[0].id, voiceId: voice.voice_id });
+                        updateAgent.mutate({ agentId: agents[0]!.id, voiceId: voice.voice_id });
                       } else {
                         setShowAgentDialog(true);
                       }
@@ -435,7 +435,7 @@ export default function Voices() {
                     Use Voice
                   </Button>
                 </div>
-                
+
                 {/* Mobile: Use Voice button */}
                 <div className="sm:hidden mt-2">
                   <Button
@@ -446,7 +446,7 @@ export default function Voices() {
                       setSelectedVoiceId(voice.voice_id);
                       // If there's only one agent, assign directly without dialog
                       if (agents.length === 1) {
-                        updateAgent.mutate({ agentId: agents[0].id, voiceId: voice.voice_id });
+                        updateAgent.mutate({ agentId: agents[0]!.id, voiceId: voice.voice_id });
                       } else {
                         setShowAgentDialog(true);
                       }
@@ -499,9 +499,8 @@ export default function Voices() {
               agents.map((agent) => (
                 <Card
                   key={agent.id}
-                  className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                    selectedAgentId === agent.id ? "ring-2 ring-primary" : ""
-                  }`}
+                  className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${selectedAgentId === agent.id ? "ring-2 ring-primary" : ""
+                    }`}
                   onClick={() => setSelectedAgentId(agent.id)}
                   data-testid={`card-agent-${agent.id}`}
                 >

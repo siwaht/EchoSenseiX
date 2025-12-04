@@ -27,6 +27,14 @@ export class ElevenLabsProvider implements IConversationalAIProvider, ITTSProvid
         return response.data.voices;
     }
 
+    async getVoice(voiceId: string): Promise<any> {
+        const response = await this.getClient().getVoice(voiceId);
+        if (!response.success) {
+            throw new Error(response.error || "Failed to fetch voice");
+        }
+        return response.data;
+    }
+
     async generateAudio(text: string, voiceId: string, options?: any): Promise<ArrayBuffer> {
         return this.getClient().textToSpeech(text, voiceId, options?.modelId);
     }
@@ -90,7 +98,7 @@ export class ElevenLabsProvider implements IConversationalAIProvider, ITTSProvid
         return response.data;
     }
 
-    async manageTools(tools: any[], integrationId?: string): Promise<{ toolIds: string[]; builtInTools: any }> {
+    async manageTools(tools: any[], _integrationId?: string): Promise<{ toolIds: string[]; builtInTools: any }> {
         const client = this.getClient();
         const toolIds: string[] = [];
         const builtInTools: any = {};

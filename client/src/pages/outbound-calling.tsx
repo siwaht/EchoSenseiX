@@ -10,20 +10,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Phone, Users, Clock, AlertCircle, Upload, Download, Play, Pause, Trash2, TestTube } from "lucide-react";
+import { Search, Plus, Phone, Users, Clock, AlertCircle, Download, Play, Pause, Trash2, TestTube } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Agent, PhoneNumber, BatchCall } from "@shared/schema";
 
 export default function OutboundCalling() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const [, _setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedBatchCall, setSelectedBatchCall] = useState<BatchCall | null>(null);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Form state for creating batch call
   const [formData, setFormData] = useState({
     name: "",
@@ -53,14 +53,14 @@ export default function OutboundCalling() {
     mutationFn: async (data: any) => {
       // First create the batch call
       const batchCall: any = await apiRequest("POST", "/api/batch-calls", data);
-      
+
       // Then add recipients if provided  
       if (data.recipients && data.recipients.length > 0 && batchCall && batchCall.id) {
         await apiRequest("POST", `/api/batch-calls/${batchCall.id}/recipients`, {
           recipients: data.recipients,
         });
       }
-      
+
       return batchCall;
     },
     onSuccess: () => {
@@ -157,6 +157,7 @@ export default function OutboundCalling() {
       const text = e.target?.result as string;
       // Parse CSV (simplified - in production, use a proper CSV parser)
       const lines = text.split('\n');
+      if (lines.length === 0 || !lines[0]) return;
       const headers = lines[0].split(',').map(h => h.trim().replace(/\r/g, ''));
       const recipients = lines.slice(1)
         .filter(line => line.trim())
@@ -174,7 +175,7 @@ export default function OutboundCalling() {
           });
           return recipient;
         });
-      
+
       // Validate that phone_number column exists
       if (!headers.includes('phone_number')) {
         toast({
@@ -184,7 +185,7 @@ export default function OutboundCalling() {
         });
         return;
       }
-      
+
       setFormData({ ...formData, recipients });
       toast({
         title: "File uploaded",
@@ -301,7 +302,7 @@ export default function OutboundCalling() {
                       {batchCall.status || "draft"}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex items-center gap-6 mt-2 text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <Users className="w-4 h-4" />

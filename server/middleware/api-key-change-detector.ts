@@ -20,7 +20,7 @@ function hashApiKey(apiKey: string): string {
  */
 export async function detectApiKeyChange(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) {
   try {
@@ -36,7 +36,7 @@ export async function detectApiKeyChange(
     }
 
     // Get the organization
-    const [org] = await db()
+    const [org] = await (db as any)
       .select()
       .from(organizations)
       .where(eq(organizations.id, req.user.organizationId));
@@ -51,47 +51,47 @@ export async function detectApiKeyChange(
     // If this is the first time or the key has changed
     if (!storedKeyHash || storedKeyHash !== currentKeyHash) {
       console.log(`[API-KEY-CHANGE] Detected API key change for organization ${org.id}`);
-      
+
       // Only wipe data if there was a previous key (not first time setup)
       if (storedKeyHash) {
         console.log(`[API-KEY-CHANGE] Wiping old data for organization ${org.id}`);
-        
+
         const storage = req.app.locals.storage as IStorage;
         const audioStorage = new AudioStorageService();
         const cleanupService = new DataCleanupService(storage, audioStorage);
-        
+
         const result = await cleanupService.wipeOrganizationData(org.id);
-        
+
         if (!result.success) {
           console.error(`[API-KEY-CHANGE] ❌ Data wipe failed, will retry on next request:`, result.error);
           // Don't update hash or trigger sync - let it retry on next request
           return next();
         }
-        
+
         console.log(`[API-KEY-CHANGE] ✅ Successfully wiped data:`, result.deleted);
       }
 
       // Update the stored API key hash (only after successful wipe or first-time setup)
-      await db()
+      await (db as any)
         .update(organizations)
         .set({ elevenLabsApiKeyHash: currentKeyHash })
         .where(eq(organizations.id, org.id));
 
       console.log(`[API-KEY-CHANGE] Updated API key hash for organization ${org.id}`);
-      
+
       // Also update or create the ElevenLabs integration with the new API key
       const storage = req.app.locals.storage as IStorage;
       console.log(`[API-KEY-CHANGE] Upserting ElevenLabs integration with new API key`);
-      
+
       await storage.upsertIntegration({
         organizationId: org.id,
         provider: "elevenlabs",
         apiKey: elevenLabsApiKey,
         status: "ACTIVE",
       });
-      
+
       console.log(`[API-KEY-CHANGE] ElevenLabs integration updated successfully`);
-      
+
       // Trigger auto-sync in the background (don't block the request)
       if (storedKeyHash) {
         // Import sync service dynamically to avoid circular dependencies

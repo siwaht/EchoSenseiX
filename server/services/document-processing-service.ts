@@ -9,7 +9,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { storage } from '../storage';
-import { createElevenLabsClient } from './elevenlabs';
+// import { createElevenLabsClient } from './elevenlabs';
 import { KnowledgeBaseService } from './knowledge-base-service';
 
 export interface DocumentUpload {
@@ -41,15 +41,15 @@ export class DocumentProcessingService {
 
     return multer({
       storage: multer.diskStorage({
-        destination: (req, file, cb) => {
+        destination: (_req, _file, cb) => {
           cb(null, this.uploadPath);
         },
-        filename: (req, file, cb) => {
+        filename: (_req, file, cb) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
           cb(null, file.fieldname + '-' + uniqueSuffix + '-' + file.originalname);
         }
       }),
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         // Allow common document formats
         const allowedTypes = [
           'application/pdf',
@@ -59,7 +59,7 @@ export class DocumentProcessingService {
           'text/markdown',
           'application/rtf'
         ];
-        
+
         if (allowedTypes.includes(file.mimetype)) {
           cb(null, true);
         } else {
@@ -83,7 +83,7 @@ export class DocumentProcessingService {
   ): Promise<DocumentUpload> {
     try {
       console.log(`[DOCUMENT-PROCESSING] Processing document: ${originalName}`);
-      
+
       // Check if file exists
       if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
@@ -91,8 +91,8 @@ export class DocumentProcessingService {
 
       // Get file stats
       const fileStats = fs.statSync(filePath);
-      
-      const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const mimeType = this.getMimeType(originalName);
 
@@ -150,22 +150,18 @@ export class DocumentProcessingService {
 
       // Split text into knowledge base entries
       const knowledgeEntries = await this.splitTextIntoEntries(extractedText, originalName);
-      document.knowledgeEntries = knowledgeEntries;
-
-      // Update progress: splitting complete (75%)
-      await storage.updateDocumentProcessingStatus(processingStatus.id, {
-        progress: 75
-      });
-
       // Add entries to knowledge base
+      const createdEntryIds: string[] = [];
       for (const entry of knowledgeEntries) {
-        await KnowledgeBaseService.addKnowledgeEntry(organizationId, {
+        const newEntry = await KnowledgeBaseService.addKnowledgeEntry(organizationId, {
           title: entry.title,
           content: entry.content,
           category: 'Uploaded Documents',
           tags: ['document-upload', 'auto-generated', originalName.replace(/\.[^/.]+$/, "")]
         });
+        createdEntryIds.push(newEntry.id);
       }
+      document.knowledgeEntries = createdEntryIds;
 
       // Update status: completed (100%)
       await storage.updateDocumentProcessingStatus(processingStatus.id, {
@@ -185,10 +181,10 @@ export class DocumentProcessingService {
       // Update status to failed if we have a processing status ID
       try {
         const existingStatus = await storage.getDocumentProcessingStatusByOrganization(organizationId, 1);
-        if (existingStatus.length > 0) {
+        if (existingStatus.length > 0 && existingStatus[0]) {
           await storage.updateDocumentProcessingStatus(existingStatus[0].id, {
             status: 'failed',
-            errorMessage: error.message
+            errorMessage: (error as Error).message
           });
         }
       } catch (updateError) {
@@ -206,11 +202,11 @@ export class DocumentProcessingService {
     try {
       // Using pdf-parse library for PDF text extraction
       const pdfParseModule = await import('pdf-parse');
-      const pdfParse = pdfParseModule.default || pdfParseModule;
-      
+      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+
       const dataBuffer = fs.readFileSync(filePath);
       const data = await pdfParse(dataBuffer);
-      
+
       return data.text || '';
     } catch (error: any) {
       console.error('[DOCUMENT-PROCESSING] PDF extraction failed:', error);
@@ -225,12 +221,12 @@ export class DocumentProcessingService {
     try {
       // Using mammoth library for DOCX text extraction
       const mammoth = await import('mammoth');
-      
+
       const result = await mammoth.extractRawText({ path: filePath });
       return result.value || '';
     } catch (error) {
       console.error('[DOCUMENT-PROCESSING] DOCX extraction failed:', error);
-      throw new Error(`Failed to extract text from DOCX: ${error.message}`);
+      throw new Error(`Failed to extract text from DOCX: ${(error as Error).message}`);
     }
   }
 
@@ -242,23 +238,23 @@ export class DocumentProcessingService {
       return fs.readFileSync(filePath, 'utf8');
     } catch (error) {
       console.error('[DOCUMENT-PROCESSING] TXT extraction failed:', error);
-      throw new Error(`Failed to extract text from file: ${error.message}`);
+      throw new Error(`Failed to extract text from file: ${(error as Error).message}`);
     }
   }
 
   /**
    * Split extracted text into meaningful knowledge base entries
    */
-  private static async splitTextIntoEntries(text: string, originalName: string): Promise<Array<{title: string, content: string}>> {
+  private static async splitTextIntoEntries(text: string, originalName: string): Promise<Array<{ title: string, content: string }>> {
     try {
       // Use ElevenLabs AI to intelligently split document into knowledge entries
       // For now, implement a simple splitting strategy
-      
-      const entries: Array<{title: string, content: string}> = [];
-      
+
+      const entries: Array<{ title: string, content: string }> = [];
+
       // Split by common document structures
       const sections = text.split(/\n\s*(?=[A-Z][^a-z]*\n|#{1,6}\s|\d+\.\s)/);
-      
+
       sections.forEach((section, index) => {
         const trimmedSection = section.trim();
         if (trimmedSection.length > 100) { // Only include substantial sections
@@ -298,14 +294,14 @@ export class DocumentProcessingService {
   private static extractTitle(text: string, originalName: string, index: number): string {
     // Try to find a title in the first few lines
     const lines = text.split('\n').slice(0, 3);
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
       if (trimmed.length > 10 && trimmed.length < 100 && !trimmed.match(/^\d+\./)) {
         return trimmed;
       }
     }
-    
+
     return `${originalName.replace(/\.[^/.]+$/, "")} - Section ${index + 1}`;
   }
 
@@ -315,25 +311,25 @@ export class DocumentProcessingService {
   private static chunkText(text: string, chunkSize: number): string[] {
     const chunks: string[] = [];
     let start = 0;
-    
+
     while (start < text.length) {
       let end = start + chunkSize;
-      
+
       // Try to break at sentence boundary
       if (end < text.length) {
         const lastPeriod = text.lastIndexOf('.', end);
         const lastNewline = text.lastIndexOf('\n', end);
         const breakPoint = Math.max(lastPeriod, lastNewline);
-        
+
         if (breakPoint > start + chunkSize * 0.5) {
           end = breakPoint + 1;
         }
       }
-      
+
       chunks.push(text.slice(start, end).trim());
       start = end;
     }
-    
+
     return chunks.filter(chunk => chunk.length > 50);
   }
 
@@ -342,7 +338,7 @@ export class DocumentProcessingService {
    */
   private static getMimeType(filename: string): string {
     const ext = filename.toLowerCase().split('.').pop();
-    
+
     switch (ext) {
       case 'pdf': return 'application/pdf';
       case 'doc': return 'application/msword';
@@ -363,22 +359,22 @@ export class DocumentProcessingService {
   ): Promise<boolean> {
     try {
       console.log(`[DOCUMENT-PROCESSING] Attempting to upload to ElevenLabs: ${document.originalName}`);
-      
+
       // Note: ElevenLabs doesn't currently have a direct document upload API
       // This is a placeholder for future implementation
       // For now, we process the text content and use it in conversations
-      
+
       const integration = await storage.getIntegration(organizationId, "elevenlabs");
       if (!integration || !integration.apiKey) {
         throw new Error("ElevenLabs integration not configured");
       }
 
-      const client = createElevenLabsClient(integration.apiKey);
-      
+      // const _client = createElevenLabsClient(integration.apiKey);
+
       // Since ElevenLabs doesn't support direct document upload,
       // we enhance the agent with the extracted knowledge
       console.log(`[DOCUMENT-PROCESSING] Document content integrated with ElevenLabs via knowledge base`);
-      
+
       return true;
     } catch (error: any) {
       console.error(`[DOCUMENT-PROCESSING] ElevenLabs upload failed:`, error);
@@ -407,8 +403,8 @@ export class DocumentProcessingService {
         organizationId: status.organizationId,
         uploadedBy: status.metadata?.uploadedBy || '',
         status: status.status as 'uploading' | 'processing' | 'completed' | 'failed',
-        createdAt: status.createdAt,
-        updatedAt: status.updatedAt
+        createdAt: status.createdAt || new Date(),
+        updatedAt: status.updatedAt || new Date()
       };
 
       return documentUpload;
@@ -457,7 +453,7 @@ export class DocumentProcessingService {
       // Delete associated knowledge base entries
       // Find entries by the document tag (filename without extension)
       const documentTag = originalName.replace(/\.[^/.]+$/, "");
-      const knowledgeEntries = await storage.getKnowledgeBaseEntries(organizationId);
+      const knowledgeEntries = await storage.getKnowledgeEntries(organizationId);
 
       for (const entry of knowledgeEntries) {
         if (entry.tags?.includes(documentTag) || entry.tags?.includes('document-upload')) {

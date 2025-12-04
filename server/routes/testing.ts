@@ -19,10 +19,10 @@ router.get("/scenarios", isAuthenticated, async (req: any, res) => {
         }
 
         const scenarios = testScenarios.get(agentId as string) || [];
-        res.json(scenarios);
+        return res.json(scenarios);
     } catch (error) {
         console.error("Error fetching test scenarios:", error);
-        res.status(500).json({ error: "Failed to fetch test scenarios" });
+        return res.status(500).json({ error: "Failed to fetch test scenarios" });
     }
 });
 
@@ -51,10 +51,10 @@ router.post("/scenarios", isAuthenticated, async (req: any, res) => {
         scenarios.push(scenario);
         testScenarios.set(agentId, scenarios);
 
-        res.json(scenario);
+        return res.json(scenario);
     } catch (error) {
         console.error("Error creating test scenario:", error);
-        res.status(500).json({ error: "Failed to create test scenario" });
+        return res.status(500).json({ error: "Failed to create test scenario" });
     }
 });
 
@@ -76,7 +76,7 @@ router.delete("/scenarios/:id", isAuthenticated, async (req: any, res) => {
         return res.status(404).json({ error: "Test scenario not found" });
     } catch (error) {
         console.error("Error deleting test scenario:", error);
-        res.status(500).json({ error: "Failed to delete test scenario" });
+        return res.status(500).json({ error: "Failed to delete test scenario" });
     }
 });
 
@@ -145,10 +145,10 @@ router.post("/run", isAuthenticated, async (req: any, res) => {
         results.push(result);
         testResults.set(agentId, results);
 
-        res.json(result);
+        return res.json(result);
     } catch (error) {
         console.error("Error running test:", error);
-        res.status(500).json({ error: "Failed to run test" });
+        return res.status(500).json({ error: "Failed to run test" });
     }
 });
 
@@ -161,10 +161,10 @@ router.get("/results", isAuthenticated, async (req: any, res) => {
         }
 
         const results = testResults.get(agentId as string) || [];
-        res.json(results);
+        return res.json(results);
     } catch (error) {
         console.error("Error fetching test results:", error);
-        res.status(500).json({ error: "Failed to fetch test results" });
+        return res.status(500).json({ error: "Failed to fetch test results" });
     }
 });
 

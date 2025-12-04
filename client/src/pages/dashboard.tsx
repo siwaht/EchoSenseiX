@@ -1,22 +1,18 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useOptimizedQuery } from "@/hooks/useOptimizedQuery";
 import { memo } from "react";
-import { StatsCard } from "@/components/ui/stats-card";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Phone, Clock, DollarSign, Bot, PhoneCall, MessageSquare, AlertCircle, RefreshCw, BarChart3, TrendingUp, Activity, HelpCircle, CheckCircle, XCircle, FileText, Download, TrendingDown, Users, ExternalLink } from "lucide-react";
-import { useState, useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Phone, Clock, DollarSign, Bot, PhoneCall, AlertCircle, RefreshCw, TrendingUp, Activity, CheckCircle, FileText } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { SentimentIndicator } from "@/components/analytics/sentiment-indicator";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserPlanCard } from "@/components/dashboard/user-plan-card";
 import { CallAnalyticsCard } from "@/components/dashboard/call-analytics-card";
 import { useAgentContext } from "@/contexts/agent-context";
@@ -34,7 +30,7 @@ interface DashboardStats {
 // Success Rate Chart Component
 const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { selectedAgentId: string }) {
   const queryParams = selectedAgentId !== "all" ? `?agentId=${selectedAgentId}` : "";
-  
+
   const { data: callLogs } = useQuery({
     queryKey: ["/api/call-logs", selectedAgentId],
     queryFn: async () => {
@@ -85,29 +81,29 @@ const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { s
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="date" 
+            <XAxis
+              dataKey="date"
               stroke="#666"
               fontSize={11}
               angle={-45}
               textAnchor="end"
               height={60}
             />
-            <YAxis 
-              stroke="#666" 
+            <YAxis
+              stroke="#666"
               fontSize={11}
               domain={[0, 100]}
               ticks={[0, 25, 50, 75, 100]}
               tickFormatter={(value) => `${value}%`}
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#fff', 
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#fff',
                 border: '1px solid #ccc',
                 borderRadius: '6px',
                 fontSize: '12px'
@@ -115,10 +111,10 @@ const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { s
               formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
               labelFormatter={(label) => `Date: ${label}`}
             />
-            <Area 
-              type="monotone" 
-              dataKey="successRate" 
-              stroke="#10b981" 
+            <Area
+              type="monotone"
+              dataKey="successRate"
+              stroke="#10b981"
               strokeWidth={2}
               fill="url(#colorSuccess)"
             />
@@ -134,7 +130,7 @@ const SuccessRateChart = memo(function SuccessRateChart({ selectedAgentId }: { s
 });
 
 // Agent Performance Table Component
-const AgentPerformanceTable = memo(function AgentPerformanceTable({ selectedAgentId, callLogs, agents }: { selectedAgentId: string; callLogs: any; agents: any }) {
+const AgentPerformanceTable = memo(function AgentPerformanceTable({ callLogs, agents }: { callLogs: any; agents: any }) {
 
   // Calculate agent statistics
   const calculateAgentStats = () => {
@@ -145,7 +141,7 @@ const AgentPerformanceTable = memo(function AgentPerformanceTable({ selectedAgen
     (callLogs as CallLog[]).forEach((call) => {
       const agentId = call.agentId;
       const agent = (agents as Agent[]).find((a) => a.id === agentId);
-      
+
       // Skip deleted agents - only show stats for currently assigned agents
       if (!agent) return;
 
@@ -163,7 +159,7 @@ const AgentPerformanceTable = memo(function AgentPerformanceTable({ selectedAgen
 
       agentStats[agentName].calls++;
       agentStats[agentName].duration += (call.duration || 0);
-      
+
       // Fix unrealistic costs - cap at reasonable max of $5 per call
       let cost = Number(call.cost || 0);
       if (cost > 5) {
@@ -171,7 +167,7 @@ const AgentPerformanceTable = memo(function AgentPerformanceTable({ selectedAgen
         cost = cost / 100;
       }
       agentStats[agentName].llmCost += cost;
-      
+
       // More realistic credits calculation: 
       // Typically 1 credit = $0.001, so multiply cost by 1000
       agentStats[agentName].credits += Math.round(cost * 1000);
@@ -262,506 +258,21 @@ function LanguageStats() {
   );
 }
 
-// Recent Activity Component (keeping for reference)
-function RecentActivity() {
-  const { data: callLogs, isLoading: callLogsLoading } = useQuery({
-    queryKey: ["/api/call-logs"],
-  });
-
-  const { data: agents, isLoading: agentsLoading } = useQuery({
-    queryKey: ["/api/agents"],
-  });
-
-  if (callLogsLoading || agentsLoading) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg animate-pulse">
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-            <div className="flex-1 space-y-2">
-              <div className="w-3/4 h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              <div className="w-1/2 h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Combine and sort activity data
-  const activities: any[] = [];
-
-  // Add call logs as activities
-  if (callLogs && Array.isArray(callLogs)) {
-    (callLogs as CallLog[]).forEach((call) => {
-      if (!call.createdAt) return; // Skip if no timestamp
-
-      // Find agent name by agentId
-      const agentName = agents && Array.isArray(agents)
-        ? (agents as Agent[]).find(a => a.id === call.agentId)?.name
-        : undefined;
-
-      activities.push({
-        id: call.id,
-        type: 'call',
-        timestamp: call.createdAt,
-        title: `Call with ${agentName || 'Unknown Agent'}`,
-        description: `Duration: ${Math.floor((call.duration || 0) / 60)}:${String((call.duration || 0) % 60).padStart(2, '0')} • Cost: $${Number(call.cost || 0).toFixed(4)}`,
-        status: call.status,
-        icon: PhoneCall,
-        color: call.status === 'completed' ? 'text-green-500' : call.status === 'failed' ? 'text-red-500' : 'text-yellow-500'
-      });
-    });
-  }
-
-  // Add agent sync activities
-  // Note: Agent type doesn't have lastSync property in the schema, so we skip this for now
-  // This can be re-enabled when lastSync is added to the Agent schema
-  /*
-  if (agents) {
-    (agents as Agent[]).forEach((agent) => {
-      if (agent.lastSync) {
-        activities.push({
-          id: `sync-${agent.id}`,
-          type: 'sync',
-          timestamp: agent.lastSync,
-          title: `Agent synchronized: ${agent.name}`,
-          description: `Voice agent data updated`,
-          status: 'completed',
-          icon: MessageSquare,
-          color: 'text-blue-500'
-        });
-      }
-    });
-  }
-  */
-
-  // Sort by timestamp (most recent first)
-  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  // Show last 30 days if recent activity is sparse
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const recentActivities = activities.filter(activity => 
-    new Date(activity.timestamp) >= thirtyDaysAgo
-  ).slice(0, 10); // Show max 10 items
-
-  if (recentActivities.length === 0) {
-    return (
-      <div className="text-center text-muted-foreground py-8">
-        <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p data-testid="text-activity-placeholder">No activity in the last 30 days</p>
-        <p className="text-sm mt-2">Activity will appear here once you start making calls</p>
-      </div>
-    );
-  }
-
-  const formatRelativeTime = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diffInHours = Math.floor((now.getTime() - time.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
-    
-    return time.toLocaleDateString();
-  };
-
-  return (
-    <div className="space-y-3" data-testid="container-recent-activity">
-      {recentActivities.map((activity) => {
-        const IconComponent = activity.icon;
-        return (
-          <div key={activity.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <div className={`p-2 rounded-full bg-gray-100 dark:bg-gray-700 ${activity.color}`}>
-              <IconComponent className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {activity.title}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {activity.description}
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              {activity.status && (
-                <Badge 
-                  variant={activity.status === 'completed' ? 'default' : activity.status === 'failed' ? 'destructive' : 'secondary'}
-                  className="text-xs"
-                >
-                  {activity.status}
-                </Badge>
-              )}
-              <span className="text-xs text-gray-400">
-                {formatRelativeTime(activity.timestamp)}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-      
-      {activities.length > recentActivities.length && (
-        <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500">
-            Showing recent activity from the last 30 days ({recentActivities.length} of {activities.length} total)
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Cost Analysis Chart Component
-function CostAnalysisChart() {
-  const [timeRange, setTimeRange] = useState('daily');
-  
-  const { data: callLogs } = useQuery({
-    queryKey: ["/api/call-logs"],
-  });
-
-  // Process cost data based on selected time range
-  const processCostData = (logs: any[], range: string) => {
-    if (!logs || logs.length === 0) return [];
-
-    const now = new Date();
-    const data: any[] = [];
-    let days = 7;
-    let formatKey = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    switch (range) {
-      case 'daily':
-        days = 7;
-        break;
-      case 'weekly':
-        days = 28;
-        formatKey = (date: Date) => `W${Math.ceil(date.getDate() / 7)}`;
-        break;
-      case 'monthly':
-        days = 90;
-        formatKey = (date: Date) => date.toLocaleDateString('en-US', { month: 'short' });
-        break;
-    }
-
-    // Group by period
-    const periodData: any = {};
-    
-    logs.forEach((call: any) => {
-      const callDate = new Date(call.createdAt);
-      const periodKey = formatKey(callDate);
-      
-      if (!periodData[periodKey]) {
-        periodData[periodKey] = {
-          period: periodKey,
-          cost: 0,
-          calls: 0,
-          avgCost: 0
-        };
-      }
-      
-      periodData[periodKey].cost += Number(call.cost || 0);
-      periodData[periodKey].calls++;
-    });
-
-    // Calculate averages and convert to array
-    Object.values(periodData).forEach((item: any) => {
-      item.avgCost = item.calls > 0 ? item.cost / item.calls : 0;
-      item.cost = Number(item.cost.toFixed(4));
-      item.avgCost = Number(item.avgCost.toFixed(4));
-    });
-
-    return Object.values(periodData).slice(-10);
-  };
-
-  const chartData = processCostData(Array.isArray(callLogs) ? callLogs : [], timeRange);
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-card-foreground">
-          Cost Analysis
-        </h3>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-32" data-testid="select-cost-time-range">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="daily">Daily</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="monthly">Monthly</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {chartData.length > 0 ? (
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="period" 
-                stroke="#666"
-                fontSize={12}
-                angle={-45}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis 
-                stroke="#666" 
-                fontSize={12}
-                tickFormatter={(value) => `$${value}`}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #ccc',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-                formatter={(value: any, name: string) => [
-                  `$${Number(value).toFixed(4)}`,
-                  name === 'cost' ? 'Total Cost' : 'Avg Cost/Call'
-                ]}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="cost" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
-                name="cost"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="avgCost" 
-                stroke="#f59e0b" 
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={{ fill: '#f59e0b', strokeWidth: 2, r: 3 }}
-                activeDot={{ r: 5, stroke: '#f59e0b', strokeWidth: 2 }}
-                name="avgCost"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="flex items-center justify-center gap-6 mt-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-green-500"></div>
-              <span className="text-gray-600 dark:text-gray-400">Total Cost</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-orange-500" style={{ borderTop: '2px dashed' }}></div>
-              <span className="text-gray-600 dark:text-gray-400">Avg Cost per Call</span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="h-64 flex items-center justify-center bg-muted/20 rounded-lg">
-          <div className="text-center text-muted-foreground">
-            <DollarSign className="w-12 h-12 mx-auto mb-2" />
-            <p data-testid="text-cost-placeholder">No cost data available</p>
-            <p className="text-sm">Data will appear after calls are made</p>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-// Call Volume Chart Component
-function CallVolumeChart({ selectedAgentId }: { selectedAgentId: string }) {
-  const [timeRange, setTimeRange] = useState('daily');
-  const queryParams = selectedAgentId !== "all" ? `?agentId=${selectedAgentId}` : "";
-  
-  const { data: callLogs } = useQuery({
-    queryKey: ["/api/call-logs", selectedAgentId],
-    queryFn: async () => {
-      const response = await fetch(`/api/call-logs${queryParams}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch call logs");
-      return response.json();
-    },
-  });
-
-  // Process call logs based on selected time range
-  const processCallData = (logs: any[], range: string) => {
-    if (!logs || logs.length === 0) return [];
-
-    const now = new Date();
-    const data: any[] = [];
-    let days = 7; // Default for daily view
-    let formatKey = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    switch (range) {
-      case 'daily':
-        days = 7;
-        formatKey = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        break;
-      case 'weekly':
-        days = 28; // 4 weeks
-        formatKey = (date: Date) => `Week ${Math.ceil(date.getDate() / 7)}, ${date.toLocaleDateString('en-US', { month: 'short' })}`;
-        break;
-      case 'monthly':
-        days = 90; // 3 months
-        formatKey = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        break;
-      case 'quarterly':
-        days = 365; // 1 year
-        formatKey = (date: Date) => `Q${Math.ceil((date.getMonth() + 1) / 3)} ${date.getFullYear()}`;
-        break;
-    }
-
-    // Generate date ranges
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      let periodKey: string;
-      let periodStart: Date;
-      let periodEnd: Date;
-
-      if (range === 'daily') {
-        periodKey = formatKey(date);
-        periodStart = new Date(date);
-        periodStart.setHours(0, 0, 0, 0);
-        periodEnd = new Date(date);
-        periodEnd.setHours(23, 59, 59, 999);
-      } else if (range === 'weekly') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        periodKey = formatKey(weekStart);
-        periodStart = weekStart;
-        periodEnd = new Date(weekStart);
-        periodEnd.setDate(weekStart.getDate() + 6);
-      } else if (range === 'monthly') {
-        periodKey = formatKey(new Date(date.getFullYear(), date.getMonth(), 1));
-        periodStart = new Date(date.getFullYear(), date.getMonth(), 1);
-        periodEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      } else { // quarterly
-        const quarter = Math.ceil((date.getMonth() + 1) / 3);
-        periodKey = `Q${quarter} ${date.getFullYear()}`;
-        periodStart = new Date(date.getFullYear(), (quarter - 1) * 3, 1);
-        periodEnd = new Date(date.getFullYear(), quarter * 3, 0);
-      }
-
-      // Count calls in this period
-      const callsInPeriod = logs.filter((call: any) => {
-        const callDate = new Date(call.createdAt);
-        return callDate >= periodStart && callDate <= periodEnd;
-      });
-
-      const totalCost = callsInPeriod.reduce((sum: number, call: any) => sum + (Number(call.cost) || 0), 0);
-      const totalDuration = callsInPeriod.reduce((sum: number, call: any) => sum + (call.duration || 0), 0);
-
-      // Only add unique periods (avoid duplicates in weekly/monthly/quarterly views)
-      if (!data.find(item => item.period === periodKey)) {
-        data.push({
-          period: periodKey,
-          calls: callsInPeriod.length,
-          cost: totalCost,
-          duration: Math.round(totalDuration / 60), // Convert to minutes
-        });
-      }
-    }
-
-    return data.slice(-10); // Show last 10 periods
-  };
-
-  const chartData = processCallData(Array.isArray(callLogs) ? callLogs : [], timeRange);
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-card-foreground" data-testid="text-chart-title-usage">
-          Call Volume
-        </h3>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-32" data-testid="select-time-range">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="daily">Daily</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="monthly">Monthly</SelectItem>
-            <SelectItem value="quarterly">Quarterly</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {chartData.length > 0 ? (
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="period" 
-                stroke="#666"
-                fontSize={12}
-                angle={-45}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis stroke="#666" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #ccc',
-                  borderRadius: '6px',
-                  fontSize: '14px'
-                }}
-                formatter={(value: any, name: string) => [
-                  name === 'calls' ? `${value} calls` :
-                  name === 'cost' ? `$${Number(value).toFixed(4)}` :
-                  `${value} min`,
-                  name === 'calls' ? 'Calls' :
-                  name === 'cost' ? 'Cost' : 'Duration'
-                ]}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="calls" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="h-64 flex items-center justify-center bg-muted/20 rounded-lg">
-          <div className="text-center text-muted-foreground">
-            <BarChart3 className="w-12 h-12 mx-auto mb-2" />
-            <p data-testid="text-chart-placeholder">No call data available</p>
-            <p className="text-sm">Data will appear after calls are made</p>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export default function Dashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { selectedAgent, setSelectedAgent, agents } = useAgentContext();
   const { user } = useAuth();
-  
+
   // Use agent ID from context
   // When there's only one agent, use its ID instead of "all"
-  const selectedAgentId = selectedAgent?.id || 
-    (agents.length === 1 ? agents[0].id : "all");
-  
+  const selectedAgentId = selectedAgent?.id ||
+    (agents.length === 1 && agents[0] ? agents[0].id : "all");
+
   // Build query parameters based on selected agent
   const queryParams = selectedAgentId !== "all" ? `?agentId=${selectedAgentId}` : "";
-  
-  const { data: stats, isLoading, refetch: refetchStats, isStale, timeUntilStale } = useOptimizedQuery({
+
+  const { data: stats, isLoading, isStale, timeUntilStale } = useOptimizedQuery({
     queryKey: ["/api/analytics/organization", selectedAgentId],
     queryFn: async () => {
       const response = await fetch(`/api/analytics/organization${queryParams}`, {
@@ -774,8 +285,8 @@ export default function Dashboard() {
     backgroundRefetch: true,
     prefetchThreshold: 30 * 1000, // Prefetch 30 seconds before stale
   });
-  
-  const { data: callLogsResponse, refetch: refetchCallLogs } = useQuery({
+
+  const { data: callLogsResponse } = useQuery({
     queryKey: ["/api/call-logs", selectedAgentId],
     queryFn: async () => {
       const response = await fetch(`/api/call-logs${queryParams}`, {
@@ -787,7 +298,7 @@ export default function Dashboard() {
     staleTime: 60000, // Consider data fresh for 1 minute
     gcTime: 5 * 60 * 1000 // Keep in cache for 5 minutes
   });
-  
+
   // Extract data from paginated response
   const callLogs = callLogsResponse?.data || callLogsResponse || [];
 
@@ -824,7 +335,7 @@ export default function Dashboard() {
       // Display detailed sync results
       const agentStats = data.agents || {};
       const callStats = data.callLogs || {};
-      
+
       const message = [
         `Agents: ${agentStats.syncedCount || 0} new, ${agentStats.updatedCount || 0} updated`,
         `Calls: ${callStats.syncedCount || 0} new, ${callStats.updatedCount || 0} updated`,
@@ -878,364 +389,363 @@ export default function Dashboard() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-8 p-1">
-      {/* Premium background gradient overlay */}
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-50/50 via-blue-50/30 to-indigo-50/50 dark:from-purple-950/20 dark:via-blue-950/10 dark:to-indigo-950/20 pointer-events-none -z-10"></div>
-      {/* Sync Section */}
-      <div className="space-y-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-200/50 dark:border-purple-800/30 shadow-xl">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl sm:text-2xl font-bold brand-gradient-text">Dashboard</h2>
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-purple-400 flex-shrink-0 mt-0.5" />
-            <span className="text-xs sm:text-sm text-muted-foreground break-words">
-              {agents.length === 0
-                ? 'No agents available'
-                : selectedAgentId !== "all"
-                  ? `Showing: ${Array.isArray(agents) ? agents.find((a) => a.id === selectedAgentId)?.name : 'Agent'} `
-                  : lastSyncTime || typedStats?.lastSync
-                    ? `Synced: ${(lastSyncTime || new Date(typedStats?.lastSync || '')).toLocaleString()}`
-                    : 'Sync to update data'}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* Agent Selector - Only show if agents exist */}
-          {agents.length > 0 ? (
-            <Select 
-              value={selectedAgentId} 
-              onValueChange={(value) => {
-                if (value === "all") {
-                  setSelectedAgent(null);
-                } else {
-                  const agent = agents.find(a => a.id === value);
-                  if (agent) setSelectedAgent(agent);
-                }
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-[250px]" data-testid="select-agent-filter">
-                <Bot className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                <SelectValue placeholder="All Agents" />
-              </SelectTrigger>
-              <SelectContent>
-                {agents.length > 1 && (
-                  <SelectItem value="all">All Agents</SelectItem>
-                )}
-                {Array.isArray(agents) && agents.map((agent: any) => (
-                  <SelectItem key={agent.id} value={agent.id}>
-                    {agent.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-              <Bot className="w-4 h-4 flex-shrink-0" />
-              <span>No agents assigned - Contact admin for access</span>
+      <div className="space-y-8 p-1">
+        {/* Premium background gradient overlay */}
+        <div className="fixed inset-0 bg-gradient-to-br from-purple-50/50 via-blue-50/30 to-indigo-50/50 dark:from-purple-950/20 dark:via-blue-950/10 dark:to-indigo-950/20 pointer-events-none -z-10"></div>
+        {/* Sync Section */}
+        <div className="space-y-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-200/50 dark:border-purple-800/30 shadow-xl">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl sm:text-2xl font-bold brand-gradient-text">Dashboard</h2>
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-purple-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs sm:text-sm text-muted-foreground break-words">
+                {agents.length === 0
+                  ? 'No agents available'
+                  : selectedAgentId !== "all"
+                    ? `Showing: ${Array.isArray(agents) ? agents.find((a) => a.id === selectedAgentId)?.name : 'Agent'} `
+                    : typedStats?.lastSync
+                      ? `Synced: ${new Date(typedStats?.lastSync || '').toLocaleString()}`
+                      : 'Sync to update data'}
+              </span>
             </div>
-          )}
-          
-          <div className="flex items-center gap-2">
-            {/* Cache Status Indicator */}
-            {isStale && (
-              <Badge variant="outline" className="text-xs">
-                Data may be stale
-              </Badge>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {/* Agent Selector - Only show if agents exist */}
+            {agents.length > 0 ? (
+              <Select
+                value={selectedAgentId}
+                onValueChange={(value) => {
+                  if (value === "all") {
+                    setSelectedAgent(null);
+                  } else {
+                    const agent = agents.find(a => a.id === value);
+                    if (agent) setSelectedAgent(agent);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[250px]" data-testid="select-agent-filter">
+                  <Bot className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                  <SelectValue placeholder="All Agents" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.length > 1 && (
+                    <SelectItem value="all">All Agents</SelectItem>
+                  )}
+                  {Array.isArray(agents) && agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                <Bot className="w-4 h-4 flex-shrink-0" />
+                <span>No agents assigned - Contact admin for access</span>
+              </div>
             )}
-            {timeUntilStale > 0 && timeUntilStale < 60000 && (
-              <Badge variant="secondary" className="text-xs">
-                Fresh for {Math.round(timeUntilStale / 1000)}s
-              </Badge>
-            )}
-            
-            <Button
-              onClick={() => {
-                if (isConnected) {
-                  triggerSync();
-                } else {
-                  syncMutation.mutate();
-                }
-              }}
-              disabled={isSyncing || syncMutation.isPending}
-              size="sm"
-              className="gap-1 sm:gap-2 gradient-purple text-white btn-premium shadow-lg hover:shadow-xl hover:scale-105 transition-all w-full sm:w-auto"
-              data-testid="button-sync-data"
-            >
-              <RefreshCw className={`h-4 w-4 ${(isSyncing || syncMutation.isPending) ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">
-                {(isSyncing || syncMutation.isPending) ? 'Syncing...' : 'Sync Data'}
-                {isConnected && <span className="ml-1 text-xs opacity-75">(Real-time)</span>}
-              </span>
-              <span className="sm:hidden">
-                {(isSyncing || syncMutation.isPending) ? 'Syncing' : 'Sync'}
-                {isConnected && <span className="text-xs opacity-75">●</span>}
-              </span>
-            </Button>
+
+            <div className="flex items-center gap-2">
+              {/* Cache Status Indicator */}
+              {isStale && (
+                <Badge variant="outline" className="text-xs">
+                  Data may be stale
+                </Badge>
+              )}
+              {timeUntilStale > 0 && timeUntilStale < 60000 && (
+                <Badge variant="secondary" className="text-xs">
+                  Fresh for {Math.round(timeUntilStale / 1000)}s
+                </Badge>
+              )}
+
+              <Button
+                onClick={() => {
+                  if (isConnected) {
+                    triggerSync();
+                  } else {
+                    syncMutation.mutate();
+                  }
+                }}
+                disabled={isSyncing || syncMutation.isPending}
+                size="sm"
+                className="gap-1 sm:gap-2 gradient-purple text-white btn-premium shadow-lg hover:shadow-xl hover:scale-105 transition-all w-full sm:w-auto"
+                data-testid="button-sync-data"
+              >
+                <RefreshCw className={`h-4 w-4 ${(isSyncing || syncMutation.isPending) ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">
+                  {(isSyncing || syncMutation.isPending) ? 'Syncing...' : 'Sync Data'}
+                  {isConnected && <span className="ml-1 text-xs opacity-75">(Real-time)</span>}
+                </span>
+                <span className="sm:hidden">
+                  {(isSyncing || syncMutation.isPending) ? 'Syncing' : 'Sync'}
+                  {isConnected && <span className="text-xs opacity-75">●</span>}
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Pending Approvals Section */}
-      {pendingApprovals.length > 0 && (
-        <Card className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-800 overflow-hidden">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3 gap-1">
-                <h3 className="text-xs sm:text-sm font-semibold text-orange-900 dark:text-orange-100">
-                  Pending ({pendingApprovals.length})
-                </h3>
-                <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-xs self-start sm:self-auto">
-                  Review
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                {pendingApprovals.slice(0, 3).map((task: any) => (
-                  <div key={task.id} className="p-2 sm:p-3 bg-white dark:bg-gray-900 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-1 sm:gap-2 mb-1">
-                          {task.type === 'approval' && <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0 mt-0.5" />}
-                          {task.type === 'review' && <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0 mt-0.5" />}
-                          {task.type === 'action' && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0 mt-0.5" />}
-                          <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
-                            {task.title}
-                          </h4>
+        {/* Pending Approvals Section */}
+        {pendingApprovals.length > 0 && (
+          <Card className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-800 overflow-hidden">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-3 gap-1">
+                  <h3 className="text-xs sm:text-sm font-semibold text-orange-900 dark:text-orange-100">
+                    Pending ({pendingApprovals.length})
+                  </h3>
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-xs self-start sm:self-auto">
+                    Review
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  {pendingApprovals.slice(0, 3).map((task: any) => (
+                    <div key={task.id} className="p-2 sm:p-3 bg-white dark:bg-gray-900 rounded-lg border border-orange-200 dark:border-orange-800">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-1 sm:gap-2 mb-1">
+                            {task.type === 'approval' && <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0 mt-0.5" />}
+                            {task.type === 'review' && <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0 mt-0.5" />}
+                            {task.type === 'action' && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0 mt-0.5" />}
+                            <h4 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
+                              {task.title}
+                            </h4>
+                          </div>
+                          <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {task.description}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                              {task.relatedEntityType}
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                              <span className={`font-medium ${task.priority === 'urgent' ? 'text-red-600' :
+                                  task.priority === 'high' ? 'text-orange-600' :
+                                    task.priority === 'medium' ? 'text-yellow-600' :
+                                      'text-green-600'
+                                }`}>{task.priority}</span>
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                          {task.description}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                            {task.relatedEntityType}
-                          </span>
-                          <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                            <span className={`font-medium ${
-                              task.priority === 'urgent' ? 'text-red-600' :
-                              task.priority === 'high' ? 'text-orange-600' :
-                              task.priority === 'medium' ? 'text-yellow-600' :
-                              'text-green-600'
-                            }`}>{task.priority}</span>
-                          </span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] sm:text-xs shrink-0">
+                          Pending
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-[10px] sm:text-xs shrink-0">
-                        Pending
-                      </Badge>
                     </div>
+                  ))}
+                  {pendingApprovals.length > 3 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center pt-1">
+                      +{pendingApprovals.length - 3} more pending approval{pendingApprovals.length - 3 > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  <div className="pt-2 text-center">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-[10px] sm:text-xs text-orange-600 border-orange-300 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-700 dark:hover:bg-orange-950 w-full sm:w-auto"
+                      onClick={() => setLocation('/admin')}
+                    >
+                      <span className="hidden sm:inline">View All in Admin Panel</span>
+                      <span className="sm:hidden">View All</span>
+                    </Button>
                   </div>
-                ))}
-                {pendingApprovals.length > 3 && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center pt-1">
-                    +{pendingApprovals.length - 3} more pending approval{pendingApprovals.length - 3 > 1 ? 's' : ''}
-                  </p>
-                )}
-                <div className="pt-2 text-center">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="text-[10px] sm:text-xs text-orange-600 border-orange-300 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-700 dark:hover:bg-orange-950 w-full sm:w-auto"
-                    onClick={() => setLocation('/admin')}
-                  >
-                    <span className="hidden sm:inline">View All in Admin Panel</span>
-                    <span className="sm:hidden">View All</span>
-                  </Button>
                 </div>
               </div>
             </div>
-          </div>
-        </Card>
-      )}
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 fade-in">
-        {/* Total calls */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 dark:from-blue-500/20 dark:to-blue-600/20 border-blue-500/20 dark:border-blue-400/30 backdrop-blur hover:from-blue-500/15 hover:to-blue-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-blue-500/20 dark:bg-blue-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Total Calls</p>
-            </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalCalls || 0}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">All conversations</p>
-          </div>
-        </Card>
+          </Card>
+        )}
 
-        {/* Total duration */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 dark:from-emerald-500/20 dark:to-emerald-600/20 border-emerald-500/20 dark:border-emerald-400/30 backdrop-blur hover:from-emerald-500/15 hover:to-emerald-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/20 dark:bg-emerald-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 fade-in">
+          {/* Total calls */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 dark:from-blue-500/20 dark:to-blue-600/20 border-blue-500/20 dark:border-blue-400/30 backdrop-blur hover:from-blue-500/15 hover:to-blue-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-blue-500/20 dark:bg-blue-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Total Calls</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Duration</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalCalls || 0}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">All conversations</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalMinutes || 0}m</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total time</p>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Total spending */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-amber-500/10 to-amber-600/10 dark:from-amber-500/20 dark:to-amber-600/20 border-amber-500/20 dark:border-amber-400/30 backdrop-blur hover:from-amber-500/15 hover:to-amber-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400" />
+          {/* Total duration */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 dark:from-emerald-500/20 dark:to-emerald-600/20 border-emerald-500/20 dark:border-emerald-400/30 backdrop-blur hover:from-emerald-500/15 hover:to-emerald-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/20 dark:bg-emerald-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Duration</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Spending</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.totalMinutes || 0}m</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total time</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white truncate">${typedStats?.estimatedCost?.toFixed(2) || '0.00'}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total USD</p>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Average cost per call */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-orange-500/10 to-orange-600/10 dark:from-orange-500/20 dark:to-orange-600/20 border-orange-500/20 dark:border-orange-400/30 backdrop-blur hover:from-orange-500/15 hover:to-orange-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-orange-500/20 dark:bg-orange-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 dark:text-orange-400" />
+          {/* Total spending */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-amber-500/10 to-amber-600/10 dark:from-amber-500/20 dark:to-amber-600/20 border-amber-500/20 dark:border-amber-400/30 backdrop-blur hover:from-amber-500/15 hover:to-amber-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-amber-500/20 dark:bg-amber-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Spending</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Avg/Call</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white truncate">${typedStats?.estimatedCost?.toFixed(2) || '0.00'}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Total USD</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">${avgCostPerCall}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Per call</p>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Average duration */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-purple-500/10 to-purple-600/10 dark:from-purple-500/20 dark:to-purple-600/20 border-purple-500/20 dark:border-purple-400/30 backdrop-blur hover:from-purple-500/15 hover:to-purple-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-purple-500/20 dark:bg-purple-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400" />
+          {/* Average cost per call */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-orange-500/10 to-orange-600/10 dark:from-orange-500/20 dark:to-orange-600/20 border-orange-500/20 dark:border-orange-400/30 backdrop-blur hover:from-orange-500/15 hover:to-orange-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-orange-500/20 dark:bg-orange-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Avg/Call</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Avg Time</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">${avgCostPerCall}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Per call</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{avgMinutes}:{String(avgSeconds).padStart(2, '0')}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Avg length</p>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Active agents */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-600/10 dark:from-cyan-500/20 dark:to-cyan-600/20 border-cyan-500/20 dark:border-cyan-400/30 backdrop-blur hover:from-cyan-500/15 hover:to-cyan-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-cyan-500/20 dark:bg-cyan-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-cyan-600 dark:text-cyan-400" />
+          {/* Average duration */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-purple-500/10 to-purple-600/10 dark:from-purple-500/20 dark:to-purple-600/20 border-purple-500/20 dark:border-purple-400/30 backdrop-blur hover:from-purple-500/15 hover:to-purple-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-purple-500/20 dark:bg-purple-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Avg Time</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Agents</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{avgMinutes}:{String(avgSeconds).padStart(2, '0')}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Avg length</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.activeAgents || 0}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Active</p>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Success rate */}
-        <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-green-500/10 to-green-600/10 dark:from-green-500/20 dark:to-green-600/20 border-green-500/20 dark:border-green-400/30 backdrop-blur hover:from-green-500/15 hover:to-green-600/15 transition-all card-hover group">
-          <div className="space-y-1 sm:space-y-2">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="p-1 sm:p-1.5 rounded-lg bg-green-500/20 dark:bg-green-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
+          {/* Active agents */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-cyan-500/10 to-cyan-600/10 dark:from-cyan-500/20 dark:to-cyan-600/20 border-cyan-500/20 dark:border-cyan-400/30 backdrop-blur hover:from-cyan-500/15 hover:to-cyan-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-cyan-500/20 dark:bg-cyan-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Agents</p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Success</p>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">{typedStats?.activeAgents || 0}</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Active</p>
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">
-              {(() => {
-                const logs = Array.isArray(callLogs) ? callLogs : [];
-                const completed = logs.filter((l: any) => l.status === 'completed').length;
-                const rate = logs.length > 0 ? Math.round((completed / logs.length) * 100) : 0;
-                return `${rate}%`;
-              })()}
-            </p>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Complete</p>
-          </div>
-        </Card>
-      </div>
+          </Card>
 
-      {/* User Plan Card */}
-      <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
-        <div className="lg:col-span-1">
-          <UserPlanCard />
+          {/* Success rate */}
+          <Card className="p-2 sm:p-3 lg:p-4 bg-gradient-to-br from-green-500/10 to-green-600/10 dark:from-green-500/20 dark:to-green-600/20 border-green-500/20 dark:border-green-400/30 backdrop-blur hover:from-green-500/15 hover:to-green-600/15 transition-all card-hover group">
+            <div className="space-y-1 sm:space-y-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="p-1 sm:p-1.5 rounded-lg bg-green-500/20 dark:bg-green-400/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                  <PhoneCall className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium truncate">Success</p>
+              </div>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">
+                {(() => {
+                  const logs = Array.isArray(callLogs) ? callLogs : [];
+                  const completed = logs.filter((l: any) => l.status === 'completed').length;
+                  const rate = logs.length > 0 ? Math.round((completed / logs.length) * 100) : 0;
+                  return `${rate}%`;
+                })()}
+              </p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">Complete</p>
+            </div>
+          </Card>
         </div>
-        <div className="lg:col-span-3">
-          {/* Call Volume Line Chart */}
-          <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur shadow-xl border-0 h-full bg-white/80 dark:bg-slate-900/80 border-purple-200/30 dark:border-purple-800/20 hover:shadow-2xl transition-all duration-300">
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={(() => {
-              const logs = Array.isArray(callLogs) ? callLogs : [];
-              const dailyVolume: any = {};
-              const now = new Date();
-              for (let i = 29; i >= 0; i--) {
-                const date = new Date(now);
-                date.setDate(date.getDate() - i);
-                const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                dailyVolume[dateKey] = 0;
-              }
-              logs.forEach((call: any) => {
-                const date = new Date(call.createdAt);
-                const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                if (dailyVolume.hasOwnProperty(dateKey)) {
-                  dailyVolume[dateKey]++;
-                }
-              });
-              return Object.entries(dailyVolume).map(([date, count]) => ({ date, calls: count }));
-            })()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 92, 246, 0.1)" vertical={false} />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} angle={0} textAnchor="middle" interval={4} tick={{ fontSize: 10 }} />
-              <YAxis stroke="#94a3b8" fontSize={10} domain={[0, 'dataMax + 1']} ticks={[0, 1, 2, 3, 4]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', fontSize: '12px' }} />
-              <Line type="monotone" dataKey="calls" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6', strokeWidth: 1, r: 3 }} activeDot={{ r: 5, fill: '#a78bfa', stroke: '#8b5cf6', strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-        </div>
-      </div>
 
-      {/* Detailed Call Analytics */}
-      <CallAnalyticsCard callLogs={callLogs} stats={stats} />
-
-      {/* Overall Success Rate with Agent Table and Language */}
-      <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur">
-        <div className="space-y-6">
-          {/* Success Rate Chart */}
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold mb-4 text-card-foreground flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500"></div>
-              Overall success rate
-            </h3>
-            <SuccessRateChart selectedAgentId={selectedAgentId} />
+        {/* User Plan Card */}
+        <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-1">
+            <UserPlanCard />
           </div>
-
-          {/* Divider */}
-          <div className="border-t"></div>
-
-          {/* Most Called Agents and Language Side by Side */}
-          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Most called agents</h3>
-                <button 
-                  onClick={() => setLocation('/agents')}
-                  className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors font-medium"
-                >
-                  See all {Array.isArray(agents) ? agents.length : 0} agents
-                </button>
+          <div className="lg:col-span-3">
+            {/* Call Volume Line Chart */}
+            <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur shadow-xl border-0 h-full bg-white/80 dark:bg-slate-900/80 border-purple-200/30 dark:border-purple-800/20 hover:shadow-2xl transition-all duration-300">
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={(() => {
+                    const logs = Array.isArray(callLogs) ? callLogs : [];
+                    const dailyVolume: any = {};
+                    const now = new Date();
+                    for (let i = 29; i >= 0; i--) {
+                      const date = new Date(now);
+                      date.setDate(date.getDate() - i);
+                      const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      dailyVolume[dateKey] = 0;
+                    }
+                    logs.forEach((call: any) => {
+                      const date = new Date(call.createdAt);
+                      const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      if (dailyVolume.hasOwnProperty(dateKey)) {
+                        dailyVolume[dateKey]++;
+                      }
+                    });
+                    return Object.entries(dailyVolume).map(([date, count]) => ({ date, calls: count }));
+                  })()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 92, 246, 0.1)" vertical={false} />
+                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} angle={0} textAnchor="middle" interval={4} tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#94a3b8" fontSize={10} domain={[0, 'dataMax + 1']} ticks={[0, 1, 2, 3, 4]} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '8px', fontSize: '12px' }} />
+                    <Line type="monotone" dataKey="calls" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6', strokeWidth: 1, r: 3 }} activeDot={{ r: 5, fill: '#a78bfa', stroke: '#8b5cf6', strokeWidth: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              <AgentPerformanceTable selectedAgentId={selectedAgentId} callLogs={callLogs} agents={agents} />
-            </div>
-            
+            </Card>
+          </div>
+        </div>
+
+        {/* Detailed Call Analytics */}
+        <CallAnalyticsCard callLogs={callLogs} stats={stats} />
+
+        {/* Overall Success Rate with Agent Table and Language */}
+        <Card className="p-4 sm:p-6 dark:bg-slate-800/50 dark:border-slate-700/50 backdrop-blur">
+          <div className="space-y-6">
+            {/* Success Rate Chart */}
             <div>
-              <h3 className="text-base sm:text-lg font-semibold mb-4 text-card-foreground">Language</h3>
-              <LanguageStats />
+              <h3 className="text-base sm:text-lg font-semibold mb-4 text-card-foreground flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-400 to-emerald-500"></div>
+                Overall success rate
+              </h3>
+              <SuccessRateChart selectedAgentId={selectedAgentId} />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t"></div>
+
+            {/* Most Called Agents and Language Side by Side */}
+            <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+              <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Most called agents</h3>
+                  <button
+                    onClick={() => setLocation('/agents')}
+                    className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors font-medium"
+                  >
+                    See all {Array.isArray(agents) ? agents.length : 0} agents
+                  </button>
+                </div>
+                <AgentPerformanceTable callLogs={callLogs} agents={agents} />
+              </div>
+
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold mb-4 text-card-foreground">Language</h3>
+                <LanguageStats />
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </div>
+        </Card>
+      </div>
     </TooltipProvider>
   );
 }

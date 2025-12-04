@@ -1,6 +1,6 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import compression from "compression";
-import { createServer, type Server } from "http";
+// import { createServer, type Server } from "http";
 import { registerRoutes } from "./routes";
 import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocket";
 import { setupVite, serveStatic, log } from "./vite";
@@ -40,7 +40,7 @@ app.use(compression({
 // Also increase timeout for large uploads
 app.use(express.json({
   limit: '10mb',
-  verify: (req, res, buf) => {
+  verify: (req, _res, buf) => {
     // Store raw body for debugging if needed
     (req as any).rawBody = buf.toString('utf8');
   }
@@ -162,7 +162,7 @@ app.use((req, res, next) => {
   // Graceful shutdown handling
   const gracefulShutdown = (signal: string) => {
     logger.info(`${signal} received. Starting graceful shutdown...`);
-    
+
     // Stop accepting new connections
     server.close((err) => {
       if (err) {
