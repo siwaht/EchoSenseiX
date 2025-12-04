@@ -25,7 +25,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Hide VoiceAI branding from the interface",
     category: "Whitelabel Management",
   },
-  
+
   // User Management
   {
     id: "manage_agency_users",
@@ -51,7 +51,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Monitor user activity and usage",
     category: "User Management",
   },
-  
+
   // Agent Management
   {
     id: "create_agents",
@@ -77,7 +77,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Access advanced agent configuration options",
     category: "Agent Configuration",
   },
-  
+
   // Communications
   {
     id: "manage_voices",
@@ -109,7 +109,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Enable enhanced WebRTC connection in playground",
     category: "Communications",
   },
-  
+
   // Billing & Limits
   {
     id: "view_agency_billing",
@@ -135,7 +135,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Configure credit packages for customers",
     category: "Billing & Limits",
   },
-  
+
   // Integrations & API
   {
     id: "enable_integrations",
@@ -161,7 +161,7 @@ export const AGENCY_PERMISSIONS: AgencyPermission[] = [
     description: "Create and manage API keys",
     category: "Integrations & API",
   },
-  
+
   // Analytics & Reporting
   {
     id: "view_analytics",
@@ -188,7 +188,7 @@ export const AGENCY_PERMISSIONS_BY_CATEGORY = AGENCY_PERMISSIONS.reduce((acc, pe
   if (!acc[permission.category]) {
     acc[permission.category] = [];
   }
-  acc[permission.category].push(permission);
+  acc[permission.category]!.push(permission);
   return acc;
 }, {} as Record<string, AgencyPermission[]>);
 

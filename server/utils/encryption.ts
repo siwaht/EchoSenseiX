@@ -39,11 +39,13 @@ export function decryptCredentials(encryptedData: string): any {
         }
 
         // New format
-        const [ivHex, encrypted] = encryptedData.split(":");
+        const parts = encryptedData.split(":");
+        const ivHex = parts[0] || "";
+        const encrypted = parts[1] || "";
         const iv = Buffer.from(ivHex, "hex");
 
         const decipher = crypto.createDecipheriv(algorithm, key, iv);
-        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        let decrypted: string = decipher.update(encrypted, "hex", "utf8");
         decrypted += decipher.final("utf8");
 
         try {
@@ -88,11 +90,13 @@ export function decryptApiKey(encryptedApiKey: string): string {
         }
 
         // New format
-        const [ivHex, encrypted] = encryptedApiKey.split(":");
+        const parts = encryptedApiKey.split(":");
+        const ivHex = parts[0] || "";
+        const encrypted = parts[1] || "";
         const iv = Buffer.from(ivHex, "hex");
 
         const decipher = crypto.createDecipheriv(algorithm, key, iv);
-        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        let decrypted: string = decipher.update(encrypted, "hex", "utf8");
         decrypted += decipher.final("utf8");
 
         return decrypted;

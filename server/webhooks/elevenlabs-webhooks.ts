@@ -46,7 +46,6 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
       conversation_id,
       agent_id,
       phone_number,
-      metadata,
       timestamp
     } = req.body;
 
@@ -63,7 +62,7 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
       // ElevenLabs uses 'elevenlabs-signature' header (case-insensitive in Express)
       const signature = req.headers["elevenlabs-signature"] as string;
       const payload = JSON.stringify(req.body);
-      
+
       if (!signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.error("❌ Invalid webhook signature");
         return res.status(401).json({ error: "Invalid signature" });
@@ -101,13 +100,13 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
       priority_customer: false
     };
 
-    res.json({
+    return res.json({
       success: true,
       client_data: clientData
     });
   } catch (error) {
     console.error("❌ Error processing conversation init webhook:", error);
-    res.status(500).json({ error: "Failed to process webhook" });
+    return res.status(500).json({ error: "Failed to process webhook" });
   }
 }
 
@@ -124,13 +123,11 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
  * }
  */
 export async function handlePostCallWebhook(req: Request, res: Response) {
-  let transaction: any = null;
 
   try {
     const {
       conversation_id,
       agent_id,
-      call_duration,
       call_duration_seconds,
       transcript,
       recording_url,
@@ -140,7 +137,6 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       phone_number,
       call_status,
       end_reason,
-      metadata,
       timestamp,
       analysis,
       // New fields added in Aug 2025 webhook format update
@@ -173,7 +169,7 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       // ElevenLabs uses 'elevenlabs-signature' header (case-insensitive in Express)
       const signature = req.headers["elevenlabs-signature"] as string;
       const payload = JSON.stringify(req.body);
-      
+
       if (!signature || !verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.error("❌ Invalid webhook signature");
         return res.status(401).json({ error: "Invalid signature" });
@@ -187,10 +183,10 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     if (!agent) {
       console.warn(`⚠️ Agent not found for ElevenLabs ID: ${agent_id}`);
       // Still process the webhook even if agent not found locally
-      return res.json({ 
+      return res.json({
         success: true,
         message: "Agent not found locally, webhook processed",
-        conversation_id 
+        conversation_id
       });
     }
 
@@ -200,12 +196,12 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     // Extract summary from analysis field if available
     let callSummary = null;
     let summaryMetadata = null;
-    
+
     if (analysis) {
       // ElevenLabs provides analysis with summary and other insights
       if (typeof analysis === 'object') {
         callSummary = analysis.summary || analysis.call_summary || analysis.description || null;
-        
+
         // Store the full analysis as metadata
         summaryMetadata = {
           provider: 'elevenlabs',
@@ -213,7 +209,7 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
           analysisData: analysis,
           generatedAt: new Date().toISOString()
         };
-        
+
         console.log("📊 Extracted summary from ElevenLabs analysis:", {
           hasSummary: !!callSummary,
           analysisKeys: Object.keys(analysis)
@@ -237,7 +233,7 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
 
     if (existingCallLog) {
       console.log("📝 Updating existing call log:", conversation_id);
-      
+
       // Update existing call log with new data including summary
       const updateData: any = {
         status: call_status || existingCallLog.status,
@@ -249,9 +245,9 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
         summary: callSummary || existingCallLog.summary,
         summaryMetadata: summaryMetadata || existingCallLog.summaryMetadata
       };
-      
+
       await storage.updateCallLog(existingCallLog.id, agent.organizationId, updateData);
-      
+
       // If we have a summary from the webhook, update it separately
       if (callSummary && !existingCallLog.summary) {
         console.log("📝 Updating call log with ElevenLabs summary");
@@ -265,9 +261,9 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       }
     } else {
       console.log("📝 Creating new call log:", conversation_id);
-      
+
       // Create new call log with atomic operation
-      const newCallLog = await storage.createCallLog({
+      await storage.createCallLog({
         organizationId: agent.organizationId,
         conversationId: conversation_id,
         agentId: agent.id,
@@ -280,9 +276,11 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
         elevenLabsCallId: conversation_id,
         summary: callSummary,
         summaryMetadata: summaryMetadata,
-        createdAt: timestamp ? new Date(timestamp) : new Date()
+        createdAt: timestamp ? new Date(timestamp) : new Date(),
+        externalCallId: conversation_id,
+        platform: 'elevenlabs'
       });
-      
+
       // Log if we received a summary from ElevenLabs
       if (callSummary) {
         console.log("✅ Call log created with ElevenLabs summary:", conversation_id);
@@ -312,23 +310,23 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
     // Example: Analyze transcript for keywords
     if (transcript && transcript.text) {
       const keywords = ["urgent", "complaint", "cancel", "refund"];
-      const foundKeywords = keywords.filter(keyword => 
+      const foundKeywords = keywords.filter(keyword =>
         transcript.text.toLowerCase().includes(keyword)
       );
-      
+
       if (foundKeywords.length > 0) {
         console.log("🚨 Important keywords detected:", foundKeywords);
         // await flagConversation(conversation_id, foundKeywords);
       }
     }
 
-    res.json({ 
+    return res.json({
       success: true,
       message: "Post-call data processed successfully"
     });
   } catch (error) {
     console.error("❌ Error processing post-call webhook:", error);
-    res.status(500).json({ error: "Failed to process webhook" });
+    return res.status(500).json({ error: "Failed to process webhook" });
   }
 }
 
@@ -429,13 +427,13 @@ export async function handleEventsWebhook(req: Request, res: Response) {
         console.log("❓ Unknown event type:", event_type);
     }
 
-    res.json({ 
+    return res.json({
       success: true,
       message: "Event processed successfully"
     });
   } catch (error) {
     console.error("❌ Error processing event webhook:", error);
-    res.status(500).json({ error: "Failed to process webhook" });
+    return res.status(500).json({ error: "Failed to process webhook" });
   }
 }
 
@@ -459,6 +457,6 @@ export async function handleElevenLabsWebhook(req: Request, res: Response) {
     }
   } catch (error) {
     console.error("❌ Error handling webhook:", error);
-    res.status(500).json({ error: "Failed to process webhook" });
+    return res.status(500).json({ error: "Failed to process webhook" });
   }
 }
