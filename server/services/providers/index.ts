@@ -51,9 +51,34 @@ export async function initializeProviders() {
     if (process.env.PICA_SECRET_KEY) {
         try {
             const { picaService } = await import("../pica");
+            const { PicaTwilioAdapter, PicaOpenAIAdapter } = await import("./pica-adapters");
+
             await picaService.initialize({ apiKey: process.env.PICA_SECRET_KEY });
             providerRegistry.register(picaService);
             console.log("[Providers] PicaOS provider initialized");
+
+            // Register PicaOS adapters to replace/augment existing providers
+            // Note: This will overwrite existing 'twilio' and 'openai' providers if they were registered above
+            // which is what we want for "replacement" behavior if Pica is the preferred gateway.
+
+            const twilioAdapter = new PicaTwilioAdapter(picaService);
+            providerRegistry.register(twilioAdapter);
+            console.log("[Providers] Registered Twilio adapter via PicaOS");
+
+            const openaiAdapter = new PicaOpenAIAdapter(picaService);
+            providerRegistry.register(openaiAdapter);
+            console.log("[Providers] Registered OpenAI adapter via PicaOS");
+
+            const { PicaTTSAdapter, PicaSTTAdapter } = await import("./pica-adapters");
+
+            const ttsAdapter = new PicaTTSAdapter(picaService);
+            providerRegistry.register(ttsAdapter);
+            console.log("[Providers] Registered TTS adapter via PicaOS");
+
+            const sttAdapter = new PicaSTTAdapter(picaService);
+            providerRegistry.register(sttAdapter);
+            console.log("[Providers] Registered STT adapter via PicaOS");
+
         } catch (error) {
             console.error("[Providers] Failed to initialize PicaOS provider:", error);
         }

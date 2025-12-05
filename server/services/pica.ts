@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
-import { IConversationalAIProvider, ProviderType } from './providers/types';
+import { IConversationalAIProvider, ITelephonyProvider, ILLMProvider, ITTSProvider, ISTTProvider, ProviderType } from './providers/types';
+import { Readable } from 'stream';
 
 interface PicaActionParams {
     tool: string;
@@ -7,10 +8,10 @@ interface PicaActionParams {
     params?: any;
 }
 
-export class PicaService implements IConversationalAIProvider {
+export class PicaService implements IConversationalAIProvider, ITelephonyProvider, ILLMProvider, ITTSProvider, ISTTProvider {
     id = 'pica';
     name = 'PicaOS';
-    type: ProviderType = 'conversational_ai';
+    type: ProviderType = 'conversational_ai'; // Primary type, but implements others
 
     private client: AxiosInstance;
     private secretKey: string;
@@ -186,6 +187,104 @@ export class PicaService implements IConversationalAIProvider {
         });
     }
 
+    // --- ITelephonyProvider Implementation (Twilio via PicaOS) ---
+
+    async getPhoneNumbers(_agentId?: string): Promise<any[]> {
+        return this.executeAction({
+            tool: 'twilio',
+            action: 'get_phone_numbers',
+            params: {}
+        });
+    }
+
+    async createPhoneNumber(data: any): Promise<any> {
+        return this.executeAction({
+            tool: 'twilio',
+            action: 'create_phone_number',
+            params: data
+        });
+    }
+
+    async deletePhoneNumber(phoneNumberId: string): Promise<any> {
+        return this.executeAction({
+            tool: 'twilio',
+            action: 'delete_phone_number',
+            params: { phone_number_id: phoneNumberId }
+        });
+    }
+
+    async makeOutboundCall(to: string, from: string, config: any): Promise<any> {
+        return this.executeAction({
+            tool: 'twilio',
+            action: 'make_call',
+            params: { to, from, ...config }
+        });
+    }
+
+    // --- ILLMProvider Implementation (OpenAI via PicaOS) ---
+
+    async generateResponse(prompt: string, context?: any[], options?: any): Promise<string> {
+        const response = await this.executeAction({
+            tool: 'openai',
+            action: 'chat_completion',
+            params: {
+                messages: context ? [...context, { role: "user", content: prompt }] : [{ role: "user", content: prompt }],
+                ...options
+            }
+        });
+        return response.choices?.[0]?.message?.content || response.content || "";
+    }
+
+    async streamResponse(_prompt: string, _context?: any[], _options?: any): Promise<ReadableStream | Readable> {
+        throw new Error("Streaming not supported via PicaOS passthrough yet.");
+    }
+
+    // --- ITTSProvider Implementation (ElevenLabs via PicaOS) ---
+
+    async getVoices(): Promise<any[]> {
+        const response = await this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_voices',
+            params: {}
+        });
+        return response.voices || response;
+    }
+
+    async getVoice(voiceId: string): Promise<any> {
+        return this.executeAction({
+            tool: 'elevenlabs',
+            action: 'get_voice',
+            params: { voice_id: voiceId }
+        });
+    }
+
+    async generateAudio(text: string, voiceId: string, options?: any): Promise<ArrayBuffer> {
+        const response = await this.executeAction({
+            tool: 'elevenlabs',
+            action: 'text_to_speech',
+            params: { text, voice_id: voiceId, ...options }
+        });
+        // Assuming PicaOS returns audio as base64 or buffer, we might need adjustment here
+        // If response is base64 string:
+        if (typeof response === 'string') {
+            return Buffer.from(response, 'base64');
+        }
+        return response;
+    }
+
+    // --- ISTTProvider Implementation (OpenAI via PicaOS) ---
+
+    async transcribe(audioBuffer: Buffer, options?: any): Promise<string> {
+        // We'll likely need to send base64 audio
+        const audioBase64 = audioBuffer.toString('base64');
+        const response = await this.executeAction({
+            tool: 'openai',
+            action: 'transcribe',
+            params: { file: audioBase64, ...options }
+        });
+        return response.text || response;
+    }
+
     // --- Additional Helper Methods ---
 
     /**
@@ -211,6 +310,100 @@ export class PicaService implements IConversationalAIProvider {
      */
     async getCallHistory(params: any): Promise<any> {
         return this.getConversations(params);
+    }
+
+    // --- Stripe Specific Methods ---
+
+    /**
+     * Create a Stripe Payment Link
+     */
+    async createPaymentLink(params: any): Promise<any> {
+        return this.executeAction({
+            tool: 'stripe',
+            action: 'create_payment_link',
+            params
+        });
+    }
+
+    /**
+     * Get Stripe Payment Status
+     */
+    async getPaymentStatus(paymentId: string): Promise<any> {
+        return this.executeAction({
+            tool: 'stripe',
+            action: 'get_payment_status',
+            params: { payment_id: paymentId }
+        });
+    }
+
+    /**
+     * List Stripe Payments
+     */
+    async listPayments(params: any): Promise<any> {
+        return this.executeAction({
+            tool: 'stripe',
+            action: 'list_payments',
+            params
+        });
+    }
+
+    /**
+     * Create Stripe Customer
+     */
+    async createCustomer(params: any): Promise<any> {
+        return this.executeAction({
+            tool: 'stripe',
+            action: 'create_customer',
+            params
+        });
+    }
+
+    // --- MongoDB Atlas Integration ---
+
+    /**
+     * Find documents in MongoDB
+     */
+    async mongoFind(collection: string, filter: any = {}): Promise<any> {
+        return this.executeAction({
+            tool: 'mongodb',
+            action: 'find',
+            params: { collection, filter }
+        });
+    }
+
+    /**
+     * Insert a document into MongoDB
+     */
+    async mongoInsertOne(collection: string, document: any): Promise<any> {
+        return this.executeAction({
+            tool: 'mongodb',
+            action: 'insert_one',
+            params: { collection, document }
+        });
+    }
+
+    // --- Supabase Integration ---
+
+    /**
+     * Execute a Supabase Query (Select)
+     */
+    async supabaseQuery(table: string, select: string = '*', filters: any = {}): Promise<any> {
+        return this.executeAction({
+            tool: 'supabase',
+            action: 'query',
+            params: { table, select, filters }
+        });
+    }
+
+    /**
+     * Insert data into Supabase
+     */
+    async supabaseInsert(table: string, data: any): Promise<any> {
+        return this.executeAction({
+            tool: 'supabase',
+            action: 'insert',
+            params: { table, data }
+        });
     }
 }
 
