@@ -38,8 +38,7 @@ const AgentTesting = lazy(() => import("@/pages/agent-testing"));
 const WhitelabelSettings = lazy(() => import("@/pages/whitelabel-settings"));
 const AgencyUsers = lazy(() => import("@/pages/agency-users"));
 const AgencyBillingSettings = lazy(() => import("@/pages/agency-billing-settings"));
-const LiveKitTestPage = lazy(() => import("@/pages/livekit-test"));
-const PicaTestPage = lazy(() => import("@/pages/pica-test"));
+
 // Removed AgencyCheckout - using unified-checkout component instead
 
 // Loading fallback component with elegant brand gradient ring
@@ -246,8 +245,7 @@ function Router() {
             <Route path="/agency-billing-settings">
               <PermissionGuard><AgencyBillingSettings /></PermissionGuard>
             </Route>
-            <Route path="/livekit-test" component={LiveKitTestPage} />
-            <Route path="/pica-test" component={PicaTestPage} />
+
             <Route component={NotFound} />
           </Switch>
         </Suspense>
