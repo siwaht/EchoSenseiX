@@ -1,7 +1,6 @@
 
 import "dotenv/config";
 import { storage } from "./storage";
-import { seedAdminUser } from "./seedAdmin";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -11,9 +10,6 @@ const ADMIN_EMAIL = "cc@siwaht.com";
 const ADMIN_PASSWORD = "Hola173!"; // The expected password
 
 async function verifyAdmin() {
-    console.log("Running seedAdminUser to ensure credentials are updated...");
-    await seedAdminUser();
-
     console.log(`Verifying admin user: ${ADMIN_EMAIL}`);
     const user = await storage.getUserByEmail(ADMIN_EMAIL);
 

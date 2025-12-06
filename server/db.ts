@@ -4,6 +4,7 @@ import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
 // @ts-ignore
 import Database from 'better-sqlite3';
 import ws from "ws";
+import * as crypto from "crypto";
 import * as schema from "@shared/schema";
 
 // Note: Logger imported after to avoid circular dependencies
@@ -47,6 +48,15 @@ function getDatabaseConnection() {
   else {
     console.log('[DB] No valid DATABASE_URL found. Using local SQLite (plug-and-play mode).');
     const sqlite = new Database('local.db');
+
+    // Register gen_random_uuid function for Postgres compatibility
+    try {
+      sqlite.function('gen_random_uuid', () => crypto.randomUUID());
+      sqlite.function('now', () => new Date().toISOString());
+    } catch (e) {
+      console.warn('[DB] Failed to register compatibility functions:', e);
+    }
+
     database = drizzleSqlite(sqlite, { schema });
   }
 

@@ -41,13 +41,23 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
-    tableName: "sessions",
-  });
+  const isPostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres");
+  let sessionStore;
+
+  if (isPostgres) {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      ttl: 7 * 24 * 60 * 60 * 1000, // 1 week
+      tableName: "sessions",
+    });
+  } else {
+    const MemoryStore = require('memorystore')(session);
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+  }
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
