@@ -69,8 +69,9 @@ export async function initializeProviders() {
             // If OpenAI provider is already initialized, attach Pica toolkit as fallback
             if (openaiProvider) {
                 try {
-                    const { pica } = await import("../pica-toolkit");
-                    openaiProvider.setPicaFallback(pica);
+                    const { PicaToolkitService } = await import("../pica-toolkit");
+                    const toolkit = new PicaToolkitService(process.env.PICA_SECRET_KEY);
+                    openaiProvider.setPicaFallback(toolkit.instance);
                     console.log("[Providers] Configured Pica fallback for OpenAI");
                 } catch (picaError) {
                     console.error("[Providers] Failed to load Pica toolkit for fallback:", picaError);

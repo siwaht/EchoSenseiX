@@ -1,12 +1,16 @@
 import { Pica } from "@picahq/toolkit";
 
-console.log("[Pica Toolkit] Initializing Pica toolkit...");
+export class PicaToolkitService {
+    private pica: Pica;
 
-export const pica = new Pica(process.env.PICA_SECRET_KEY || "", {
-    connectors: ["*"],
-    actions: ["*"]
-});
+    constructor(apiKey: string) {
+        this.pica = new Pica(apiKey, {
+            connectors: ["*"],
+            actions: ["*"]
+        });
+    }
 
-export const isPicaConfigured = () => {
-    return !!process.env.PICA_SECRET_KEY;
-};
+    get instance(): Pica {
+        return this.pica;
+    }
+}
