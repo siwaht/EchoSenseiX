@@ -44,7 +44,6 @@
     "@mistralai/mistralai": "^1.10.0",
     "@neondatabase/serverless": "^0.10.4",
     "@paypal/paypal-server-sdk": "^1.1.0",
-    "@picahq/toolkit": "^1.0.2",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.3",

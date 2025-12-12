@@ -1,20 +1,11 @@
 import { ILLMProvider, ProviderType } from "./types";
 import OpenAI from "openai";
-import { generateText } from "ai";
-import { openai as openaiModel } from "@ai-sdk/openai";
-import { Pica } from "@picahq/toolkit";
 
 export class OpenAIProvider implements ILLMProvider {
     id = "openai";
     name = "OpenAI";
     type: ProviderType = "llm";
     private client: OpenAI | null = null;
-    private picaFallback: Pica | null = null;
-
-    setPicaFallback(pica: Pica) {
-        this.picaFallback = pica;
-        console.log("[OpenAIProvider] Pica fallback configured");
-    }
 
     async initialize(config: any): Promise<void> {
         this.client = new OpenAI({
@@ -27,39 +18,13 @@ export class OpenAIProvider implements ILLMProvider {
 
         const messages = context ? [...context, { role: "user", content: prompt }] : [{ role: "user", content: prompt }];
 
-        try {
-            const response = await this.client.chat.completions.create({
-                model: options?.model || "gpt-4o",
-                messages: messages,
-                ...options
-            });
+        const response = await this.client.chat.completions.create({
+            model: options?.model || "gpt-4o",
+            messages: messages,
+            ...options
+        });
 
-            return response.choices[0]?.message?.content || "";
-        } catch (error) {
-            if (this.picaFallback) {
-                console.warn("[OpenAIProvider] Main connection failed, attempting Pica fallback...", error);
-
-                try {
-                    // Pica Fallback logic using Vercel AI SDK
-                    const pica = this.picaFallback as any;
-                    const { text } = await generateText({
-                        model: openaiModel(options?.model || "gpt-4o"),
-                        system: pica.systemPrompt,
-                        prompt: prompt,
-                        tools: { ...pica.tools() },
-                        // @ts-ignore
-                        maxSteps: 10,
-                    });
-
-                    console.log("[OpenAIProvider] Pica fallback successful");
-                    return text;
-                } catch (fallbackError) {
-                    console.error("[OpenAIProvider] Pica fallback also failed:", fallbackError);
-                    throw error; // Throw original error if fallback fails
-                }
-            }
-            throw error;
-        }
+        return response.choices[0]?.message?.content || "";
     }
 
     async streamResponse(prompt: string, context?: any[], options?: any): Promise<ReadableStream> {
@@ -74,7 +39,6 @@ export class OpenAIProvider implements ILLMProvider {
             ...options
         }) as unknown as AsyncIterable<any>;
 
-        // Convert OpenAI stream to ReadableStream
         return new ReadableStream({
             async start(controller) {
                 for await (const chunk of stream) {
