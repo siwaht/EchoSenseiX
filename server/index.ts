@@ -12,6 +12,7 @@ import { initializeProviders } from "./services/providers";
 import logger from "./utils/logger";
 
 // Setup global error handlers early
+// Force restart: Agents router added
 handleUnhandledRejection();
 handleUncaughtException();
 
