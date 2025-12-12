@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { storage } from "../storage";
 import { ElevenLabsService, decryptApiKey } from "../services/elevenlabs";
+import { picaService } from "../services/pica";
 // import { insertAgentSchema } from "@shared/schema";
 import { z } from "zod";
 // import { OpenAIProvider } from "../services/providers/openai"; 
@@ -25,49 +26,82 @@ router.get("/", async (req, res) => {
     }
 });
 
-// POST /api/agents/sync - Sync with provider
+// POST /api/agents/sync - Sync with provider (with PicaOS fallback)
 router.post("/sync", async (req, res) => {
     if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
         const user = (req as any).user;
-        // 1. Get Integration
+        let externalAgents: any[] = [];
+        let providerUsed = "";
+
+        // Try ElevenLabs first
         const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-        if (!integration || !integration.apiKey) {
-            // If no integration, nothing to sync or error? 
-            // Failing gracefully or throwing error is better.
-            return res.status(400).json({ message: "ElevenLabs integration not configured" });
+        if (integration?.apiKey) {
+            try {
+                const apiKey = decryptApiKey(integration.apiKey);
+                const service = new ElevenLabsService({ apiKey });
+                const result = await service.getAgents();
+
+                if (result.success && result.data?.agents) {
+                    externalAgents = result.data.agents;
+                    providerUsed = "elevenlabs";
+                } else {
+                    throw new Error(result.error || "Failed to fetch agents from ElevenLabs");
+                }
+            } catch (elevenLabsError: any) {
+                console.warn(`[Agents Sync] ElevenLabs failed: ${elevenLabsError.message}, trying PicaOS fallback...`);
+            }
         }
 
-        // 2. Init Service
-        const apiKey = decryptApiKey(integration.apiKey);
-        const service = new ElevenLabsService({ apiKey });
-
-        // 3. Fetch Agents
-        const result = await service.getAgents();
-        if (!result.success) {
-            throw new Error(result.error);
+        // Fallback to PicaOS if ElevenLabs didn't work
+        if (externalAgents.length === 0 && process.env.PICA_SECRET_KEY) {
+            try {
+                const picaAgents = await picaService.getAgents() as any;
+                if (picaAgents && Array.isArray(picaAgents)) {
+                    externalAgents = picaAgents;
+                    providerUsed = "pica";
+                } else if (picaAgents?.agents) {
+                    externalAgents = picaAgents.agents;
+                    providerUsed = "pica";
+                }
+            } catch (picaError: any) {
+                console.error(`[Agents Sync] PicaOS fallback also failed: ${picaError.message}`);
+            }
         }
 
-        const externalAgents = result.data.agents; // Assuming structure
+        // If still no agents and no provider worked, return appropriate error
+        if (providerUsed === "") {
+            const hasElevenLabs = !!integration?.apiKey;
+            const hasPica = !!process.env.PICA_SECRET_KEY;
+
+            if (!hasElevenLabs && !hasPica) {
+                return res.status(400).json({
+                    message: "No provider configured. Please configure ElevenLabs integration or set PICA_SECRET_KEY."
+                });
+            }
+
+            return res.status(500).json({
+                message: "Failed to sync agents from configured providers. Please check your API keys and try again."
+            });
+        }
 
         let createdCount = 0;
         let updatedCount = 0;
 
-        // 4. Upsert locally
+        // Upsert locally
         for (const extAgent of externalAgents) {
-            // Check if exists
-            const existing = await storage.getAgentByElevenLabsId(extAgent.agent_id, user.organizationId);
+            const agentId = extAgent.agent_id || extAgent.id;
+            const existing = await storage.getAgentByElevenLabsId(agentId, user.organizationId);
 
             const agentData = {
                 name: extAgent.name,
                 description: extAgent.description || "",
-                platform: "elevenlabs",
-                externalAgentId: extAgent.agent_id,
-                elevenLabsAgentId: extAgent.agent_id, // Legacy
+                platform: providerUsed === "pica" ? "elevenlabs" : "elevenlabs",
+                externalAgentId: agentId,
+                elevenLabsAgentId: agentId,
                 organizationId: user.organizationId,
-                isActive: true, // Default to true if synced?
-                configuration: extAgent, // Store full config
-                // Map other fields if needed
+                isActive: true,
+                configuration: extAgent,
             };
 
             if (existing) {
@@ -79,10 +113,16 @@ router.post("/sync", async (req, res) => {
             }
         }
 
-        return res.json({ syncedCount: externalAgents.length, createdCount, updatedCount });
+        return res.json({
+            syncedCount: externalAgents.length,
+            createdCount,
+            updatedCount,
+            provider: providerUsed
+        });
 
     } catch (error: any) {
-        return res.status(500).json({ message: error.message });
+        console.error("[Agents Sync Error]", error);
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 });
 
@@ -161,23 +201,26 @@ router.post("/", async (req, res) => {
 });
 
 
-// POST /api/agents/create - Create new agent on provider then locally
+// POST /api/agents/create - Create new agent on provider then locally (with PicaOS fallback)
 router.post("/create", async (req, res) => {
     if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
-    // Similar to sync but creates on ElevenLabs first
+
     try {
         const user = (req as any).user;
-        // ... Validation ...
         const { name, firstMessage, systemPrompt, language, voiceId, providers } = req.body;
 
-        const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
-        if (!integration || !integration.apiKey) {
-            return res.status(400).json({ message: "ElevenLabs integration not configured" });
+        // Validate required fields
+        if (!name || !firstMessage || !systemPrompt) {
+            return res.status(400).json({
+                message: "Missing required fields: name, firstMessage, and systemPrompt are required"
+            });
         }
-        const apiKey = decryptApiKey(integration.apiKey);
-        const service = new ElevenLabsService({ apiKey });
 
-        const createResult = await service.createAgent({
+        let extAgentId: string | null = null;
+        let providerUsed = "";
+
+        // Prepare agent config for providers
+        const agentConfig = {
             conversation_config: {
                 agent: {
                     prompt: { prompt: systemPrompt },
@@ -185,18 +228,59 @@ router.post("/create", async (req, res) => {
                     language: language || "en",
                 },
                 tts: {
-                    // configured voice or default
                     voice_id: voiceId || "21m00Tcm4TlvDq8ikWAM" // Default Rachel
                 }
             },
             name: name
-        });
+        };
 
-        if (!createResult.success) {
-            throw new Error(createResult.error || "Failed to create agent on ElevenLabs");
+        // Try ElevenLabs first
+        const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
+        if (integration?.apiKey) {
+            try {
+                const apiKey = decryptApiKey(integration.apiKey);
+                const service = new ElevenLabsService({ apiKey });
+                const createResult = await service.createAgent(agentConfig);
+
+                if (createResult.success && createResult.data?.agent_id) {
+                    extAgentId = createResult.data.agent_id;
+                    providerUsed = "elevenlabs";
+                } else {
+                    throw new Error(createResult.error || "Failed to create agent on ElevenLabs");
+                }
+            } catch (elevenLabsError: any) {
+                console.warn(`[Agent Create] ElevenLabs failed: ${elevenLabsError.message}, trying PicaOS fallback...`);
+            }
         }
 
-        const extAgentId = createResult.data.agent_id;
+        // Fallback to PicaOS if ElevenLabs didn't work
+        if (!extAgentId && process.env.PICA_SECRET_KEY) {
+            try {
+                const picaResult = await picaService.createAgent(agentConfig) as any;
+                if (picaResult?.agent_id || picaResult?.id) {
+                    extAgentId = picaResult.agent_id || picaResult.id;
+                    providerUsed = "pica";
+                }
+            } catch (picaError: any) {
+                console.error(`[Agent Create] PicaOS fallback also failed: ${picaError.message}`);
+            }
+        }
+
+        // If no provider worked
+        if (!extAgentId) {
+            const hasElevenLabs = !!integration?.apiKey;
+            const hasPica = !!process.env.PICA_SECRET_KEY;
+
+            if (!hasElevenLabs && !hasPica) {
+                return res.status(400).json({
+                    message: "No provider configured. Please configure ElevenLabs integration or set PICA_SECRET_KEY."
+                });
+            }
+
+            return res.status(500).json({
+                message: "Failed to create agent on configured providers. Please check your API keys and try again."
+            });
+        }
 
         // Create locally
         const newAgent = await storage.createAgent({
@@ -206,14 +290,15 @@ router.post("/create", async (req, res) => {
             elevenLabsAgentId: extAgentId,
             organizationId: user.organizationId,
             isActive: true,
-            configuration: { ...req.body, provider_agent_id: extAgentId },
+            configuration: { ...req.body, provider_agent_id: extAgentId, provider: providerUsed },
             providers
         });
 
-        return res.status(201).json(newAgent);
+        return res.status(201).json({ ...newAgent, provider: providerUsed });
 
     } catch (error: any) {
-        return res.status(500).json({ message: error.message });
+        console.error("[Agent Create Error]", error);
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 });
 
