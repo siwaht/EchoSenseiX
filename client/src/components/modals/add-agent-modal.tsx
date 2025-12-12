@@ -71,11 +71,11 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
       platform: "elevenlabs",
       externalAgentId: "",
       name: "",
-      llmProvider: "",
-      ttsProvider: "",
-      sttProvider: "",
-      vadProvider: "",
-      telephonyProvider: "",
+      llmProvider: "system_default",
+      ttsProvider: "system_default",
+      sttProvider: "system_default",
+      vadProvider: "system_default",
+      telephonyProvider: "system_default",
     },
   });
 
@@ -88,11 +88,11 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
       systemPrompt: "You are a helpful AI assistant.",
       language: "en",
       voiceId: "",
-      llmProvider: "",
-      ttsProvider: "",
-      sttProvider: "",
-      vadProvider: "",
-      telephonyProvider: "",
+      llmProvider: "system_default",
+      ttsProvider: "system_default",
+      sttProvider: "system_default",
+      vadProvider: "system_default",
+      telephonyProvider: "system_default",
     },
   });
 
@@ -132,11 +132,11 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
         name: data.name || validatedData?.name || "Unnamed Agent",
         description: validatedData?.description,
         providers: {
-          llm: data.llmProvider || undefined,
-          tts: data.ttsProvider || undefined,
-          stt: data.sttProvider || undefined,
-          vad: data.vadProvider || undefined,
-          telephony: data.telephonyProvider || undefined,
+          llm: data.llmProvider === "system_default" ? undefined : data.llmProvider,
+          tts: data.ttsProvider === "system_default" ? undefined : data.ttsProvider,
+          stt: data.sttProvider === "system_default" ? undefined : data.sttProvider,
+          vad: data.vadProvider === "system_default" ? undefined : data.vadProvider,
+          telephony: data.telephonyProvider === "system_default" ? undefined : data.telephonyProvider,
         },
       });
     },
@@ -162,11 +162,11 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
       const response = await apiRequest("POST", "/api/agents/create", {
         ...data,
         providers: {
-          llm: data.llmProvider || undefined,
-          tts: data.ttsProvider || undefined,
-          stt: data.sttProvider || undefined,
-          vad: data.vadProvider || undefined,
-          telephony: data.telephonyProvider || undefined,
+          llm: data.llmProvider === "system_default" ? undefined : data.llmProvider,
+          tts: data.ttsProvider === "system_default" ? undefined : data.ttsProvider,
+          stt: data.sttProvider === "system_default" ? undefined : data.sttProvider,
+          vad: data.vadProvider === "system_default" ? undefined : data.vadProvider,
+          telephony: data.telephonyProvider === "system_default" ? undefined : data.telephonyProvider,
         },
       });
       return response.json();
@@ -427,7 +427,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Platform Default</SelectItem>
+                                <SelectItem value="system_default">Platform Default</SelectItem>
                                 {providers.map((provider) => (
                                   <SelectItem key={provider.id} value={provider.id}>
                                     {provider.displayName}
@@ -679,7 +679,7 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Platform Default</SelectItem>
+                                <SelectItem value="system_default">Platform Default</SelectItem>
                                 {providers.map((provider) => (
                                   <SelectItem key={provider.id} value={provider.id}>
                                     {provider.displayName}
