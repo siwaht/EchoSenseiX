@@ -98,6 +98,10 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-500 to-pink-500;
   }
 
+  .brand-gradient {
+    @apply bg-gradient-to-r from-primary via-purple-500 to-pink-500;
+  }
+
   .mesh-bg {
     background-color: hsla(222, 47%, 11%, 1);
     background-image:

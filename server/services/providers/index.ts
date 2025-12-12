@@ -36,11 +36,12 @@ export async function initializeProviders() {
     }
 
     // Initialize OpenAI
+    let openaiProvider: OpenAIProvider | null = null;
     if (process.env.OPENAI_API_KEY) {
         try {
-            const openai = new OpenAIProvider();
-            await openai.initialize({ apiKey: process.env.OPENAI_API_KEY });
-            providerRegistry.register(openai);
+            openaiProvider = new OpenAIProvider();
+            await openaiProvider.initialize({ apiKey: process.env.OPENAI_API_KEY });
+            providerRegistry.register(openaiProvider);
             console.log("[Providers] OpenAI provider initialized");
         } catch (error) {
             console.error("[Providers] Failed to initialize OpenAI provider:", error);
@@ -65,9 +66,22 @@ export async function initializeProviders() {
             providerRegistry.register(twilioAdapter);
             console.log("[Providers] Registered Twilio adapter via PicaOS");
 
-            const openaiAdapter = new PicaOpenAIAdapter(picaService);
-            providerRegistry.register(openaiAdapter);
-            console.log("[Providers] Registered OpenAI adapter via PicaOS");
+            // --- CHANGED: Use Pica as FALLBACK for OpenAI instead of replacing it entirely ---
+            // If OpenAI provider is already initialized, attach Pica toolkit as fallback
+            if (openaiProvider) {
+                try {
+                    const { pica } = await import("../pica-toolkit");
+                    openaiProvider.setPicaFallback(pica);
+                    console.log("[Providers] Configured Pica fallback for OpenAI");
+                } catch (picaError) {
+                    console.error("[Providers] Failed to load Pica toolkit for fallback:", picaError);
+                }
+            } else {
+                // If OpenAI wasn't initialized (e.g. no key), fallback to Pica adapter as primary
+                const openaiAdapter = new PicaOpenAIAdapter(picaService);
+                providerRegistry.register(openaiAdapter);
+                console.log("[Providers] Registered OpenAI adapter via PicaOS (Primary)");
+            }
 
             const { PicaTTSAdapter, PicaSTTAdapter } = await import("./pica-adapters");
 
