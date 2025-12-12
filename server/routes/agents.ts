@@ -11,19 +11,13 @@ const router = Router();
 // Usually handled by parent or specific middleware. Check index.ts - likely not globally strict.
 // But req.user is needed.
 
-const isAuthenticated = (req: any, res: any, next: any) => {
-    if (req.isAuthenticated()) {
-        return next();
-    }
-    res.status(401).json({ message: "Unauthorized" });
-};
-
-router.use(isAuthenticated);
+// Middleware removed to match integrations.ts pattern
 
 // GET /api/agents - List agents
 router.get("/", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
         const agents = await storage.getAgents(user.organizationId);
         return res.json(agents);
     } catch (error: any) {
@@ -33,8 +27,9 @@ router.get("/", async (req, res) => {
 
 // POST /api/agents/sync - Sync with provider
 router.post("/sync", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
         // 1. Get Integration
         const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
         if (!integration || !integration.apiKey) {
@@ -93,8 +88,9 @@ router.post("/sync", async (req, res) => {
 
 // POST /api/agents/validate - Validate agent existence
 router.post("/validate", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
         const { elevenLabsAgentId } = req.body;
 
         if (!elevenLabsAgentId) {
@@ -142,8 +138,9 @@ const createAgentSchema = z.object({
 
 // POST /api/agents - Import Agent (Create locally)
 router.post("/", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
 
         const parseResult = createAgentSchema.safeParse(req.body);
         if (!parseResult.success) {
@@ -166,9 +163,10 @@ router.post("/", async (req, res) => {
 
 // POST /api/agents/create - Create new agent on provider then locally
 router.post("/create", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     // Similar to sync but creates on ElevenLabs first
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
         // ... Validation ...
         const { name, firstMessage, systemPrompt, language, voiceId, providers } = req.body;
 
@@ -243,8 +241,9 @@ router.post("/generate-prompt", async (req, res) => {
 
 // DELETE /api/agents/:id
 router.delete("/:id", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const user = req.user as any;
+        const user = (req as any).user;
         const agentId = req.params.id;
         const agent = await storage.getAgent(agentId, user.organizationId);
 
