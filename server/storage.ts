@@ -145,6 +145,7 @@ export interface IStorage {
   upsertIntegration(integration: InsertIntegration): Promise<Integration>;
   updateIntegration(id: string, updates: Partial<InsertIntegration>): Promise<Integration>;
   updateIntegrationStatus(id: string, status: "ACTIVE" | "INACTIVE" | "ERROR" | "PENDING_APPROVAL", lastTested?: Date): Promise<void>;
+  deleteIntegration(organizationId: string, provider: string): Promise<void>;
 
   // Whitelabel configuration operations
   getWhitelabelConfig(organizationId: string): Promise<WhitelabelConfig | undefined>;
@@ -755,6 +756,12 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(integrations.id, id));
+  }
+
+  async deleteIntegration(organizationId: string, provider: string): Promise<void> {
+    await (db as any)
+      .delete(integrations)
+      .where(and(eq(integrations.organizationId, organizationId), eq(integrations.provider, provider)));
   }
 
   // Agent operations

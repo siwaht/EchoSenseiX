@@ -65,47 +65,79 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
       days.push({
         date: dateStr,
         calls: dayLogs.length,
-        < span className = "text-sm font-medium" > { avgCallDuration } min</span >
-      </div >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Avg Cost</span>
-        </div>
-        <span className="text-sm font-medium">${avgCallCost}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Completion Rate</span>
-        </div>
-        <Badge variant={parseFloat(completionRate) > 80 ? "default" : "secondary"}>
-          {completionRate}%
-        </Badge>
-      </div>
-      <div className="flex items-center justify-between pt-2 border-t">
-        <span className="text-sm text-muted-foreground">Cost Trend</span>
-        <div className="flex items-center gap-1">
-          {parseFloat(costTrend) > 0 ? (
-            <TrendingUp className="h-4 w-4 text-red-500" />
-          ) : parseFloat(costTrend) < 0 ? (
-            <TrendingDown className="h-4 w-4 text-green-500" />
-          ) : (
-            <Minus className="h-4 w-4 text-muted-foreground" />
-          )}
-          <span className={`text-sm font-medium ${parseFloat(costTrend) > 0 ? 'text-red-500' :
-            parseFloat(costTrend) < 0 ? 'text-green-500' :
-              'text-muted-foreground'
-            }`}>
-            {Math.abs(parseFloat(costTrend))}%
-          </span>
-        </div>
-      </div>
-    </CardContent >
-      </Card >
+        duration: dayLogs.reduce((acc, call) => acc + (call.duration || 0) / 60, 0),
+        cost: dayLogs.reduce((acc, call) => acc + (call.cost || 0), 0)
+      });
+    }
+    return days;
+  };
 
-    {/* Call Duration Distribution */ }
-    < Card className = "overflow-hidden" >
+  const hourlyData = getHourlyDistribution();
+  const durationData = getDurationDistribution();
+  const dailyTrends = getDailyTrends();
+
+  // Extract stats or use defaults
+  const {
+    avgCallDuration = "0",
+    avgCallCost = "0.00",
+    completionRate = "0",
+    costTrend = "0"
+  } = stats || {};
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* Key Metrics Card */}
+      <Card>
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-sm sm:text-base">Key Metrics</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Avg Duration</span>
+            </div>
+            <span className="text-sm font-medium">{avgCallDuration} min</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Avg Cost</span>
+            </div>
+            <span className="text-sm font-medium">${avgCallCost}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Completion Rate</span>
+            </div>
+            <Badge variant={parseFloat(completionRate) > 80 ? "default" : "secondary"}>
+              {completionRate}%
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-sm text-muted-foreground">Cost Trend</span>
+            <div className="flex items-center gap-1">
+              {parseFloat(costTrend) > 0 ? (
+                <TrendingUp className="h-4 w-4 text-red-500" />
+              ) : parseFloat(costTrend) < 0 ? (
+                <TrendingDown className="h-4 w-4 text-green-500" />
+              ) : (
+                <Minus className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className={`text-sm font-medium ${parseFloat(costTrend) > 0 ? 'text-red-500' :
+                  parseFloat(costTrend) < 0 ? 'text-green-500' :
+                    'text-muted-foreground'
+                }`}>
+                {Math.abs(parseFloat(costTrend))}%
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Call Duration Distribution */}
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2 sm:pb-3">
           <CardTitle className="text-sm sm:text-base truncate">Duration Distribution</CardTitle>
         </CardHeader>
@@ -147,10 +179,10 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
             </div>
           )}
         </CardContent>
-      </Card >
+      </Card>
 
-    {/* Peak Hours */ }
-    < Card className = "overflow-hidden" >
+      {/* Peak Hours */}
+      <Card className="overflow-hidden">
         <CardHeader className="pb-2 sm:pb-3">
           <CardTitle className="text-sm sm:text-base truncate">Peak Call Hours</CardTitle>
         </CardHeader>
@@ -173,10 +205,10 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
-      </Card >
+      </Card>
 
-    {/* 7-Day Trend */ }
-    < Card className = "col-span-1 md:col-span-2 lg:col-span-3 overflow-hidden" >
+      {/* 7-Day Trend */}
+      <Card className="col-span-1 md:col-span-2 lg:col-span-3 overflow-hidden">
         <CardHeader className="pb-2 sm:pb-3">
           <CardTitle className="text-sm sm:text-base">7-Day Activity Trend</CardTitle>
         </CardHeader>
@@ -216,7 +248,7 @@ export function CallAnalyticsCard({ callLogs, stats }: CallAnalyticsProps) {
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
-      </Card >
-    </div >
+      </Card>
+    </div>
   );
 }

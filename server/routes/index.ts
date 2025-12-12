@@ -6,6 +6,8 @@ import userRouter from "./users";
 import livekitRouter from "./livekit";
 import { picaRouter } from "./pica";
 
+import integrationsRouter from "./integrations";
+
 const router = Router();
 
 // Mount routes
@@ -14,6 +16,7 @@ const router = Router();
 router.use("/admin", adminRouter);
 router.use("/webhooks", webhookRouter);
 router.use("/users", userRouter); // Covers /users and /agency
+router.use("/integrations", integrationsRouter);
 
 router.use("/livekit", livekitRouter);
 router.use("/pica", picaRouter);

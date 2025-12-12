@@ -1,4 +1,5 @@
 
+// @ts-ignore
 import Database from 'better-sqlite3';
 import { randomBytes, scryptSync, randomUUID } from 'crypto';
 
