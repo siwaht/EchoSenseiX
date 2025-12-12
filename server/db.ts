@@ -24,10 +24,10 @@ function getDatabaseConnection() {
     console.log('[DB] Initializing PostgreSQL connection...');
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '50', 10),
-      connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 30000,
-      allowExitOnIdle: false,
+      max: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '10', 10),
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 60000,
+      allowExitOnIdle: true,
     });
 
     pool.on('error', (err) => {
