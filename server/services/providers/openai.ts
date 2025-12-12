@@ -40,22 +40,21 @@ export class OpenAIProvider implements ILLMProvider {
                 console.warn("[OpenAIProvider] Main connection failed, attempting Pica fallback...", error);
 
                 try {
-                    // Pica Fallback logic using Vercel AI SDK
                     const pica = this.picaFallback as any;
-                    const { text } = await generateText({
+                    const generateOptions: any = {
                         model: openaiModel(options?.model || "gpt-4o"),
                         system: pica.systemPrompt,
                         prompt: prompt,
                         tools: { ...pica.tools() },
-                        // @ts-ignore
                         maxSteps: 10,
-                    });
+                    };
+                    const { text } = await generateText(generateOptions);
 
                     console.log("[OpenAIProvider] Pica fallback successful");
                     return text;
                 } catch (fallbackError) {
                     console.error("[OpenAIProvider] Pica fallback also failed:", fallbackError);
-                    throw error; // Throw original error if fallback fails
+                    throw error;
                 }
             }
             throw error;
@@ -74,7 +73,6 @@ export class OpenAIProvider implements ILLMProvider {
             ...options
         }) as unknown as AsyncIterable<any>;
 
-        // Convert OpenAI stream to ReadableStream
         return new ReadableStream({
             async start(controller) {
                 for await (const chunk of stream) {

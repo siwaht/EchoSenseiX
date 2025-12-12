@@ -66,7 +66,6 @@ export async function initializeProviders() {
             providerRegistry.register(twilioAdapter);
             console.log("[Providers] Registered Twilio adapter via PicaOS");
 
-            // --- CHANGED: Use Pica as FALLBACK for OpenAI instead of replacing it entirely ---
             // If OpenAI provider is already initialized, attach Pica toolkit as fallback
             if (openaiProvider) {
                 try {
