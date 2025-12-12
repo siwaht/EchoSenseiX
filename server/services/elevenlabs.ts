@@ -14,7 +14,7 @@ interface ApiResponse<T = any> {
   statusCode?: number;
 }
 
-class ElevenLabsService {
+export class ElevenLabsService {
   private config: ElevenLabsConfig;
   private defaultHeaders: HeadersInit;
 
