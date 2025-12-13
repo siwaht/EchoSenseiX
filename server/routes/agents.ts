@@ -26,6 +26,25 @@ router.get("/", async (req, res) => {
     }
 });
 
+// GET /api/agents/:id - Get single agent
+router.get("/:id", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const user = (req as any).user;
+        const agentId = req.params.id;
+        const agent = await storage.getAgent(agentId, user.organizationId);
+
+        if (!agent) {
+            return res.status(404).json({ message: "Agent not found" });
+        }
+
+        return res.json(agent);
+    } catch (error: any) {
+        console.error("[Get Agent Error]", error);
+        return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+});
+
 // POST /api/agents/sync - Sync with provider (with PicaOS fallback)
 router.post("/sync", async (req, res) => {
     if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
@@ -321,6 +340,46 @@ router.post("/generate-prompt", async (req, res) => {
 
     } catch (error: any) {
         return res.status(500).json({ message: error.message });
+    }
+});
+
+// PATCH /api/agents/:id/settings - Update agent settings
+router.patch("/:id/settings", async (req, res) => {
+    if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const user = (req as any).user;
+        const agentId = req.params.id;
+
+        // Check if agent exists and belongs to user's organization
+        const agent = await storage.getAgent(agentId, user.organizationId);
+        if (!agent) {
+            return res.status(404).json({ message: "Agent not found" });
+        }
+
+        const settings = req.body;
+
+        // Update agent locally
+        const updatedAgent = await storage.updateAgent(agentId, user.organizationId, settings);
+
+        // Optionally sync to ElevenLabs if the agent is synced
+        if (agent.elevenLabsAgentId) {
+            try {
+                const integration = await storage.getIntegration(user.organizationId, "elevenlabs");
+                if (integration?.apiKey) {
+                    const apiKey = decryptApiKey(integration.apiKey);
+                    const service = new ElevenLabsService({ apiKey });
+                    await service.updateAgent(agent.elevenLabsAgentId, settings);
+                }
+            } catch (syncError: any) {
+                console.warn(`[Agent Settings] Failed to sync to ElevenLabs: ${syncError.message}`);
+                // Don't fail the request, local update was successful
+            }
+        }
+
+        return res.json(updatedAgent);
+    } catch (error: any) {
+        console.error("[Agent Settings Update Error]", error);
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 });
 
