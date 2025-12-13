@@ -1646,6 +1646,51 @@ export const ALL_IN_ONE_PROVIDERS: Record<string, VoiceAIProviderMetadata> = {
     tier: 'professional',
     docsUrl: 'https://platform.openai.com/docs/guides/realtime',
   },
+  'picaos': {
+    id: 'picaos',
+    name: 'picaos',
+    displayName: 'PicaOS',
+    category: 'all-in-one',
+    subcategories: ['llm', 'tts', 'stt', 'telephony'],
+    description: 'Universal API passthrough for ElevenLabs and other AI services',
+    capabilities: {
+      streaming: true,
+      realtime: true,
+      customVoices: true,
+      multiLanguage: true,
+    },
+    supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'hi', 'ar', 'ja', 'ko', 'zh'],
+    pricing: {
+      model: 'Passthrough',
+      details: 'Pay-as-you-go via connected providers | Unified API management',
+    },
+    credentials: [
+      {
+        key: 'secretKey',
+        label: 'Pica Secret Key',
+        type: 'password',
+        required: true,
+        placeholder: 'sk_pica_...',
+        description: 'Your PicaOS secret key',
+      },
+      {
+        key: 'connectionKey',
+        label: 'ElevenLabs Connection Key',
+        type: 'password',
+        required: true,
+        placeholder: 'your-connection-key',
+        description: 'ElevenLabs connection key from PicaOS',
+      },
+    ],
+    integration: {
+      apiVersion: 'v1',
+      baseUrl: 'https://api.picaos.com/v1/passthrough',
+      testEndpoint: '/v1/voices',
+    },
+    status: 'production',
+    tier: 'professional',
+    docsUrl: 'https://docs.picaos.com',
+  },
 };
 
 // Combined export
