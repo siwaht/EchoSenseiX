@@ -44,6 +44,11 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Skip API routes - let Express handle them
+    if (url.startsWith('/api/') || url.startsWith('/health')) {
+      return next();
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
@@ -79,7 +84,15 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // Skip API routes - let Express handle them
+  app.use("*", (req, res, next) => {
+    const url = req.originalUrl;
+
+    // Skip API routes - let Express 404 handler deal with them
+    if (url.startsWith('/api/') || url.startsWith('/health')) {
+      return next();
+    }
+
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
