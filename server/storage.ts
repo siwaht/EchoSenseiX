@@ -41,6 +41,9 @@ import {
   type InsertAgent,
   type CallLog,
   type InsertCallLog,
+  type ActivityLog,
+  type InsertActivityLog,
+  activityLogs,
   type BillingPackage,
   type Payment,
   type InsertPayment,
@@ -385,6 +388,10 @@ export interface IStorage {
   createAgencyInvitation(invitation: InsertAgencyInvitation): Promise<AgencyInvitation>;
   updateAgencyInvitation(id: string, updates: Partial<AgencyInvitation>): Promise<AgencyInvitation>;
   acceptAgencyInvitation(code: string, userId: string): Promise<Organization>;
+
+  // Activity log operations
+  createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  getActivityLogs(organizationId: string, limit?: number): Promise<ActivityLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2692,6 +2699,24 @@ export class DatabaseStorage implements IStorage {
     await (db as any)
       .delete(documentProcessingStatus)
       .where(eq(documentProcessingStatus.id, id));
+  }
+
+  // Activity log operations
+  async createActivityLog(logData: InsertActivityLog): Promise<ActivityLog> {
+    const [log] = await (db as any)
+      .insert(activityLogs)
+      .values(logData)
+      .returning();
+    return log;
+  }
+
+  async getActivityLogs(organizationId: string, limit?: number): Promise<ActivityLog[]> {
+    return await (db as any)
+      .select()
+      .from(activityLogs)
+      .where(eq(activityLogs.organizationId, organizationId))
+      .orderBy(desc(activityLogs.timestamp))
+      .limit(limit || 50);
   }
 }
 

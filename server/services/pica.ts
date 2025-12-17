@@ -330,7 +330,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'GET',
-            `/convai/conversations/${conversationId}`,
+            `/v1/convai/conversations/${conversationId}`,
             PICA_ACTION_IDS.GET_CONVERSATION
         );
     }
@@ -387,7 +387,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'POST',
-            `/convai/conversations/${conversationId}/feedback`,
+            `/v1/convai/conversations/${conversationId}/feedback`,
             PICA_ACTION_IDS.SEND_CONVERSATION_FEEDBACK,
             { feedback }
         );
@@ -417,7 +417,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
         return null;
     }
 
-    async createConversation(data: any): Promise<any> {
+    async createConversation(_data: any): Promise<any> {
         // Use ElevenLabs outbound call endpoint if available
         throw new Error('createConversation not implemented in PicaService passthrough');
     }
@@ -435,7 +435,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'GET',
-            '/convai/phone-numbers/',
+            '/v1/convai/phone-numbers/',
             PICA_ACTION_IDS.LIST_PHONE_NUMBERS
         );
     }
@@ -450,7 +450,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'GET',
-            `/convai/phone-numbers/${phoneNumberId}`,
+            `/v1/convai/phone-numbers/${phoneNumberId}`,
             PICA_ACTION_IDS.GET_PHONE_NUMBER
         );
     }
@@ -487,7 +487,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'PATCH',
-            `/convai/phone-numbers/${phoneNumberId}`,
+            `/v1/convai/phone-numbers/${phoneNumberId}`,
             PICA_ACTION_IDS.UPDATE_PHONE_NUMBER,
             data
         );
@@ -514,7 +514,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
     // --- ILLMProvider Implementation ---
 
-    async generateResponse(prompt: string, context?: any[], options?: any): Promise<string> {
+    async generateResponse(_prompt: string, _context?: any[], _options?: any): Promise<string> {
         throw new Error('generateResponse not implemented - use direct LLM provider');
     }
 
@@ -589,7 +589,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
         return this.passthroughRequest(
             'POST',
-            `/voices/add/${publicUserId}/${voiceId}`,
+            `/v1/voices/add/${publicUserId}/${voiceId}`,
             PICA_ACTION_IDS.ADD_SHARED_VOICE,
             { new_name: newName }
         );
@@ -620,7 +620,7 @@ export class PicaService implements IConversationalAIProvider, ITelephonyProvide
 
     // --- ISTTProvider Implementation ---
 
-    async transcribe(audioBuffer: Buffer, options?: any): Promise<string> {
+    async transcribe(_audioBuffer: Buffer, _options?: any): Promise<string> {
         throw new Error('transcribe not implemented in PicaService passthrough');
     }
 

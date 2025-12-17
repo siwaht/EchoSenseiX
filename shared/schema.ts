@@ -114,6 +114,8 @@ export const organizations = pgTable("organizations", {
   agencyPermissions: jsonb("agency_permissions").$type<string[]>().default([]), // Agency-level permissions
   agencyRole: varchar("agency_role"), // Role template for agency permissions
   elevenLabsApiKeyHash: varchar("elevenlabs_api_key_hash"), // Hash of current ElevenLabs API key to detect changes
+  picaSecretKeyHash: varchar("pica_secret_key_hash"), // Hash of current PicaOS secret key to detect changes
+  picaConnectionKeyHash: varchar("pica_connection_key_hash"), // Hash of current PicaOS connection key to detect changes
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -746,20 +748,20 @@ export const agencyPaymentConfig = pgTable("agency_payment_config", {
 export const agencyPricingPlans = pgTable("agency_pricing_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(), // Agency organization ID
-  
+
   // Plan details
   name: varchar("name").notNull(),
   description: text("description"),
   billingCycle: billingCycleEnum("billing_cycle").notNull().default("monthly"),
-  
+
   // Pricing
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
   currency: varchar("currency").default('usd'),
-  
+
   // Trial settings
   trialDays: integer("trial_days").default(0),
-  
+
   // Feature limits
   features: jsonb("features").$type<{
     maxAgents?: number;
@@ -771,17 +773,17 @@ export const agencyPricingPlans = pgTable("agency_pricing_plans", {
     customBranding?: boolean;
     apiAccess?: boolean;
   }>(),
-  
+
   // Display settings
   displayOrder: integer("display_order").default(0),
   isActive: boolean("is_active").default(true),
   isPopular: boolean("is_popular").default(false),
-  
+
   // Stripe/PayPal product IDs
   stripeProductId: varchar("stripe_product_id"),
   stripePriceId: varchar("stripe_price_id"),
   paypalPlanId: varchar("paypal_plan_id"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -789,37 +791,37 @@ export const agencyPricingPlans = pgTable("agency_pricing_plans", {
 // Agency Subscriptions - tracks user subscriptions to agency plans
 export const agencySubscriptions = pgTable("agency_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   userId: varchar("user_id").notNull(),
   organizationId: varchar("organization_id").notNull(), // Customer organization
   agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization
   planId: varchar("plan_id").notNull(),
-  
+
   // Subscription details
   status: agencySubscriptionStatusEnum("status").notNull().default("active"),
-  
+
   // Billing details
   currentPeriodStart: timestamp("current_period_start").notNull(),
   currentPeriodEnd: timestamp("current_period_end").notNull(),
   cancelAt: timestamp("cancel_at"),
   canceledAt: timestamp("canceled_at"),
   trialEnd: timestamp("trial_end"),
-  
+
   // Payment method
   paymentMethod: varchar("payment_method"), // 'stripe' or 'paypal'
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   paypalSubscriptionId: varchar("paypal_subscription_id"),
-  
+
   // Usage tracking
   usageThisMonth: jsonb("usage_this_month").$type<{
     minutes?: number;
     calls?: number;
     apiRequests?: number;
   }>(),
-  
+
   metadata: jsonb("metadata").$type<Record<string, any>>(),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -827,29 +829,29 @@ export const agencySubscriptions = pgTable("agency_subscriptions", {
 // Agency Transactions - payment history for agency billing
 export const agencyTransactions = pgTable("agency_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   subscriptionId: varchar("subscription_id"),
   userId: varchar("user_id").notNull(),
   organizationId: varchar("organization_id").notNull(), // Customer organization
   agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization
-  
+
   // Transaction details
   type: varchar("type").notNull(), // 'subscription', 'one_time', 'refund', 'credit'
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency").default('usd'),
   status: paymentStatusEnum("status").notNull().default("pending"),
-  
+
   // Payment details
   paymentMethod: varchar("payment_method"), // 'stripe' or 'paypal'
   stripePaymentIntentId: varchar("stripe_payment_intent_id"),
   paypalOrderId: varchar("paypal_order_id"),
-  
+
   // Invoice details
   invoiceNumber: varchar("invoice_number"),
   description: text("description"),
   metadata: jsonb("metadata").$type<Record<string, any>>(),
-  
+
   // Timestamps
   paidAt: timestamp("paid_at"),
   failedAt: timestamp("failed_at"),
@@ -916,20 +918,20 @@ export const agencyPaymentProcessors = pgTable("agency_payment_processors", {
 export const agencyBillingPlans = pgTable("agency_billing_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(), // Agency organization ID
-  
+
   // Plan details
   name: varchar("name").notNull(),
   description: text("description"),
   billingCycle: billingCycleEnum("billing_cycle").notNull(), // monthly, quarterly, annual, one_time
-  
+
   // Pricing
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
   currency: varchar("currency").default('usd'),
-  
+
   // Trial settings
   trialPeriodDays: integer("trial_period_days").default(0),
-  
+
   // Features and limits
   features: jsonb("features").$type<{
     highlights: string[]; // Marketing bullet points
@@ -939,18 +941,18 @@ export const agencyBillingPlans = pgTable("agency_billing_plans", {
     agentsLimit?: number;
     customLimits?: Record<string, any>;
   }>().notNull(),
-  
+
   // Payment processor product IDs
   stripeProductId: varchar("stripe_product_id"),
   stripePriceId: varchar("stripe_price_id"),
   paypalPlanId: varchar("paypal_plan_id"),
-  
+
   // Display settings
   displayOrder: integer("display_order").default(0),
   isActive: boolean("is_active").default(true),
   isPublic: boolean("is_public").default(true), // Whether plan is visible to customers
   isPopular: boolean("is_popular").default(false),
-  
+
   // Metadata
   metadata: jsonb("metadata").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -963,28 +965,28 @@ export const customerSubscriptionStatusEnum = pgEnum("customer_subscription_stat
 // Customer Subscriptions table - tracks customer subscriptions to agency plans
 export const customerSubscriptions = pgTable("customer_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization ID
   customerOrganizationId: varchar("customer_organization_id").notNull(), // Customer organization ID
   userId: varchar("user_id").notNull(), // User who subscribed
   planId: varchar("plan_id").notNull(), // Agency billing plan ID
-  
+
   // Subscription details
   status: customerSubscriptionStatusEnum("status").notNull().default("active"),
   currentPeriodStart: timestamp("current_period_start").notNull(),
   currentPeriodEnd: timestamp("current_period_end").notNull(),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
-  
+
   // Payment processor subscription IDs
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   paypalSubscriptionId: varchar("paypal_subscription_id"),
   paymentProcessor: varchar("payment_processor"), // 'stripe' or 'paypal'
-  
+
   // Trial information
   trialStart: timestamp("trial_start"),
   trialEnd: timestamp("trial_end"),
-  
+
   // Usage tracking
   usageData: jsonb("usage_data").$type<{
     callsUsed: number;
@@ -992,7 +994,7 @@ export const customerSubscriptions = pgTable("customer_subscriptions", {
     storageUsed?: number;
     customUsage?: Record<string, any>;
   }>().default({ callsUsed: 0, minutesUsed: 0 }),
-  
+
   // Metadata
   metadata: jsonb("metadata").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1003,32 +1005,32 @@ export const customerSubscriptions = pgTable("customer_subscriptions", {
 // Customer Payment Methods table - stores customer payment methods linked to agency processors
 export const customerPaymentMethods = pgTable("customer_payment_methods", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   agencyOrganizationId: varchar("agency_organization_id").notNull(), // Agency organization ID
   customerOrganizationId: varchar("customer_organization_id").notNull(), // Customer organization ID
   userId: varchar("user_id").notNull(), // User who added the payment method
-  
+
   // Payment method details
   type: varchar("type").notNull(), // 'card', 'bank_account', 'paypal'
   provider: varchar("provider").notNull(), // 'stripe' or 'paypal'
-  
+
   // Provider-specific IDs (encrypted)
   stripePaymentMethodId: varchar("stripe_payment_method_id"),
   stripeCustomerId: varchar("stripe_customer_id"),
   paypalBillingAgreementId: varchar("paypal_billing_agreement_id"),
-  
+
   // Display information (safe to expose)
   displayName: varchar("display_name"), // e.g., "Visa ending in 4242"
   last4: varchar("last4"), // Last 4 digits of card
   brand: varchar("brand"), // Card brand (visa, mastercard, etc.)
   expiryMonth: integer("expiry_month"),
   expiryYear: integer("expiry_year"),
-  
+
   // Status
   isDefault: boolean("is_default").default(false),
   isActive: boolean("is_active").default(true),
-  
+
   // Metadata
   metadata: jsonb("metadata").$type<Record<string, any>>(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1657,29 +1659,46 @@ export const auditLogs = pgTable("audit_logs", {
   index("audit_logs_created_idx").on(table.createdAt),
 ]);
 
+// Activity Logs table for tracking user-facing actions
+export const activityLogs = pgTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  userEmail: varchar("user_email"),
+  action: varchar("action").notNull(), // 'updated user', 'deleted user', 'invited user', etc.
+  details: text("details"),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("activity_logs_org_idx").on(table.organizationId),
+  index("activity_logs_user_idx").on(table.userId),
+  index("activity_logs_timestamp_idx").on(table.timestamp),
+]);
+
 // Unified Billing Plans - Hierarchical billing structure for platform, agencies, and customers
 export const unifiedBillingPlans = pgTable("unified_billing_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Hierarchy
   parentPlanId: varchar("parent_plan_id"), // Reference to parent plan for inheritance
   createdByOrganizationId: varchar("created_by_organization_id").notNull(), // Platform or agency that created this
   organizationType: organizationTypeEnum("organization_type").notNull(), // Who can purchase this plan
-  
+
   // Plan details
   name: varchar("name").notNull(),
   description: text("description"),
   planType: varchar("plan_type").notNull(), // 'subscription', 'one_time', 'usage_based', 'credit_pack'
   billingCycle: varchar("billing_cycle"), // 'monthly', 'quarterly', 'annual', null for one-time
-  
+
   // Pricing
   basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
   setupFee: decimal("setup_fee", { precision: 10, scale: 2 }).default('0'),
-  
+
   // Revenue sharing
   platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).default('30'), // Platform takes this %
   agencyMarginPercentage: decimal("agency_margin_percentage", { precision: 5, scale: 2 }).default('0'), // Agency adds this margin
-  
+
   // Features and limits
   features: jsonb("features").$type<{
     maxAgents?: number;
@@ -1694,7 +1713,7 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
     apiAccess?: boolean;
     supportLevel?: string;
   }>().notNull(),
-  
+
   // Payment provider integration - plan/product IDs from various providers
   providerPlanIds: jsonb("provider_plan_ids").$type<{
     stripe?: {
@@ -1748,15 +1767,15 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
   stripeProductId: varchar("stripe_product_id"),
   stripePriceId: varchar("stripe_price_id"),
   paypalPlanId: varchar("paypal_plan_id"),
-  
+
   // Display settings
   isActive: boolean("is_active").default(true),
   isPopular: boolean("is_popular").default(false),
   displayOrder: integer("display_order").default(0),
-  
+
   // Metadata
   metadata: jsonb("metadata").$type<Record<string, any>>(),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -1768,26 +1787,26 @@ export const unifiedBillingPlans = pgTable("unified_billing_plans", {
 // Payment Splits - Track how payments are distributed between platform and agencies
 export const paymentSplits = pgTable("payment_splits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   paymentId: varchar("payment_id").notNull(),
   fromOrganizationId: varchar("from_organization_id").notNull(), // Customer who paid
   toOrganizationId: varchar("to_organization_id").notNull(), // Platform or agency receiving
-  
+
   // Split details
   splitType: varchar("split_type").notNull(), // 'platform_fee', 'agency_revenue', 'commission'
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   percentage: decimal("percentage", { precision: 5, scale: 2 }),
-  
+
   // Transfer details
   transferStatus: varchar("transfer_status").default('pending'), // 'pending', 'processing', 'completed', 'failed'
   stripeTransferId: varchar("stripe_transfer_id"),
   transferredAt: timestamp("transferred_at"),
-  
+
   // Error handling
   failureReason: text("failure_reason"),
   retryCount: integer("retry_count").default(0),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("payment_splits_payment_idx").on(table.paymentId),
@@ -1798,15 +1817,15 @@ export const paymentSplits = pgTable("payment_splits", {
 // Unified Subscriptions - Single table for all subscription types
 export const unifiedSubscriptions = pgTable("unified_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // References
   organizationId: varchar("organization_id").notNull(), // Subscriber organization
   planId: varchar("plan_id").notNull(), // Unified billing plan
   parentSubscriptionId: varchar("parent_subscription_id"), // For nested subscriptions
-  
+
   // Subscription details
   status: varchar("status").notNull().default("active"), // 'active', 'trialing', 'past_due', 'canceled', 'paused'
-  
+
   // Billing periods
   currentPeriodStart: timestamp("current_period_start").notNull(),
   currentPeriodEnd: timestamp("current_period_end").notNull(),
@@ -1814,7 +1833,7 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
   cancelAt: timestamp("cancel_at"),
   canceledAt: timestamp("canceled_at"),
   pausedAt: timestamp("paused_at"),
-  
+
   // Payment provider subscription IDs
   providerSubscriptionIds: jsonb("provider_subscription_ids").$type<{
     stripe?: string;
@@ -1839,7 +1858,7 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
   // Legacy fields (deprecated, use providerSubscriptionIds instead)
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   paypalSubscriptionId: varchar("paypal_subscription_id"),
-  
+
   // Usage tracking
   currentUsage: jsonb("current_usage").$type<{
     minutes?: number;
@@ -1848,13 +1867,13 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
     users?: number;
     credits?: number;
   }>(),
-  
+
   // Custom pricing overrides
   customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
   discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }),
-  
+
   metadata: jsonb("metadata").$type<Record<string, any>>(),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -1867,22 +1886,22 @@ export const unifiedSubscriptions = pgTable("unified_subscriptions", {
 export const whitelabelConfigs = pgTable("whitelabel_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull().unique(),
-  
+
   // Basic branding
   appName: varchar("app_name").default("VoiceAI Dashboard"),
   companyName: varchar("company_name"),
-  
+
   // Logo URLs (stored in cloud storage)
   logoUrl: text("logo_url"),
   faviconUrl: text("favicon_url"),
-  
+
   // Simple toggles
   removePlatformBranding: boolean("remove_platform_branding").default(false),
-  
+
   // Support links (optional)
   supportUrl: text("support_url"),
   documentationUrl: text("documentation_url"),
-  
+
   // Metadata
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1987,6 +2006,12 @@ export const insertRoleTemplateSchema = createInsertSchema(roleTemplates).omit({
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+  timestamp: true,
 });
 
 export const insertWhitelabelConfigSchema = createInsertSchema(whitelabelConfigs).omit({
@@ -2195,3 +2220,5 @@ export type KnowledgeBaseEntry = typeof knowledgeBaseEntries.$inferSelect;
 export type InsertKnowledgeBaseEntry = z.infer<typeof insertKnowledgeBaseEntrySchema>;
 export type DocumentProcessingStatus = typeof documentProcessingStatus.$inferSelect;
 export type InsertDocumentProcessingStatus = z.infer<typeof insertDocumentProcessingStatusSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;

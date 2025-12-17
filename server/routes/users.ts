@@ -4,14 +4,12 @@ import { isAuthenticated } from "../middleware/auth";
 import { hashPassword } from "../auth";
 import EmailService from "../services/email-service";
 // import { z } from "zod";
-import crypto from "crypto";
+// import { z } from "zod";
 
 const router = Router();
 
-// In-memory storage for invitations and activity logs (should be moved to database in production)
-// Note: These Maps will be reset on server restart. Ideally, use database.
-// const userInvitations = new Map<string, any[]>();
-const activityLogs = new Map<string, any[]>();
+// Note: User invitations are now database-backed via storage.ts
+// Activity logs are now database-backed via storage.ts
 
 // ==========================================
 // User Management Routes (Non-Admin)
@@ -88,17 +86,14 @@ router.patch('/users/:userId', isAuthenticated, async (req: any, res) => {
         const updatedUser = await storage.updateUser(userId, updates);
 
         // Log activity
-        const log = {
-            id: crypto.randomBytes(16).toString('hex'),
-            userId: req.user.id,
+        await storage.createActivityLog({
+            organizationId,
+            userId: req.user.id.toString(),
             userEmail: currentUser?.email,
             action: 'updated user',
             details: `Updated user ${userId}`,
-            timestamp: new Date().toISOString(),
-        };
-        const logs = activityLogs.get(organizationId) || [];
-        logs.unshift(log);
-        activityLogs.set(organizationId, logs.slice(0, 100));
+            metadata: { targetUserId: userId }
+        });
 
         return res.json(updatedUser);
     } catch (error) {
@@ -172,17 +167,14 @@ router.delete('/users/:userId', isAuthenticated, async (req: any, res) => {
         await storage.deleteUser(req.params.userId);
 
         // Log activity
-        const log = {
-            id: crypto.randomBytes(16).toString('hex'),
-            userId: req.user.id,
+        await storage.createActivityLog({
+            organizationId,
+            userId: req.user.id.toString(),
             userEmail: currentUser?.email,
             action: 'deleted user',
             details: `Deleted ${targetUser.email}`,
-            timestamp: new Date().toISOString(),
-        };
-        const logs = activityLogs.get(organizationId) || [];
-        logs.unshift(log);
-        activityLogs.set(organizationId, logs);
+            metadata: { targetUserId: targetUser.id, targetUserEmail: targetUser.email }
+        });
 
         return res.json({ message: "User deleted successfully" });
     } catch (error) {
@@ -354,17 +346,14 @@ router.post('/users/invite', isAuthenticated, async (req: any, res) => {
         });
 
         // Log activity
-        const log = {
-            id: crypto.randomBytes(16).toString('hex'),
-            userId: req.user.id,
+        await storage.createActivityLog({
+            organizationId,
+            userId: req.user.id.toString(),
             userEmail: currentUser?.email,
             action: 'invited user',
             details: `Invited ${email} as ${role}`,
-            timestamp: new Date().toISOString(),
-        };
-        const logs = activityLogs.get(organizationId) || [];
-        logs.unshift(log);
-        activityLogs.set(organizationId, logs);
+            metadata: { invitedEmail: email, invitedRole: role }
+        });
 
         // In production, send email with invitation link
         console.log(`Invitation link: ${process.env.APP_URL || 'http://localhost:5000'}/invite/${invitation.code}`);
@@ -478,7 +467,7 @@ router.get('/users/activity-logs', isAuthenticated, async (req: any, res) => {
             return res.status(403).json({ message: "Insufficient permissions" });
         }
 
-        const logs = activityLogs.get(organizationId) || [];
+        const logs = await storage.getActivityLogs(organizationId);
         return res.json(logs);
     } catch (error) {
         console.error("Error fetching activity logs:", error);

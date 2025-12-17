@@ -30,8 +30,11 @@ export async function detectApiKeyChange(
     }
 
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
-    if (!elevenLabsApiKey) {
-      // No API key configured, skip check
+    const picaSecretKey = process.env.PICA_SECRET_KEY;
+    const picaConnectionKey = process.env.PICA_ELEVENLABS_CONNECTION_KEY;
+
+    if (!elevenLabsApiKey && !picaSecretKey && !picaConnectionKey) {
+      // No API keys configured, skip check
       return next();
     }
 
@@ -45,15 +48,24 @@ export async function detectApiKeyChange(
       return next();
     }
 
-    const currentKeyHash = hashApiKey(elevenLabsApiKey);
-    const storedKeyHash = org.elevenLabsApiKeyHash;
+    const elevenLabsChanged = elevenLabsApiKey && (!org.elevenLabsApiKeyHash || org.elevenLabsApiKeyHash !== hashApiKey(elevenLabsApiKey));
+    const picaSecretChanged = picaSecretKey && (!org.picaSecretKeyHash || org.picaSecretKeyHash !== hashApiKey(picaSecretKey));
+    const picaConnectionChanged = picaConnectionKey && (!org.picaConnectionKeyHash || org.picaConnectionKeyHash !== hashApiKey(picaConnectionKey));
 
-    // If this is the first time or the key has changed
-    if (!storedKeyHash || storedKeyHash !== currentKeyHash) {
-      console.log(`[API-KEY-CHANGE] Detected API key change for organization ${org.id}`);
+    // If any key has changed
+    if (elevenLabsChanged || picaSecretChanged || picaConnectionChanged) {
+      console.log(`[API-KEY-CHANGE] Detected API key change for organization ${org.id}:`, {
+        elevenLabsChanged,
+        picaSecretChanged,
+        picaConnectionChanged
+      });
 
-      // Only wipe data if there was a previous key (not first time setup)
-      if (storedKeyHash) {
+      // Only wipe data if there was a previous key for the one that changed (not first time setup)
+      const shouldWipe = (elevenLabsChanged && org.elevenLabsApiKeyHash) ||
+        (picaSecretChanged && org.picaSecretKeyHash) ||
+        (picaConnectionChanged && org.picaConnectionKeyHash);
+
+      if (shouldWipe) {
         console.log(`[API-KEY-CHANGE] Wiping old data for organization ${org.id}`);
 
         const storage = req.app.locals.storage as IStorage;
@@ -64,47 +76,59 @@ export async function detectApiKeyChange(
 
         if (!result.success) {
           console.error(`[API-KEY-CHANGE] ❌ Data wipe failed, will retry on next request:`, result.error);
-          // Don't update hash or trigger sync - let it retry on next request
           return next();
         }
 
         console.log(`[API-KEY-CHANGE] ✅ Successfully wiped data:`, result.deleted);
       }
 
-      // Update the stored API key hash (only after successful wipe or first-time setup)
+      // Update the stored API key hashes
+      const updateData: any = {};
+      if (elevenLabsChanged) updateData.elevenLabsApiKeyHash = hashApiKey(elevenLabsApiKey!);
+      if (picaSecretChanged) updateData.picaSecretKeyHash = hashApiKey(picaSecretKey!);
+      if (picaConnectionChanged) updateData.picaConnectionKeyHash = hashApiKey(picaConnectionKey!);
+
       await (db as any)
         .update(organizations)
-        .set({ elevenLabsApiKeyHash: currentKeyHash })
+        .set(updateData)
         .where(eq(organizations.id, org.id));
 
-      console.log(`[API-KEY-CHANGE] Updated API key hash for organization ${org.id}`);
+      console.log(`[API-KEY-CHANGE] Updated API key hashes for organization ${org.id}`);
 
-      // Also update or create the ElevenLabs integration with the new API key
+      // Update integrations
       const storage = req.app.locals.storage as IStorage;
-      
+
       if (storage && storage.upsertIntegration) {
-        console.log(`[API-KEY-CHANGE] Upserting ElevenLabs integration with new API key`);
+        if (elevenLabsChanged) {
+          console.log(`[API-KEY-CHANGE] Upserting ElevenLabs integration`);
+          await storage.upsertIntegration({
+            organizationId: org.id,
+            provider: "elevenlabs",
+            apiKey: elevenLabsApiKey!,
+            status: "ACTIVE",
+          });
+        }
 
-        await storage.upsertIntegration({
-          organizationId: org.id,
-          provider: "elevenlabs",
-          apiKey: elevenLabsApiKey,
-          status: "ACTIVE",
-        });
-
-        console.log(`[API-KEY-CHANGE] ElevenLabs integration updated successfully`);
-      } else {
-        console.warn(`[API-KEY-CHANGE] Storage not available, skipping integration upsert`);
+        if (picaSecretChanged || picaConnectionChanged) {
+          console.log(`[API-KEY-CHANGE] Upserting PicaOS integration`);
+          await storage.upsertIntegration({
+            organizationId: org.id,
+            provider: "pica",
+            credentials: {
+              secretKey: picaSecretKey || '',
+              connectionKey: picaConnectionKey || ''
+            },
+            status: "ACTIVE",
+          });
+        }
       }
 
-      // Trigger auto-sync in the background (don't block the request)
-      if (storedKeyHash) {
-        // Import sync service dynamically to avoid circular dependencies
+      // Trigger auto-sync in the background
+      if (shouldWipe) {
         setImmediate(async () => {
           try {
             const { SyncService } = await import("../services/sync-service");
             console.log(`[API-KEY-CHANGE] Starting auto-sync for organization ${org.id}`);
-            // Sync both agents and call logs for the new account
             await SyncService.syncAgents(org.id);
             await SyncService.syncCallLogs({ organizationId: org.id, includeTranscripts: true });
             console.log(`[API-KEY-CHANGE] Auto-sync completed for organization ${org.id}`);
