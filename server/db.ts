@@ -10,10 +10,12 @@ import * as schema from "@shared/schema";
 // Note: Logger imported after to avoid circular dependencies
 // Using console for critical startup messages that must happen before logger is available
 
+import { drizzle as drizzleD1 } from 'drizzle-orm/d1';
+
 neonConfig.webSocketConstructor = ws;
 
 let pool: Pool | null = null;
-let database: ReturnType<typeof drizzle> | ReturnType<typeof drizzleSqlite> | null = null;
+let database: ReturnType<typeof drizzle> | ReturnType<typeof drizzleSqlite> | ReturnType<typeof drizzleD1> | null = null;
 
 function getDatabaseConnection() {
   if (database) return database;
