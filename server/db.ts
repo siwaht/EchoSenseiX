@@ -43,7 +43,7 @@ function getDatabaseConnection() {
       console.log('[DB] New client connected to pool');
     });
 
-    database = drizzle({ client: pool, schema });
+//     database = drizzle({ client: pool, schema });
   }
   // 2. Fallback to SQLite (Local/Dev/Plug & Play)
   else {
@@ -58,7 +58,7 @@ function getDatabaseConnection() {
       console.warn('[DB] Failed to register compatibility functions:', e);
     }
 
-    database = drizzleSqlite(sqlite, { schema });
+//     database = drizzleSqlite(sqlite, { schema });
   }
 
   return database;
