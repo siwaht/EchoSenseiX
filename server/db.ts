@@ -1,6 +1,6 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
-// import { drizzle } from 'drizzle-orm/neon-serverless';
-// import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+mport { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
 // @ts-ignore
 import Database from 'better-sqlite3';
 import ws from "ws";
@@ -10,7 +10,7 @@ import * as schema from "@shared/schema";
 // Note: Logger imported after to avoid circular dependencies
 // Using console for critical startup messages that must happen before logger is available
 
-// import { drizzle as drizzleD1 } from 'drizzle-orm/d1';
+impomport { drizzle as drizzleD1 } from 'drizzle-orm/d1';
 
 neonConfig.webSocketConstructor = ws;
 
