@@ -1,6 +1,5 @@
 import express from "express";
 import compression from "compression";
-// import { createServer, type Server } from "http";
 import { registerRoutes } from "./routes";
 import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocket";
 import { setupVite, serveStatic, log } from "./vite";

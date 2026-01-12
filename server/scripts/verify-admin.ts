@@ -1,6 +1,6 @@
 
 import "dotenv/config";
-import { storage } from "./storage";
+import { storage } from "../storage";
 import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 

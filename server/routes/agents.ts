@@ -2,9 +2,7 @@ import { Router } from "express";
 import { storage } from "../storage";
 import { ElevenLabsService, decryptApiKey } from "../services/elevenlabs";
 import { picaService } from "../services/pica";
-// import { insertAgentSchema } from "@shared/schema";
 import { z } from "zod";
-// import { OpenAIProvider } from "../services/providers/openai"; 
 
 const router = Router();
 

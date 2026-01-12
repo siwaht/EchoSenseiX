@@ -3,8 +3,6 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../middleware/auth";
 import { hashPassword } from "../auth";
 import EmailService from "../services/email-service";
-// import { z } from "zod";
-// import { z } from "zod";
 
 const router = Router();
 

@@ -9,7 +9,6 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { storage } from '../storage';
-// import { createElevenLabsClient } from './elevenlabs';
 import { KnowledgeBaseService } from './knowledge-base-service';
 
 export interface DocumentUpload {

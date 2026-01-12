@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db } from '../db';
 import { unifiedBillingPlans, billingPackages, agencyBillingPlans } from '@shared/schema';
 
 async function seedBillingPlans() {

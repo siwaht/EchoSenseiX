@@ -395,7 +395,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  private db: ReturnType<typeof drizzle> | ReturnType<typeof drizzleSqlite> | ReturnType<typeof drizzleD1> | any;
+  private db: any;
 
   constructor(dbInstance?: any) {
     this.db = dbInstance || db;

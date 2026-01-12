@@ -3,17 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated, isAdmin } from "../middleware/auth";
 import { encryptApiKey, decryptApiKey } from "../utils/encryption";
 import SyncService from "../services/sync-service";
-// import * as unifiedPayment from "../unified-payment";
-// import { z } from "zod";
-// import crypto from "crypto";
 import { Integration } from "@shared/schema";
-// import { cacheMiddleware } from "../middleware/cache-middleware";
-// import {
-//     insertBillingPackageSchema,
-//     insertSystemTemplateSchema,
-//     insertQuickActionButtonSchema,
-//     insertAdminTaskSchema
-// } from "@shared/schema";
 
 const router = Router();
 
