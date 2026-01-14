@@ -14,7 +14,7 @@ export class OpenAIProvider implements ILLMProvider {
 //     setPicaFallback(pica: any) {
 //         this.picaFallback = pica;
 //         console.log("[OpenAIProvider] Pica fallback configured");
-    }
+//     }
 
     async initialize(config: any): Promise<void> {
         this.client = new OpenAI({
