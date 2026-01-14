@@ -36,7 +36,7 @@ export class ElevenLabsProvider implements IConversationalAIProvider, ITTSProvid
     }
 
     async generateAudio(text: string, voiceId: string, options?: any): Promise<ArrayBuffer> {
-        return this.getClient().textToSpeech(text, voiceId, options?.modelId);
+        return this.getClient().textToSpeech(text, voiceId, options?.modelId).buffer;
     }
 
     // IConversationalAIProvider implementation
