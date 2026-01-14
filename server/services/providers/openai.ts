@@ -2,18 +2,18 @@ import { ILLMProvider, ProviderType } from "./types";
 import OpenAI from "openai";
 import { generateText } from "ai";
 import { openai as openaiModel } from "@ai-sdk/openai";
-import { Pica } from "@picahq/toolkit";
+// import { Pica } from "@picahq/toolkit";
 
 export class OpenAIProvider implements ILLMProvider {
     id = "openai";
     name = "OpenAI";
     type: ProviderType = "llm";
     private client: OpenAI | null = null;
-    private picaFallback: Pica | null = null;
+//     private picaFallback: Pica | null = null;
 
-    setPicaFallback(pica: Pica) {
-        this.picaFallback = pica;
-        console.log("[OpenAIProvider] Pica fallback configured");
+//     setPicaFallback(pica: Pica) {
+//         this.picaFallback = pica;
+//         console.log("[OpenAIProvider] Pica fallback configured");
     }
 
     async initialize(config: any): Promise<void> {
