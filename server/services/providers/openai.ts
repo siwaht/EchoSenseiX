@@ -9,9 +9,9 @@ export class OpenAIProvider implements ILLMProvider {
     name = "OpenAI";
     type: ProviderType = "llm";
     private client: OpenAI | null = null;
-//     private picaFallback: Pica | null = null;
+    private picaFallback: any | null = null;
 
-//     setPicaFallback(pica: Pica) {
+//     setPicaFallback(pica: any) {
 //         this.picaFallback = pica;
 //         console.log("[OpenAIProvider] Pica fallback configured");
     }
