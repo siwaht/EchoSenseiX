@@ -312,7 +312,6 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
-                          <SelectItem value="livekit">LiveKit</SelectItem>
                           <SelectItem value="vapi">Vapi</SelectItem>
                           <SelectItem value="retell">Retell AI</SelectItem>
                           <SelectItem value="bland">Bland AI</SelectItem>
@@ -598,7 +597,6 @@ export function AddAgentModal({ open, onOpenChange }: AddAgentModalProps) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
-                          <SelectItem value="livekit">LiveKit</SelectItem>
                           <SelectItem value="vapi">Vapi</SelectItem>
                           <SelectItem value="retell">Retell AI</SelectItem>
                           <SelectItem value="bland">Bland AI</SelectItem>

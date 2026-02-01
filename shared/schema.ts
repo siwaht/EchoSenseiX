@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, relations } from 'drizzle-orm';
 import {
   index,
   jsonb,
@@ -13,7 +13,6 @@ import {
   boolean,
   unique,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -253,7 +252,7 @@ export const agents = pgTable("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull(),
   // Provider information - determines which platform hosts this agent
-  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, livekit, vapi, retell, cartesian, deepgram, etc.
+  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, vapi, retell, bland, vocode, deepgram, etc.
   externalAgentId: varchar("external_agent_id"), // Provider's agent ID (e.g., ElevenLabs agent ID, Vapi agent ID)
   // Legacy ElevenLabs support (deprecated, use externalAgentId + platform instead)
   elevenLabsAgentId: varchar("eleven_labs_agent_id"),
@@ -528,7 +527,7 @@ export interface SummaryMetadata {
 export const callLogs = pgTable("call_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   // Provider platform for this call
-  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, livekit, vapi, retell, etc.
+  platform: varchar("platform").notNull().default("elevenlabs"), // elevenlabs, vapi, retell, bland, etc.
   // External conversation/call ID from the provider
   externalCallId: varchar("external_call_id").notNull(), // Provider's call/conversation ID
   // Legacy ElevenLabs support (deprecated, use externalCallId + platform instead)

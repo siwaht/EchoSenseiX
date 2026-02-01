@@ -20,6 +20,7 @@ interface Config {
     url: string;
     ssl: boolean;
     maxConnections: number;
+    minConnections: number;
   };
   
   // Security & Auth
@@ -144,7 +145,8 @@ function loadConfig(): Config {
   const database = {
     url: databaseUrl,
     ssl: process.env.DATABASE_SSL === 'true' || isProduction,
-    maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '20', 10),
+    maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '50', 10),
+    minConnections: parseInt(process.env.DATABASE_MIN_CONNECTIONS || '5', 10),
   };
 
   // Security configuration

@@ -6,9 +6,11 @@ import { seedAdminUser } from "./seedAdmin";
 import { registerRealtimeSyncRoutes } from "./routes-realtime-sync";
 import { detectApiKeyChange } from "./middleware/api-key-change-detector";
 import router from "./routes/index";
-import { db } from "./db";
+import { checkDatabaseHealth, getPoolStats } from "./db";
 import logger from "./utils/logger";
 import { config } from "./config";
+import { getAllCacheStats } from "./cache/cache-manager";
+import { getRateLimitStats } from "./middleware/rate-limiter";
 
 export function registerRoutes(app: Express): Server {
   // Health check endpoint (no auth required for load balancers)
@@ -19,19 +21,24 @@ export function registerRoutes(app: Express): Server {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: config.nodeEnv,
+      version: process.env.npm_package_version || '1.0.0',
     });
   });
 
   // Readiness check - verifies all dependencies are ready
   app.get('/health/ready', async (_req, res) => {
-    const checks: Record<string, { status: string; latency?: number; error?: string }> = {};
+    const checks: Record<string, { status: string; latency?: number; error?: string; details?: any }> = {};
 
     // Check database connectivity
     const dbStart = Date.now();
     try {
-      // Use raw query to check DB connection
-      await (db as any).execute('SELECT 1');
-      checks.database = { status: 'healthy', latency: Date.now() - dbStart };
+      const isHealthy = await checkDatabaseHealth();
+      const poolStats = getPoolStats();
+      checks.database = { 
+        status: isHealthy ? 'healthy' : 'unhealthy', 
+        latency: Date.now() - dbStart,
+        details: poolStats
+      };
     } catch (error) {
       checks.database = {
         status: 'unhealthy',
@@ -58,6 +65,20 @@ export function registerRoutes(app: Express): Server {
       status: 'alive',
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // Metrics endpoint for monitoring (protected in production)
+  app.get('/health/metrics', (_req, res) => {
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage(),
+      database: getPoolStats(),
+      cache: getAllCacheStats(),
+      rateLimit: getRateLimitStats(),
+    };
+    res.json(metrics);
   });
 
   // Seed admin user on startup (with delay to ensure DB is ready)

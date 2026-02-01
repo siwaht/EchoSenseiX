@@ -13,43 +13,77 @@ interface RequestCount {
   resetTime: number;
 }
 
-// In-memory store (can be replaced with Redis for distributed systems)
+// Sliding window rate limit store for better accuracy
 class RateLimitStore {
   private store: Map<string, RequestCount> = new Map();
   private cleanupInterval: NodeJS.Timeout;
+  private maxEntries: number;
 
-  constructor() {
-    // Clean up expired entries every minute
+  constructor(maxEntries: number = 100000) {
+    this.maxEntries = maxEntries;
+    
+    // Clean up expired entries every 30 seconds
     this.cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [key, value] of this.store.entries()) {
-        if (value.resetTime <= now) {
-          this.store.delete(key);
-        }
-      }
-    }, 60000);
+      this.cleanup();
+    }, 30000);
   }
 
-  increment(key: string, windowMs: number): number {
+  private cleanup() {
+    const now = Date.now();
+    let deleted = 0;
+    
+    for (const [key, value] of this.store.entries()) {
+      if (value.resetTime <= now) {
+        this.store.delete(key);
+        deleted++;
+      }
+    }
+    
+    // Emergency cleanup if store is too large
+    if (this.store.size > this.maxEntries) {
+      const entries = Array.from(this.store.entries())
+        .sort((a, b) => a[1].resetTime - b[1].resetTime);
+      
+      const toDelete = entries.slice(0, Math.floor(this.maxEntries * 0.2));
+      for (const [key] of toDelete) {
+        this.store.delete(key);
+        deleted++;
+      }
+    }
+    
+    if (deleted > 0 && process.env.NODE_ENV === 'development') {
+      console.log(`[RateLimit] Cleaned up ${deleted} expired entries, ${this.store.size} remaining`);
+    }
+  }
+
+  increment(key: string, windowMs: number): { count: number; remaining: number; resetTime: number } {
     const now = Date.now();
     const entry = this.store.get(key);
 
     if (!entry || entry.resetTime <= now) {
       // New window
+      const resetTime = now + windowMs;
       this.store.set(key, {
         count: 1,
-        resetTime: now + windowMs
+        resetTime
       });
-      return 1;
+      return { count: 1, remaining: 0, resetTime };
     }
 
     // Increment existing window
     entry.count++;
-    return entry.count;
+    return { count: entry.count, remaining: entry.resetTime - now, resetTime: entry.resetTime };
   }
 
   reset(key: string): void {
     this.store.delete(key);
+  }
+
+  getStats() {
+    return {
+      size: this.store.size,
+      maxEntries: this.maxEntries
+    };
   }
 
   destroy(): void {
@@ -58,15 +92,20 @@ class RateLimitStore {
   }
 }
 
-// Global store instance
-const globalStore = new RateLimitStore();
+// Global store instance - sized for concurrent users
+const globalStore = new RateLimitStore(100000);
 
-// Default key generator (by IP and user ID)
+// Default key generator (by IP, user ID, and organization for multi-tenant)
 const defaultKeyGenerator = (req: Request): string => {
   const user = (req as any).user;
   const userId = user?.id || 'anonymous';
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
-  return `${userId}:${ip}`;
+  const orgId = user?.organizationId || 'default';
+  // Use X-Forwarded-For for load balanced environments
+  const ip = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() 
+    || req.ip 
+    || req.socket.remoteAddress 
+    || 'unknown';
+  return `${orgId}:${userId}:${ip}`;
 };
 
 // Create rate limiter middleware
@@ -81,18 +120,24 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
 
   return (req: Request, res: Response, next: NextFunction) => {
     const key = keyGenerator(req);
-    const requestCount = globalStore.increment(key, windowMs);
+    const result = globalStore.increment(key, windowMs);
+    const remaining = Math.max(0, max - result.count);
 
-    // Set rate limit headers
+    // Set rate limit headers (RFC 6585 compliant)
     res.setHeader('X-RateLimit-Limit', max.toString());
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, max - requestCount).toString());
-    res.setHeader('X-RateLimit-Reset', new Date(Date.now() + windowMs).toISOString());
+    res.setHeader('X-RateLimit-Remaining', remaining.toString());
+    res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime / 1000).toString());
+    res.setHeader('RateLimit-Policy', `${max};w=${Math.ceil(windowMs / 1000)}`);
 
     // Check if limit exceeded
-    if (requestCount > max) {
+    if (result.count > max) {
+      const retryAfter = Math.ceil(result.remaining / 1000);
+      res.setHeader('Retry-After', retryAfter.toString());
       res.status(429).json({ 
         error: message,
-        retryAfter: Math.ceil(windowMs / 1000)
+        retryAfter,
+        limit: max,
+        windowMs
       });
       return;
     }
@@ -112,49 +157,59 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
   };
 }
 
-// Pre-configured rate limiters for different endpoints
+// Pre-configured rate limiters for different endpoints (scaled for concurrent users)
 export const rateLimiters = {
   // Strict limit for authentication endpoints
   auth: createRateLimiter({
     windowMs: 15 * 60 * 1000,  // 15 minutes
-    max: 5,                     // 5 requests per 15 minutes
+    max: 10,                    // 10 requests per 15 minutes (increased for legitimate retries)
     message: 'Too many authentication attempts, please try again after 15 minutes.'
   }),
 
-  // Standard API rate limit
+  // Standard API rate limit (generous for dashboard usage)
   api: createRateLimiter({
     windowMs: 60 * 1000,        // 1 minute
-    max: 100,                   // 100 requests per minute
+    max: 200,                   // 200 requests per minute (increased for dashboard polling)
     message: 'API rate limit exceeded, please slow down.'
   }),
 
-  // Relaxed limit for read operations
+  // Relaxed limit for read operations (dashboards need frequent reads)
   read: createRateLimiter({
     windowMs: 60 * 1000,        // 1 minute
-    max: 200,                   // 200 requests per minute
+    max: 500,                   // 500 requests per minute
   }),
 
-  // Strict limit for write operations
+  // Moderate limit for write operations
   write: createRateLimiter({
     windowMs: 60 * 1000,        // 1 minute
-    max: 50,                    // 50 requests per minute
+    max: 100,                   // 100 requests per minute
     message: 'Too many write operations, please slow down.'
   }),
 
-  // Very strict limit for expensive operations
+  // Strict limit for expensive operations (external API calls)
   expensive: createRateLimiter({
-    windowMs: 60 * 60 * 1000,   // 1 hour
-    max: 10,                    // 10 requests per hour
+    windowMs: 60 * 1000,        // 1 minute
+    max: 30,                    // 30 requests per minute
     message: 'This operation is resource-intensive. Please wait before trying again.'
   }),
 
   // Upload rate limit
   upload: createRateLimiter({
     windowMs: 60 * 1000,        // 1 minute
-    max: 10,                    // 10 uploads per minute
+    max: 20,                    // 20 uploads per minute
     message: 'Upload rate limit exceeded.'
+  }),
+
+  // Webhook rate limit (high volume expected)
+  webhook: createRateLimiter({
+    windowMs: 60 * 1000,        // 1 minute
+    max: 1000,                  // 1000 webhooks per minute per source
+    message: 'Webhook rate limit exceeded.'
   })
 };
+
+// Get rate limiter stats for monitoring
+export const getRateLimitStats = () => globalStore.getStats();
 
 // Cleanup on process exit
 process.on('exit', () => {
