@@ -445,7 +445,7 @@ export class DatabaseStorage implements IStorage {
       lastName: userData.lastName,
       profileImageUrl: userData.profileImageUrl,
       organizationId,
-      isAdmin: userData.email === "cc@siwaht.com",
+      isAdmin: userData.isAdmin || (process.env.ADMIN_EMAIL ? userData.email === process.env.ADMIN_EMAIL : false),
       permissions: userData.permissions || defaultPermissions,
     }).returning();
     return user;
@@ -472,7 +472,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if this is the admin user
-    const isAdmin = userData.email === 'cc@siwaht.com';
+    const isAdmin = userData.isAdmin || (process.env.ADMIN_EMAIL ? userData.email === process.env.ADMIN_EMAIL : false);
 
     const [user] = await (this.db as any)
       .insert(users)

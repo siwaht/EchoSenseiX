@@ -94,8 +94,8 @@ function init() {
   `);
 
   // Manual Admin Seeding
-  const ADMIN_EMAIL = "cc@siwaht.com";
-  const ADMIN_PASSWORD = "Hola173!";
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@example.com";
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "ChangeMe123!";
 
   const salt = randomBytes(16).toString("hex");
   const derivedKey = scryptSync(ADMIN_PASSWORD, salt, 64);

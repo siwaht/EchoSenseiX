@@ -2,12 +2,17 @@ import { storage } from "./storage";
 import { hashPassword } from "./auth";
 import logger from "./utils/logger";
 
-// Get admin credentials from environment or use defaults
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "cc@siwaht.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Hola173!";
+// Get admin credentials from environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
 export async function seedAdminUser() {
   try {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      logger.debug('ADMIN_EMAIL or ADMIN_PASSWORD not set, skipping admin seeding');
+      return;
+    }
+
     logger.info('Starting admin user seeding process...');
 
     // Check if admin user already exists

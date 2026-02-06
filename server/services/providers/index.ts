@@ -2,9 +2,10 @@ import { providerRegistry } from "./registry";
 import { ElevenLabsProvider } from "./elevenlabs";
 import { TwilioProvider } from "./twilio";
 import { OpenAIProvider } from "./openai";
+import logger from "../../utils/logger";
 
 export async function initializeProviders() {
-    console.log("[Providers] Initializing providers...");
+    logger.info("Initializing providers...");
 
     // Initialize ElevenLabs
     if (process.env.ELEVENLABS_API_KEY) {
@@ -12,12 +13,12 @@ export async function initializeProviders() {
             const elevenLabs = new ElevenLabsProvider();
             await elevenLabs.initialize({ apiKey: process.env.ELEVENLABS_API_KEY });
             providerRegistry.register(elevenLabs);
-            console.log("[Providers] ElevenLabs provider initialized");
+            logger.info("ElevenLabs provider initialized");
         } catch (error) {
-            console.error("[Providers] Failed to initialize ElevenLabs provider:", error);
+            logger.error("Failed to initialize ElevenLabs provider", {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
-    } else {
-        console.warn("[Providers] ELEVENLABS_API_KEY not found, skipping ElevenLabs provider");
     }
 
     // Initialize Twilio
@@ -29,9 +30,11 @@ export async function initializeProviders() {
                 authToken: process.env.TWILIO_AUTH_TOKEN
             });
             providerRegistry.register(twilio);
-            console.log("[Providers] Twilio provider initialized");
+            logger.info("Twilio provider initialized");
         } catch (error) {
-            console.error("[Providers] Failed to initialize Twilio provider:", error);
+            logger.error("Failed to initialize Twilio provider", {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
@@ -42,9 +45,11 @@ export async function initializeProviders() {
             openaiProvider = new OpenAIProvider();
             await openaiProvider.initialize({ apiKey: process.env.OPENAI_API_KEY });
             providerRegistry.register(openaiProvider);
-            console.log("[Providers] OpenAI provider initialized");
+            logger.info("OpenAI provider initialized");
         } catch (error) {
-            console.error("[Providers] Failed to initialize OpenAI provider:", error);
+            logger.error("Failed to initialize OpenAI provider", {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
     }
 
@@ -56,47 +61,47 @@ export async function initializeProviders() {
 
             await picaService.initialize({ apiKey: process.env.PICA_SECRET_KEY });
             providerRegistry.register(picaService);
-            console.log("[Providers] PicaOS provider initialized");
-
-            // Register PicaOS adapters to replace/augment existing providers
-            // Note: This will overwrite existing 'twilio' and 'openai' providers if they were registered above
-            // which is what we want for "replacement" behavior if Pica is the preferred gateway.
+            logger.info("PicaOS provider initialized");
 
             const twilioAdapter = new PicaTwilioAdapter(picaService);
             providerRegistry.register(twilioAdapter);
-            console.log("[Providers] Registered Twilio adapter via PicaOS");
+            logger.info("Twilio adapter registered via PicaOS");
 
-            // If OpenAI provider is already initialized, attach Pica toolkit as fallback
             if (openaiProvider) {
                 try {
                     const { PicaToolkitService } = await import("../pica-toolkit");
                     const toolkit = new PicaToolkitService(process.env.PICA_SECRET_KEY);
                     openaiProvider.setPicaFallback(toolkit.instance);
-                    console.log("[Providers] Configured Pica fallback for OpenAI");
+                    logger.info("Pica fallback configured for OpenAI");
                 } catch (picaError) {
-                    console.error("[Providers] Failed to load Pica toolkit for fallback:", picaError);
+                    logger.error("Failed to load Pica toolkit for fallback", {
+                        error: picaError instanceof Error ? picaError.message : String(picaError)
+                    });
                 }
             } else {
-                // If OpenAI wasn't initialized (e.g. no key), fallback to Pica adapter as primary
                 const openaiAdapter = new PicaOpenAIAdapter(picaService);
                 providerRegistry.register(openaiAdapter);
-                console.log("[Providers] Registered OpenAI adapter via PicaOS (Primary)");
+                logger.info("OpenAI adapter registered via PicaOS (primary)");
             }
 
             const { PicaTTSAdapter, PicaSTTAdapter } = await import("./pica-adapters");
 
             const ttsAdapter = new PicaTTSAdapter(picaService);
             providerRegistry.register(ttsAdapter);
-            console.log("[Providers] Registered TTS adapter via PicaOS");
+            logger.info("TTS adapter registered via PicaOS");
 
             const sttAdapter = new PicaSTTAdapter(picaService);
             providerRegistry.register(sttAdapter);
-            console.log("[Providers] Registered STT adapter via PicaOS");
+            logger.info("STT adapter registered via PicaOS");
 
         } catch (error) {
-            console.error("[Providers] Failed to initialize PicaOS provider:", error);
+            logger.error("Failed to initialize PicaOS provider", {
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
-    } else {
-        console.warn("[Providers] PICA_SECRET_KEY not found, skipping PicaOS provider");
     }
+
+    logger.info("Provider initialization complete", {
+        registered: providerRegistry.getAllProviders().map(p => p.id)
+    });
 }

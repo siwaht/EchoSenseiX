@@ -6,10 +6,15 @@ import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
 
-const ADMIN_EMAIL = "cc@siwaht.com";
-const ADMIN_PASSWORD = "Hola173!"; // The expected password
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 async function verifyAdmin() {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+        console.error("❌ Set ADMIN_EMAIL and ADMIN_PASSWORD env vars to verify");
+        process.exit(1);
+    }
+
     console.log(`Verifying admin user: ${ADMIN_EMAIL}`);
     const user = await storage.getUserByEmail(ADMIN_EMAIL);
 

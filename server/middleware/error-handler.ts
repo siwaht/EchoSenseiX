@@ -31,6 +31,7 @@ export const errorHandler = (
       statusCode: err.statusCode,
       path: req.path,
       method: req.method,
+      requestId: req.requestId,
       userId: (req as any).user?.id,
       organizationId: (req as any).user?.organizationId,
       details: err.details,
@@ -44,6 +45,7 @@ export const errorHandler = (
         ...(err.details && { details: err.details }),
         ...(config.isDevelopment && { stack: err.stack }),
       },
+      requestId: req.requestId,
       timestamp: new Date().toISOString(),
     });
   }
@@ -115,13 +117,10 @@ export const errorHandler = (
     name: err.name,
     path: req.path,
     method: req.method,
-    body: req.body,
-    query: req.query,
-    params: req.params,
+    requestId: req.requestId,
     userId: (req as any).user?.id,
   });
 
-  // In production, don't expose internal error details
   const message = config.isProduction
     ? 'An unexpected error occurred'
     : err.message;
@@ -133,6 +132,7 @@ export const errorHandler = (
       message,
       ...(config.isDevelopment && { stack: err.stack }),
     },
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
   });
 };

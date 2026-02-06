@@ -5,13 +5,13 @@ import { setupWebSocketRoutes, setupWebSocketEndpoints } from "./routes-websocke
 import { setupVite, serveStatic, log } from "./vite";
 import { rateLimiters } from "./middleware/rate-limiter";
 import { securityHeaders, sanitizeRequest, apiVersionHeader } from "./middleware/security";
+import { requestIdMiddleware } from "./middleware/request-id";
 import { errorHandler, notFoundHandler, handleUnhandledRejection, handleUncaughtException } from "./middleware/error-handler";
 import { config } from "./config";
 import { initializeProviders } from "./services/providers";
 import logger from "./utils/logger";
 
 // Setup global error handlers early
-// Force restart: Agents router added
 handleUnhandledRejection();
 handleUncaughtException();
 
@@ -20,7 +20,7 @@ const app = express();
 // Trust proxy in production (for load balancers, reverse proxies)
 if (config.security.trustProxy) {
   app.set('trust proxy', 1);
-  console.log('[SERVER] Trust proxy enabled');
+  logger.info('Trust proxy enabled');
 }
 
 // Enable gzip compression for all responses
@@ -37,17 +37,15 @@ app.use(compression({
 }));
 
 // Increase body size limit to 10MB for image uploads
-// Also increase timeout for large uploads
 app.use(express.json({
   limit: '10mb',
-  verify: (req, _res, buf) => {
-    // Store raw body for debugging if needed
-    (req as any).rawBody = buf.toString('utf8');
-  }
 }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Security middleware - add security headers and sanitize requests
+// Request ID for distributed tracing
+app.use(requestIdMiddleware);
+
+// Security middleware
 app.use(securityHeaders);
 app.use(sanitizeRequest);
 app.use(apiVersionHeader);
@@ -77,42 +75,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Request logging with request ID correlation
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  // Only capture response body in development for debugging
-  if (config.isDevelopment) {
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      // Limit response capture to prevent memory issues
-      const responseStr = JSON.stringify(bodyJson);
-      if (responseStr.length < 500) { // Only capture small responses
-        capturedJsonResponse = bodyJson;
-      } else {
-        capturedJsonResponse = { message: "[Response too large to log]", size: responseStr.length };
-      }
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
-  }
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-
-      // Only add response details in development
-      if (config.isDevelopment && capturedJsonResponse) {
-        const responseStr = JSON.stringify(capturedJsonResponse);
-        if (responseStr.length > 80) {
-          logLine += ` :: ${responseStr.slice(0, 79)}…`;
-        } else {
-          logLine += ` :: ${responseStr}`;
-        }
-      }
-
-      log(logLine);
+      logger.http(req.method, path, res.statusCode, duration, {
+        requestId: req.requestId,
+        userId: (req as any).user?.id,
+      });
     }
   });
 
@@ -120,8 +94,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initializeProviders();
-  const server = await registerRoutes(app);
+  try {
+    await initializeProviders();
+    const server = await registerRoutes(app);
 
   // Setup WebSocket routes for real-time sync
   const wss = setupWebSocketRoutes(app, server);
@@ -205,4 +180,11 @@ app.use((req, res, next) => {
   // Listen for shutdown signals
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  } catch (err) {
+    logger.error('Fatal: Server failed to start', {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    process.exit(1);
+  }
 })();

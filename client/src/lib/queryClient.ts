@@ -1,16 +1,38 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+export class ApiError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+
+  constructor(status: number, message: string, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.name = 'ApiError';
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = res.statusText;
+    let code: string | undefined;
+    try {
+      const body = await res.json();
+      message = body?.error?.message || body?.message || message;
+      code = body?.error?.code;
+    } catch {
+      // Response wasn't JSON, use text fallback
+      const text = await res.text().catch(() => '');
+      if (text) message = text;
+    }
+    throw new ApiError(res.status, message, code);
   }
 }
 
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
@@ -47,14 +69,19 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
-      gcTime: 10 * 60 * 1000, // 10 minutes - garbage collection time (renamed from cacheTime in v5)
-      retry: 1, // Retry failed requests once
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: (failureCount, error) => {
+        // Don't retry on auth or validation errors
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403 || error.status === 400)) {
+          return false;
+        }
+        return failureCount < 2;
+      },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
-      retry: 1, // Retry failed mutations once
-      retryDelay: 1000,
+      retry: false,
     },
   },
 });
