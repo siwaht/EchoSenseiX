@@ -35,6 +35,13 @@ interface Config {
     elevenlabs: {
       apiKey: string | null;
     };
+    fishAudio: {
+      apiKey: string | null;
+      baseUrl: string;
+    };
+    deepgram: {
+      apiKey: string | null;
+    };
     stripe: {
       secretKey: string | null;
       webhookSecret: string | null;
@@ -161,6 +168,13 @@ function loadConfig(): Config {
     elevenlabs: {
       apiKey: process.env.ELEVENLABS_API_KEY || null,
     },
+    fishAudio: {
+      apiKey: process.env.FISH_AUDIO_API_KEY || null,
+      baseUrl: process.env.FISH_AUDIO_BASE_URL || 'https://api.fish.audio',
+    },
+    deepgram: {
+      apiKey: process.env.DEEPGRAM_API_KEY || null,
+    },
     stripe: {
       secretKey: process.env.STRIPE_SECRET_KEY || null,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
@@ -253,6 +267,12 @@ function loadConfig(): Config {
   
   if (integrations.elevenlabs.apiKey) {
     console.log('[CONFIG] ✓ ElevenLabs API key configured');
+  }
+  if (integrations.fishAudio.apiKey) {
+    console.log('[CONFIG] ✓ Fish Audio API key configured');
+  }
+  if (integrations.deepgram.apiKey) {
+    console.log('[CONFIG] ✓ Deepgram API key configured');
   }
   if (integrations.stripe.secretKey) {
     console.log('[CONFIG] ✓ Stripe configured');

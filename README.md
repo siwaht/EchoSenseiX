@@ -147,8 +147,16 @@ GCS_PROJECT_ID=your-project
 AZURE_STORAGE_ACCOUNT_NAME=your-account
 AZURE_STORAGE_CONTAINER_NAME=your-container
 
-# Optional Integrations
+# Optional Voice Integrations
 ELEVENLABS_API_KEY=your-key
+FISH_AUDIO_API_KEY=your-key
+FISH_AUDIO_BASE_URL=https://api.fish.audio
+DEEPGRAM_API_KEY=your-key
+OPENAI_API_KEY=your-key
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token
+
+# Optional Billing Integration
 MISTRAL_API_KEY=your-key
 STRIPE_SECRET_KEY=your-key
 ```

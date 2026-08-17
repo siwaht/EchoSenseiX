@@ -31,7 +31,7 @@ class AudioStorageService {
 
   private sanitizeFileName(filename: string): string {
     // Remove any path traversal attempts and keep only safe characters
-    return filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    return filename.replace(/[^a-zA-Z0-9_.-]/g, '_');
   }
 
   private generateStorageKey(conversationId: string): string {

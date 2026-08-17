@@ -34,7 +34,7 @@ class ProviderRegistry {
         if (providers.length === 0) {
             throw new Error(`No providers found for type '${type}'`);
         }
-        return providers[0];
+        return providers[0]!;
     }
 
     hasProvider(id: string): boolean {

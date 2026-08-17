@@ -69,9 +69,15 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
       }
     }
 
-    // Find the agent to get organization context
-    const agents = await storage.getAllAgents();
-    const agent = agents.find(a => a.elevenLabsAgentId === agent_id);
+    // Find the agent to get organization context. If the database is temporarily
+    // unavailable, still let the conversation start with degraded client data.
+    let agent: Awaited<ReturnType<typeof storage.getAllAgents>>[number] | undefined;
+    try {
+      const agents = await storage.getAllAgents();
+      agent = agents.find(a => a.elevenLabsAgentId === agent_id);
+    } catch (error) {
+      console.error("⚠️ Unable to load agent context for conversation init:", error);
+    }
 
     // You can add custom logic here, such as:
     // - Logging the conversation start
@@ -81,7 +87,7 @@ export async function handleConversationInitWebhook(req: Request, res: Response)
     // - Setting up analytics tracking
 
     // Example: Fetch customer data based on phone number
-    let customerData = null;
+    const customerData = null;
     if (phone_number && agent) {
       // Query your database for customer information
       // customerData = await storage.getCustomerByPhone(phone_number);
@@ -176,9 +182,16 @@ export async function handlePostCallWebhook(req: Request, res: Response) {
       }
     }
 
-    // Find the agent to get organization context
-    const agents = await storage.getAllAgents();
-    const agent = agents.find(a => a.elevenLabsAgentId === agent_id);
+    // Find the agent to get organization context. Post-call persistence must not
+    // acknowledge success when the database is unavailable, so providers retry.
+    let agent: Awaited<ReturnType<typeof storage.getAllAgents>>[number] | undefined;
+    try {
+      const agents = await storage.getAllAgents();
+      agent = agents.find(a => a.elevenLabsAgentId === agent_id);
+    } catch (error) {
+      console.error("⚠️ Unable to load agent context for post-call webhook:", error);
+      return res.status(503).json({ error: "Database unavailable", retryable: true });
+    }
 
     if (!agent) {
       console.warn(`⚠️ Agent not found for ElevenLabs ID: ${agent_id}`);

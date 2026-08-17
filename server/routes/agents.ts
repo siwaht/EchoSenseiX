@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { storage } from "../storage";
 import { ElevenLabsService, decryptApiKey } from "../services/elevenlabs";
-import { picaService } from "../services/pica";
 import { z } from "zod";
 
 const router = Router();
@@ -43,7 +42,7 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// POST /api/agents/sync - Sync with provider (with PicaOS fallback)
+// POST /api/agents/sync - Sync with ElevenLabs
 router.post("/sync", async (req, res) => {
     if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
     try {
@@ -66,34 +65,17 @@ router.post("/sync", async (req, res) => {
                     throw new Error(result.error || "Failed to fetch agents from ElevenLabs");
                 }
             } catch (elevenLabsError: any) {
-                console.warn(`[Agents Sync] ElevenLabs failed: ${elevenLabsError.message}, trying PicaOS fallback...`);
-            }
-        }
-
-        // Fallback to PicaOS if ElevenLabs didn't work
-        if (externalAgents.length === 0 && process.env.PICA_SECRET_KEY) {
-            try {
-                const picaAgents = await picaService.getAgents() as any;
-                if (picaAgents && Array.isArray(picaAgents)) {
-                    externalAgents = picaAgents;
-                    providerUsed = "pica";
-                } else if (picaAgents?.agents) {
-                    externalAgents = picaAgents.agents;
-                    providerUsed = "pica";
-                }
-            } catch (picaError: any) {
-                console.error(`[Agents Sync] PicaOS fallback also failed: ${picaError.message}`);
+                console.warn(`[Agents Sync] ElevenLabs failed: ${elevenLabsError.message}, without a fallback provider...`);
             }
         }
 
         // If still no agents and no provider worked, return appropriate error
         if (providerUsed === "") {
             const hasElevenLabs = !!integration?.apiKey;
-            const hasPica = !!process.env.PICA_SECRET_KEY;
 
-            if (!hasElevenLabs && !hasPica) {
+            if (!hasElevenLabs) {
                 return res.status(400).json({
-                    message: "No provider configured. Please configure ElevenLabs integration or set PICA_SECRET_KEY."
+                    message: "No provider configured. Please configure an ElevenLabs integration."
                 });
             }
 
@@ -113,7 +95,7 @@ router.post("/sync", async (req, res) => {
             const agentData = {
                 name: extAgent.name,
                 description: extAgent.description || "",
-                platform: providerUsed === "pica" ? "elevenlabs" : "elevenlabs",
+                platform: "elevenlabs",
                 externalAgentId: agentId,
                 elevenLabsAgentId: agentId,
                 organizationId: user.organizationId,
@@ -218,7 +200,7 @@ router.post("/", async (req, res) => {
 });
 
 
-// POST /api/agents/create - Create new agent on provider then locally (with PicaOS fallback)
+// POST /api/agents/create - Create new agent on ElevenLabs then locally
 router.post("/create", async (req, res) => {
     if ((req as any).user === undefined) return res.status(401).json({ message: "Unauthorized" });
 
@@ -266,31 +248,17 @@ router.post("/create", async (req, res) => {
                     throw new Error(createResult.error || "Failed to create agent on ElevenLabs");
                 }
             } catch (elevenLabsError: any) {
-                console.warn(`[Agent Create] ElevenLabs failed: ${elevenLabsError.message}, trying PicaOS fallback...`);
-            }
-        }
-
-        // Fallback to PicaOS if ElevenLabs didn't work
-        if (!extAgentId && process.env.PICA_SECRET_KEY) {
-            try {
-                const picaResult = await picaService.createAgent(agentConfig) as any;
-                if (picaResult?.agent_id || picaResult?.id) {
-                    extAgentId = picaResult.agent_id || picaResult.id;
-                    providerUsed = "pica";
-                }
-            } catch (picaError: any) {
-                console.error(`[Agent Create] PicaOS fallback also failed: ${picaError.message}`);
+                console.warn(`[Agent Create] ElevenLabs failed: ${elevenLabsError.message}, without a fallback provider...`);
             }
         }
 
         // If no provider worked
         if (!extAgentId) {
             const hasElevenLabs = !!integration?.apiKey;
-            const hasPica = !!process.env.PICA_SECRET_KEY;
 
-            if (!hasElevenLabs && !hasPica) {
+            if (!hasElevenLabs) {
                 return res.status(400).json({
-                    message: "No provider configured. Please configure ElevenLabs integration or set PICA_SECRET_KEY."
+                    message: "No provider configured. Please configure an ElevenLabs integration."
                 });
             }
 
@@ -323,15 +291,7 @@ router.post("/create", async (req, res) => {
 router.post("/generate-prompt", async (req, res) => {
     try {
         const { description } = req.body;
-        // Use OpenAI or Pica to generate prompt
-        // Simple mock for now if no LLM service handy, OR use Pica/OpenAI provider
-        // Assuming OpenAIProvider is available and configured
-
-        // Quick fallback: manual heuristic or use a simple prompt if provider setup is complex
-        // For now, let's use a placeholder or try to use OpenAIProvider if possible.
-        // Given dependencies, I can use the existing OpenAI logic? 
-        // Let's keep it simple: Return a template if no LLM. 
-        // But better: use the `pica-toolkit.ts` or `openai.ts` service we touched earlier!
+        // Generate a provider-neutral prompt template when no LLM is configured.
 
         const mockPrompt = `You are an AI assistant designed to help with ${description}. Be polite, professional, and concise.`;
         return res.json({ systemPrompt: mockPrompt });

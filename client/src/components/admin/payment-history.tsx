@@ -74,14 +74,16 @@ export function PaymentHistory({ transactions, organizations, onRefresh, isLoadi
         case "today":
           matchesDate = format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
           break;
-        case "week":
+        case "week": {
           const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           matchesDate = date >= weekAgo;
           break;
-        case "month":
+        }
+        case "month": {
           const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           matchesDate = date >= monthAgo;
           break;
+        }
       }
     }
 

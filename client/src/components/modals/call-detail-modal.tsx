@@ -129,7 +129,7 @@ export function CallDetailModal({ callLog: propCallLog, open, onOpenChange }: Ca
               <div className="space-y-3" data-testid="text-call-transcript">
                 {(() => {
                   try {
-                    let transcript = callLog.transcript;
+                    const transcript = callLog.transcript;
                     let conversationTurns: any[] = [];
 
                     // Check if transcript is already an array

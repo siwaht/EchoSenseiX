@@ -30,10 +30,8 @@ export async function detectApiKeyChange(
     }
 
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
-    const picaSecretKey = process.env.PICA_SECRET_KEY;
-    const picaConnectionKey = process.env.PICA_ELEVENLABS_CONNECTION_KEY;
 
-    if (!elevenLabsApiKey && !picaSecretKey && !picaConnectionKey) {
+    if (!elevenLabsApiKey) {
       // No API keys configured, skip check
       return next();
     }
@@ -48,22 +46,14 @@ export async function detectApiKeyChange(
       return next();
     }
 
-    const elevenLabsChanged = elevenLabsApiKey && (!org.elevenLabsApiKeyHash || org.elevenLabsApiKeyHash !== hashApiKey(elevenLabsApiKey));
-    const picaSecretChanged = picaSecretKey && (!org.picaSecretKeyHash || org.picaSecretKeyHash !== hashApiKey(picaSecretKey));
-    const picaConnectionChanged = picaConnectionKey && (!org.picaConnectionKeyHash || org.picaConnectionKeyHash !== hashApiKey(picaConnectionKey));
+    const elevenLabsChanged = !org.elevenLabsApiKeyHash || org.elevenLabsApiKeyHash !== hashApiKey(elevenLabsApiKey);
 
-    // If any key has changed
-    if (elevenLabsChanged || picaSecretChanged || picaConnectionChanged) {
-      console.log(`[API-KEY-CHANGE] Detected API key change for organization ${org.id}:`, {
-        elevenLabsChanged,
-        picaSecretChanged,
-        picaConnectionChanged
-      });
+    // If the configured ElevenLabs key has changed
+    if (elevenLabsChanged) {
+      console.log(`[API-KEY-CHANGE] Detected ElevenLabs API key change for organization ${org.id}`);
 
       // Only wipe data if there was a previous key for the one that changed (not first time setup)
-      const shouldWipe = (elevenLabsChanged && org.elevenLabsApiKeyHash) ||
-        (picaSecretChanged && org.picaSecretKeyHash) ||
-        (picaConnectionChanged && org.picaConnectionKeyHash);
+      const shouldWipe = elevenLabsChanged && org.elevenLabsApiKeyHash;
 
       if (shouldWipe) {
         console.log(`[API-KEY-CHANGE] Wiping old data for organization ${org.id}`);
@@ -84,9 +74,7 @@ export async function detectApiKeyChange(
 
       // Update the stored API key hashes
       const updateData: any = {};
-      if (elevenLabsChanged) updateData.elevenLabsApiKeyHash = hashApiKey(elevenLabsApiKey!);
-      if (picaSecretChanged) updateData.picaSecretKeyHash = hashApiKey(picaSecretKey!);
-      if (picaConnectionChanged) updateData.picaConnectionKeyHash = hashApiKey(picaConnectionKey!);
+      updateData.elevenLabsApiKeyHash = hashApiKey(elevenLabsApiKey);
 
       await (db as any)
         .update(organizations)
@@ -109,18 +97,6 @@ export async function detectApiKeyChange(
           });
         }
 
-        if (picaSecretChanged || picaConnectionChanged) {
-          console.log(`[API-KEY-CHANGE] Upserting PicaOS integration`);
-          await storage.upsertIntegration({
-            organizationId: org.id,
-            provider: "pica",
-            credentials: {
-              secretKey: picaSecretKey || '',
-              connectionKey: picaConnectionKey || ''
-            },
-            status: "ACTIVE",
-          });
-        }
       }
 
       // Trigger auto-sync in the background

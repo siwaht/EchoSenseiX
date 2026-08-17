@@ -138,7 +138,6 @@ export default function AgentSettings() {
     } else if (field === 'name') {
       profile.name = (value as string) || "";
     } else {
-      // @ts-ignore
       profile[field] = value;
     }
 

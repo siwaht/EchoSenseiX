@@ -79,7 +79,7 @@ export function useRealtimeSync(organizationId: string, userId: string) {
               // Handle progress updates
               break;
 
-            case 'sync_completed':
+            case 'sync_completed': {
               setState(prev => ({ 
                 ...prev, 
                 isSyncing: false, 
@@ -106,6 +106,7 @@ export function useRealtimeSync(organizationId: string, userId: string) {
                 description: successMessage,
               });
               break;
+            }
 
             case 'sync_failed':
             case 'sync_error':

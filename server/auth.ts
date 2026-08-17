@@ -8,9 +8,13 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { config } from "./config";
 import logger from "./utils/logger";
+import { ServiceUnavailableError } from "./utils/errors";
 import connectPg from "connect-pg-simple";
+import createMemoryStore from "memorystore";
 
 declare global {
+  // Express uses namespace augmentation for its request user type.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface User extends SelectUser { }
   }
@@ -74,7 +78,7 @@ export function setupAuth(app: Express) {
       tableName: "sessions",
     });
   } else {
-    const MemoryStore = require('memorystore')(session);
+    const MemoryStore = createMemoryStore(session);
     sessionStore = new MemoryStore({
       checkPeriod: 86400000
     });
@@ -105,8 +109,14 @@ export function setupAuth(app: Express) {
     new LocalStrategy(
       { usernameField: 'email' },
       async (email, password, done) => {
+        let user: SelectUser | undefined;
         try {
-          const user = await storage.getUserByEmail(email);
+          user = await storage.getUserByEmail(email);
+        } catch {
+          return done(new ServiceUnavailableError("Authentication service is unavailable because the database cannot be reached", 5));
+        }
+
+        try {
           if (!user || !user.password || !(await comparePasswords(password, user.password))) {
             return done(null, false);
           }
@@ -171,9 +181,12 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req: Request, res: Response) => {
+  const loginHandler = [passport.authenticate("local"), (req: Request, res: Response) => {
     res.status(200).json(req.user);
-  });
+  }] as const;
+
+  app.post("/api/login", ...loginHandler);
+  app.post("/api/auth/login", ...loginHandler);
 
   const handleLogout = (req: Request, res: Response, next: NextFunction) => {
     req.logout((err) => {
@@ -201,8 +214,12 @@ export function setupAuth(app: Express) {
   app.get("/api/logout", handleLogout);
   app.post("/api/logout", handleLogout);
 
-  app.get("/api/auth/user", (req: Request, res: Response) => {
+  const currentUserHandler = (req: Request, res: Response) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     return res.json(req.user);
-  });
+  };
+
+  app.get("/api/auth/user", currentUserHandler);
+  app.get("/api/auth/me", currentUserHandler);
+  app.get("/api/auth/session", currentUserHandler);
 }

@@ -4,36 +4,40 @@ import { providerRegistry } from "../services/providers/registry";
 
 const router = Router();
 
-// Get all integrations for the current organization
-router.get("/all", async (req: any, res) => {
+async function listIntegrations(req: any, res: any) {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     try {
         const integrations = await storage.getIntegrations(req.user.organizationId);
         return res.json(integrations);
     } catch (error) {
+        console.error("Failed to fetch integrations:", error);
         return res.status(500).json({ message: "Failed to fetch integrations" });
     }
-});
+}
+
+// Keep both paths because the dashboard uses the root path while older clients use /all.
+router.get("/", listIntegrations);
+router.get("/all", listIntegrations);
 
 // Save integration
 router.post("/", async (req: any, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const { provider, providerCategory, credentials } = req.body;
+        const { provider = "elevenlabs", providerCategory = "tts", credentials, apiKey } = req.body;
+        const normalizedCredentials = credentials || (apiKey ? { apiKey } : null);
 
-        // Basic validation
-        if (!provider || !credentials) {
-            return res.status(400).json({ message: "Missing required fields" });
+        if (!normalizedCredentials) {
+            return res.status(400).json({ message: "Missing required credentials" });
         }
 
         const integration = await storage.upsertIntegration({
             organizationId: req.user.organizationId,
             provider,
             providerCategory,
-            credentials,
+            credentials: normalizedCredentials,
             status: "ACTIVE",
-            config: {}, // Optional config
-            apiKey: credentials.apiKey || credentials.api_key || "", // Extract API key if possible
+            config: {},
+            apiKey: normalizedCredentials.apiKey || normalizedCredentials.api_key || "",
         });
 
         return res.json(integration);
@@ -43,20 +47,13 @@ router.post("/", async (req: any, res) => {
     }
 });
 
-// Delete integration
-router.delete("/:provider", async (req: any, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    try {
-        const { provider } = req.params;
-        await storage.deleteIntegration(req.user.organizationId, provider);
-        return res.json({ message: "Integration deleted" });
-    } catch (error) {
-        return res.status(500).json({ message: "Failed to delete integration" });
-    }
+// Test the default integration used by the integrations page.
+router.post("/test", async (req: any, res) => {
+    const provider = typeof req.body?.provider === "string" ? req.body.provider : "elevenlabs";
+    return testIntegration({ ...req, params: { provider } }, res);
 });
 
-// Test integration
-router.post("/:provider/test", async (req: any, res) => {
+async function testIntegration(req: any, res: any) {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     try {
         const { provider } = req.params;
@@ -66,10 +63,8 @@ router.post("/:provider/test", async (req: any, res) => {
             return res.status(404).json({ message: "Integration not found" });
         }
 
-        // Try to get provider from registry and run health check if available
         try {
             const providerInstance = providerRegistry.getProvider(provider);
-            // Initialize with credentials
             await providerInstance.initialize(integration.credentials);
 
             if (providerInstance.healthCheck) {
@@ -77,9 +72,7 @@ router.post("/:provider/test", async (req: any, res) => {
                 if (!isHealthy) throw new Error("Health check failed");
             }
 
-            // Update last tested
             await storage.updateIntegrationStatus(integration.id, "ACTIVE", new Date());
-
             return res.json({ message: "Connection successful" });
         } catch (registryError) {
             console.warn(`Provider ${provider} test failed:`, registryError);
@@ -87,10 +80,23 @@ router.post("/:provider/test", async (req: any, res) => {
                 message: "Connection test failed: " + (registryError instanceof Error ? registryError.message : "Unknown error")
             });
         }
-
     } catch (error) {
         console.error("Test integration error:", error);
         return res.status(500).json({ message: "Failed to test integration" });
+    }
+}
+
+router.post("/:provider/test", testIntegration);
+
+// Delete integration
+router.delete("/:provider", async (req: any, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        await storage.deleteIntegration(req.user.organizationId, req.params.provider);
+        return res.json({ message: "Integration deleted" });
+    } catch (error) {
+        console.error("Delete integration error:", error);
+        return res.status(500).json({ message: "Failed to delete integration" });
     }
 });
 

@@ -21,7 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 // Helper function to sanitize API key by removing non-ASCII characters
 const sanitizeApiKey = (apiKey: string): string => {
   // Replace common Unicode characters with ASCII equivalents
-  let sanitized = apiKey
+  const sanitized = apiKey
     .replace(/[\u2010-\u2015]/g, '-')  // Replace various dashes with ASCII hyphen
     .replace(/[\u2018-\u201B]/g, "'")  // Replace smart quotes with ASCII apostrophe
     .replace(/[\u201C-\u201F]/g, '"')  // Replace smart double quotes with ASCII quote

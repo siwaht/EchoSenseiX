@@ -693,7 +693,7 @@ export default function Dashboard() {
                     logs.forEach((call: any) => {
                       const date = new Date(call.createdAt);
                       const dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                      if (dailyVolume.hasOwnProperty(dateKey)) {
+                      if (Object.prototype.hasOwnProperty.call(dailyVolume, dateKey)) {
                         dailyVolume[dateKey]++;
                       }
                     });

@@ -122,7 +122,7 @@ export function UserBulkOperations({
       const user: any = {};
 
       headers.forEach((header, index) => {
-        let value = values[index] ? values[index].trim().replace(/"/g, '') : '';
+        const value = values[index] ? values[index].trim().replace(/"/g, '') : '';
 
         // Map CSV headers to user fields
         switch (header.toLowerCase()) {
@@ -237,7 +237,7 @@ export function UserBulkOperations({
       for (const userId of selectedUsers) {
         try {
           // Get current user if we need to add/remove permissions
-          let finalUpdates = { ...updates };
+          const finalUpdates = { ...updates };
 
           if (bulkEditData.action === "add" || bulkEditData.action === "remove") {
             const user = users.find(u => u.id === userId);

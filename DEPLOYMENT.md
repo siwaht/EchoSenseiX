@@ -15,8 +15,13 @@ Before deploying, ensure the following secrets are configured in your Replit wor
    - `SESSION_SECRET` - Secret key for session encryption (min 32 characters)
    - `ENCRYPTION_KEY` - Key for encrypting sensitive data (min 32 characters)
 
-3. **Core Features** (Optional but recommended)
-   - `ELEVENLABS_API_KEY` - ElevenLabs API key for voice AI features
+3. **Voice AI Providers** (Optional but recommended)
+   - `ELEVENLABS_API_KEY` - ElevenLabs conversational voice-agent API key
+   - `FISH_AUDIO_API_KEY` - Fish Audio TTS API key
+   - `FISH_AUDIO_BASE_URL` - Optional Fish Audio API base URL; defaults to `https://api.fish.audio`
+   - `DEEPGRAM_API_KEY` - Deepgram TTS/STT API key
+   - `OPENAI_API_KEY` - OpenAI LLM/STT API key
+   - `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` - Twilio telephony credentials
    - `MISTRAL_API_KEY` - Mistral AI API key for automatic call summaries
 
 4. **Payment & Communication** (Optional)

@@ -113,8 +113,6 @@ export const organizations = pgTable("organizations", {
   agencyPermissions: jsonb("agency_permissions").$type<string[]>().default([]), // Agency-level permissions
   agencyRole: varchar("agency_role"), // Role template for agency permissions
   elevenLabsApiKeyHash: varchar("elevenlabs_api_key_hash"), // Hash of current ElevenLabs API key to detect changes
-  picaSecretKeyHash: varchar("pica_secret_key_hash"), // Hash of current PicaOS secret key to detect changes
-  picaConnectionKeyHash: varchar("pica_connection_key_hash"), // Hash of current PicaOS connection key to detect changes
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

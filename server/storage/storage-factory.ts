@@ -1,6 +1,9 @@
 import { config } from '../config';
 import type { StorageAdapter } from './storage-adapter';
 import { LocalStorageAdapter } from './local-storage-adapter';
+import { S3StorageAdapter } from './s3-storage-adapter';
+import { GCSStorageAdapter } from './gcs-storage-adapter';
+import { AzureStorageAdapter } from './azure-storage-adapter';
 
 /**
  * Storage Factory
@@ -59,17 +62,14 @@ export class StorageFactory {
   }
 
   private static createS3Adapter(config: any): StorageAdapter {
-    const { S3StorageAdapter } = require('./s3-storage-adapter');
     return new S3StorageAdapter(config);
   }
 
   private static createGCSAdapter(config: any): StorageAdapter {
-    const { GCSStorageAdapter } = require('./gcs-storage-adapter');
     return new GCSStorageAdapter(config);
   }
 
   private static createAzureAdapter(config: any): StorageAdapter {
-    const { AzureStorageAdapter } = require('./azure-storage-adapter');
     return new AzureStorageAdapter(config);
   }
 

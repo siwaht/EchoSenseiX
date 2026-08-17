@@ -1,4 +1,5 @@
 import { StorageAdapter, StorageMetadata } from './storage-adapter';
+import { Storage } from '@google-cloud/storage';
 
 /**
  * Google Cloud Storage adapter implementation
@@ -16,8 +17,6 @@ export class GCSStorageAdapter implements StorageAdapter {
     this.bucketName = config.bucket;
     
     try {
-      const { Storage } = require('@google-cloud/storage');
-      
       this.storage = new Storage({
         projectId: config.projectId,
         keyFilename: config.keyFilePath,

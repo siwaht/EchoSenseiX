@@ -82,7 +82,7 @@ export class MultilingualService {
       }
 
       // Get current multilingual config
-      let multilingualConfig = (agent as any).multilingualConfig || {
+      const multilingualConfig = (agent as any).multilingualConfig || {
         supportedLanguages: ['en'],
         languageOverrides: {}
       };
@@ -180,7 +180,7 @@ export class MultilingualService {
         throw new Error("Agent not found");
       }
 
-      let multilingualConfig = (agent as any).multilingualConfig || {
+      const multilingualConfig = (agent as any).multilingualConfig || {
         supportedLanguages: ['en'],
         languageOverrides: {}
       };

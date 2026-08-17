@@ -4,6 +4,7 @@ import { isAuthenticated, isAdmin } from "../middleware/auth";
 import { encryptApiKey, decryptApiKey } from "../utils/encryption";
 import SyncService from "../services/sync-service";
 import { Integration } from "@shared/schema";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -763,7 +764,6 @@ async function triggerApprovalWebhooks(event: string, taskData: any) {
 
                 // Add signature if secret is configured
                 if (webhook.secret) {
-                    const crypto = require('crypto');
                     const signature = crypto
                         .createHmac('sha256', webhook.secret)
                         .update(JSON.stringify(payload))

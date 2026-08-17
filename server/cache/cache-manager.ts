@@ -34,7 +34,7 @@ export class CacheManager {
       },
       maxSize: 200 * 1024 * 1024, // 200MB max cache size
       // Dispose callback for cleanup
-      dispose: (value, key, reason) => {
+      dispose: (_value, key, reason) => {
         if (reason === 'evict' && process.env.NODE_ENV === 'development') {
           console.log(`[Cache:${this.name}] Evicted: ${key}`);
         }
